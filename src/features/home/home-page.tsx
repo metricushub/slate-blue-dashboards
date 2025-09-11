@@ -146,23 +146,6 @@ const HomePage = () => {
         />
       </div>
 
-      {/* Investment Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <TrendingUp className="h-5 w-5 text-primary" />
-            Investimento total do mês
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-3xl font-bold text-primary">
-            R$ {totalInvestment.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-          </div>
-          <p className="text-muted-foreground mt-2">
-            Soma do budget dos {kpiData.active} clientes ativos
-          </p>
-        </CardContent>
-      </Card>
 
       {/* Search and Filters */}
       <div className="flex flex-col sm:flex-row gap-4">
