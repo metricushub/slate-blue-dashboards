@@ -118,6 +118,21 @@ const HomePage = () => {
 
   return (
     <div className="p-6 space-y-6">
+      {/* Header with Logo and Title */}
+      <div className="text-center mb-8">
+        <div className="flex items-center justify-center gap-4 mb-2">
+          <img 
+            src="/lovable-uploads/46d9fe31-9358-4b32-bee9-f114801074c0.png" 
+            alt="Metricus Hub Logo" 
+            className="h-12 w-12"
+          />
+          <h1 className="text-3xl font-bold text-foreground">Metricus Hub</h1>
+        </div>
+        <p className="text-muted-foreground">
+          Dashboard de Marketing Digital
+        </p>
+      </div>
+
       {/* KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard
