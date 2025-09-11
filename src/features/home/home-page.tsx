@@ -118,19 +118,25 @@ const HomePage = () => {
 
   return (
     <div className="p-6 space-y-6">
-      {/* Header with Logo and Title */}
-      <div className="text-center mb-8">
-        <div className="flex items-center justify-center gap-4 mb-2">
+      {/* Header with Logo, Title and Actions */}
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center gap-4">
           <img 
             src="/lovable-uploads/46d9fe31-9358-4b32-bee9-f114801074c0.png" 
             alt="Metricus Hub Logo" 
-            className="h-12 w-12"
+            className="h-16 w-16"
           />
-          <h1 className="text-3xl font-bold text-foreground">Metricus Hub</h1>
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">Metricus Hub</h1>
+            <p className="text-muted-foreground">
+              Dashboard de Marketing Digital
+            </p>
+          </div>
         </div>
-        <p className="text-muted-foreground">
-          Dashboard de Marketing Digital
-        </p>
+        <Button onClick={() => setShowRegistrationModal(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          Novo Cliente
+        </Button>
       </div>
 
       {/* KPIs */}
@@ -197,11 +203,6 @@ const HomePage = () => {
               <option key={owner} value={owner}>{owner}</option>
             ))}
           </select>
-          
-          <Button onClick={() => setShowRegistrationModal(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Novo Cliente
-          </Button>
         </div>
       </div>
 
