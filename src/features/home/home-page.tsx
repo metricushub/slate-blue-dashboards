@@ -123,7 +123,7 @@ const HomePage = () => {
         <div className="flex items-center gap-4">
           <img 
             src="/lovable-uploads/46d9fe31-9358-4b32-bee9-f114801074c0.png" 
-            alt="Metricus Hub Logo" 
+            alt="Metricus Hub Symbol" 
             className="h-16 w-16"
           />
           <div>
