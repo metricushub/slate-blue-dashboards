@@ -14,7 +14,7 @@ import OptimizationsPage from "./pages/OptimizationsPage";
 import AnalyticsPage from "./pages/AnalyticsPage";
 import ReportsPage from "./pages/ReportsPage";
 import SettingsPage from "./pages/SettingsPage";
-import ClientDashboard from "./pages/client-dashboard/ClientDashboard";
+import { ClientOverview } from "./pages/client-dashboard/overview/ClientOverview";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -36,7 +36,7 @@ const App = () => (
                 <Route path="/analytics" element={<AnalyticsPage />} />
                 <Route path="/relatorios" element={<ReportsPage />} />
                 <Route path="/configuracoes" element={<SettingsPage />} />
-                <Route path="/cliente/:clientId/overview" element={<ClientDashboard />} />
+                <Route path="/cliente/:clientId/overview" element={<ClientOverview />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </AppLayout>
