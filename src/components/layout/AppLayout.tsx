@@ -20,8 +20,10 @@ export function AppLayout({ children }: AppLayoutProps) {
 
       <div className="flex flex-1">
         <AppSidebar />
-        <main className="flex-1 overflow-hidden">
-          {children}
+        <main className="flex-1 overflow-hidden p-6">
+          <div className="max-w-7xl mx-auto">
+            {children}
+          </div>
         </main>
       </div>
     </>

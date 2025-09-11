@@ -149,7 +149,7 @@ export function EnhancedClientRegistrationModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto mx-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto mx-auto left-1/2 -translate-x-1/2 top-[50%] -translate-y-1/2">
         <DialogHeader>
           <DialogTitle>Cadastrar Novo Cliente</DialogTitle>
         </DialogHeader>
