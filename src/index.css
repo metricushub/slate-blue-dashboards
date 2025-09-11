@@ -2,41 +2,77 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
+/* Dashboard Marketing Digital - Design System 
+Paleta: Slate (neutro) + Azul (acentos)
 */
 
 @layer base {
   :root {
+    /* Slate Neutral Palette */
     --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-
+    --foreground: 215 28% 17%;
+    
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-
+    --card-foreground: 215 28% 17%;
+    
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
-
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
-
-    --radius: 0.5rem;
+    --popover-foreground: 215 28% 17%;
+    
+    /* Blue Accent System */
+    --primary: 214 100% 47%;
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 214 100% 42%;
+    --primary-light: 214 100% 97%;
+    
+    /* Slate Secondary */
+    --secondary: 215 20% 65%;
+    --secondary-foreground: 215 28% 17%;
+    --secondary-hover: 215 20% 60%;
+    
+    /* Neutral Grays */
+    --muted: 210 12% 96%;
+    --muted-foreground: 215 14% 51%;
+    
+    --accent: 210 12% 96%;
+    --accent-foreground: 215 28% 17%;
+    
+    /* Status Colors */
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+    --success-light: 142 76% 97%;
+    
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+    --warning-light: 38 92% 97%;
+    
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --destructive-light: 0 84% 97%;
+    
+    /* Borders & Inputs */
+    --border: 215 14% 89%;
+    --input: 215 14% 89%;
+    --input-focus: 214 100% 47%;
+    --ring: 214 100% 47%;
+    
+    /* Specific Dashboard Elements */
+    --dashboard-bg: 210 11% 98%;
+    --sidebar-bg: 0 0% 100%;
+    --sidebar-hover: 210 12% 96%;
+    --sidebar-active: 214 100% 97%;
+    
+    /* KPI Colors */
+    --kpi-positive: 142 76% 36%;
+    --kpi-negative: 0 84% 60%;
+    --kpi-neutral: 215 14% 51%;
+    
+    /* Chart Colors */
+    --chart-primary: 214 100% 47%;
+    --chart-secondary: 215 20% 65%;
+    --chart-gradient-from: 214 100% 47%;
+    --chart-gradient-to: 214 100% 70%;
+    
+    --radius: 0.75rem;
 
     --sidebar-background: 0 0% 98%;
 
