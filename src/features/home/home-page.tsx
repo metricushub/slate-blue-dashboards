@@ -7,7 +7,6 @@ import { Search, Plus, AlertTriangle, TrendingUp, Users, Clock, Target } from "l
 import { useDataSource } from "@/hooks/useDataSource";
 import { Client } from "@/types";
 import { ClientCard } from "@/components/home/ClientCard";
-import { KPICard } from "@/components/home/KPICard";
 import { EnhancedClientRegistrationModal } from "@/components/modals/EnhancedClientRegistrationModal";
 import { toast } from "@/hooks/use-toast";
 
@@ -139,32 +138,82 @@ const HomePage = () => {
         </Button>
       </div>
 
-      {/* KPIs */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPICard
-          title="Clientes Ativos"
-          value={kpiData.active}
-          icon={<Users className="h-5 w-5" />}
-          color="success"
-        />
-        <KPICard
-          title="Em Onboarding"
-          value={kpiData.onboarding}
-          icon={<Clock className="h-5 w-5" />}
-          color="warning"
-        />
-        <KPICard
-          title="Em Risco"
-          value={kpiData.atRisk}
-          icon={<AlertTriangle className="h-5 w-5" />}
-          color="destructive"
-        />
-        <KPICard
-          title="Total"
-          value={kpiData.total}
-          icon={<Target className="h-5 w-5" />}
-          color="primary"
-        />
+      {/* KPIs - Enhanced with better styling */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <Card className="bg-gradient-to-br from-success/10 to-success/5 border-success/20 hover:shadow-lg transition-shadow">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground mb-1">
+                  Clientes Ativos
+                </p>
+                <p className="text-3xl font-bold text-success">
+                  {kpiData.active}
+                </p>
+              </div>
+              <div className="p-3 rounded-lg bg-success/20">
+                <Users className="h-6 w-6 text-success" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-warning/10 to-warning/5 border-warning/20 hover:shadow-lg transition-shadow">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground mb-1">
+                  Em Onboarding
+                </p>
+                <p className="text-3xl font-bold text-warning">
+                  {kpiData.onboarding}
+                </p>
+              </div>
+              <div className="p-3 rounded-lg bg-warning/20">
+                <Clock className="h-6 w-6 text-warning" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-destructive/10 to-destructive/5 border-destructive/20 hover:shadow-lg transition-shadow">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground mb-1">
+                  Em Risco
+                </p>
+                <p className="text-3xl font-bold text-destructive">
+                  {kpiData.atRisk}
+                </p>
+              </div>
+              <div className="p-3 rounded-lg bg-destructive/20">
+                <AlertTriangle className="h-6 w-6 text-destructive" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20 hover:shadow-lg transition-shadow">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground mb-1">
+                  Total de Clientes
+                </p>
+                <p className="text-3xl font-bold text-primary">
+                  {kpiData.total}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  R$ {totalInvestment.toLocaleString('pt-BR')} investimento
+                </p>
+              </div>
+              <div className="p-3 rounded-lg bg-primary/20">
+                <Target className="h-6 w-6 text-primary" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
 

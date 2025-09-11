@@ -153,6 +153,22 @@ export function ClientCard({ client }: ClientCardProps) {
           </div>
         </div>
 
+        {/* Tasks and Alerts Summary */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Tarefas pendentes:</span>
+            <Badge variant="outline" className="text-xs">
+              {client.onboarding?.filter(item => !item.completed).length || 0}
+            </Badge>
+          </div>
+          {client.status === 'at_risk' && (
+            <div className="flex items-center gap-1 text-xs text-destructive">
+              <AlertTriangle className="h-3 w-3" />
+              <span>Cliente requer atenção</span>
+            </div>
+          )}
+        </div>
+
         {/* Tags */}
         {client.tags.length > 0 && (
           <div className="flex flex-wrap gap-1">
