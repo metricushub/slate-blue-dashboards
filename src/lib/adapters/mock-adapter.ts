@@ -139,17 +139,19 @@ export class MockAdapter implements DataSource {
     
     const optimization: Optimization = {
       id: input.id || `opt_${Date.now()}`,
-      clientId: input.clientId,
+      client_id: input.clientId,
       title: input.title,
       type: input.type,
       objective: input.objective,
-      targetMetric: input.targetMetric,
-      expectedImpact: input.expectedImpact,
+      target_metric: input.targetMetric,
+      expected_impact: input.expectedImpact,
       campaigns: input.campaigns || [],
-      notes: input.notes || '',
-      status: input.status || 'planned',
-      createdAt: input.createdAt || new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      start_date: input.createdAt || new Date().toISOString(),
+      status: (input.status === 'planned' ? 'Planejada' : 
+               input.status === 'in_progress' ? 'Em teste' : 
+               input.status === 'completed' ? 'Concluída' : 'Abortada') as any,
+      created_at: input.createdAt || new Date().toISOString(),
+      updated_at: new Date().toISOString()
     };
 
     const index = optimizations.findIndex(o => o.id === optimization.id);

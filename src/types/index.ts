@@ -111,23 +111,7 @@ export interface Alert {
   actionUrl?: string;
 }
 
-// Optimization types
-export interface Optimization {
-  id: string;
-  clientId: string;
-  title: string;
-  type: 'campaign' | 'keyword' | 'creative' | 'budget' | 'targeting' | 'landing';
-  objective: string;
-  targetMetric: string;
-  expectedImpact: string;
-  campaigns: string[];
-  notes: string;
-  status: 'planned' | 'in_progress' | 'completed' | 'cancelled';
-  createdAt: string;
-  updatedAt: string;
-  executedAt?: string;
-  actualImpact?: string;
-}
+// Optimization types (legacy - removed duplicate, using Client Dashboard version below)
 
 // Lead types for CRM
 export type LeadStage = "Novo" | "Qualificação" | "Proposta" | "Fechado";
@@ -148,6 +132,53 @@ export interface Lead {
   stage: LeadStage;          // coluna do Kanban
   notes?: string;
   client_id?: string;        // opcional, vínculo com clients
+}
+
+// Client Dashboard Types
+export type OptimizationStatus = "Planejada" | "Em teste" | "Concluída" | "Abortada";
+export type TaskStatus = "Aberta" | "Em progresso" | "Concluída";
+export type TaskPriority = "Baixa" | "Média" | "Alta";
+
+export interface Optimization {
+  id: string;
+  client_id: string;
+  title: string;
+  type: string;
+  objective?: string;
+  target_metric?: string;   // ex.: CPL
+  hypothesis?: string;
+  campaigns?: string[];     // ids
+  start_date: string;       // ISO
+  review_date?: string;     // ISO
+  expected_impact?: string; // texto livre
+  status: OptimizationStatus;
+  result_summary?: string;  // após revisão
+  created_at: string;       // ISO
+  updated_at?: string;      // ISO
+}
+
+export interface Task {
+  id: string; 
+  client_id: string;
+  title: string; 
+  description?: string;
+  due_date?: string; 
+  owner?: string;
+  priority: TaskPriority; 
+  status: TaskStatus;
+  created_at: string; 
+  updated_at?: string;
+}
+
+export interface AlertRule {
+  id: string; 
+  client_id: string;
+  name: string; 
+  expression: string; // ex.: "CPL > 100"
+  severity: "info"|"warn"|"error"; 
+  enabled: boolean;
+  created_at: string; 
+  updated_at?: string;
 }
 
 // Calendar event types
