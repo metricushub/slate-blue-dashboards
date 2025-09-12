@@ -55,7 +55,7 @@ export function EnhancedTrendChart({
   selectedMetrics 
 }: EnhancedTrendChartProps) {
   const { dataSource } = useDataSource();
-  const { containerRef, updateChart } = useStableEChart({ height: 400 });
+  const { containerRef, updateChart, reinitialize, initError } = useStableEChart({ height: 400 });
   
   // Single source of truth for chart state
   const [chartState, setChartState] = useState<ChartState>(() => {
@@ -522,27 +522,40 @@ export function EnhancedTrendChart({
       </CardHeader>
 
       <CardContent className="p-5 pt-0 relative">
-        {/* Chart container with explicit height - never hide with display:none */}
-        <div 
-          ref={containerRef} 
-          className={`w-full h-[320px] md:h-[380px] ${
-            chartData.length === 0 || chartState.selectedMetrics.length === 0 
-              ? 'opacity-0 pointer-events-none' 
-              : 'opacity-100'
-          }`}
-        />
-        
-        {/* Empty state placeholder */}
-        {(chartData.length === 0 || chartState.selectedMetrics.length === 0) && (
-          <div className="absolute inset-0 flex items-center justify-center text-slate-400 bg-slate-50 rounded-xl">
-            <div className="text-center">
-              <div className="text-lg mb-2">📊</div>
-              <div className="text-sm">Sem dados no período/filtragem</div>
-              <div className="text-xs mt-1 text-slate-300">
-                Selecione métricas para visualizar
-              </div>
+        {initError ? (
+          <div className="flex items-center justify-center h-[320px] md:h-[380px] rounded-xl bg-slate-50 text-slate-600">
+            <div className="text-center space-y-2">
+              <div className="text-sm">Sem renderizar — toque em ‘Tentar novamente’</div>
+              <Button variant="outline" size="sm" onClick={() => reinitialize()}>
+                Tentar novamente
+              </Button>
             </div>
           </div>
+        ) : (
+          <>
+            {/* Chart container with explicit height - never hide with display:none */}
+            <div 
+              ref={containerRef} 
+              className={`w-full h-[320px] md:h-[380px] ${
+                chartData.length === 0 || chartState.selectedMetrics.length === 0 
+                  ? 'opacity-0 pointer-events-none' 
+                  : 'opacity-100'
+              }`}
+            />
+            
+            {/* Empty state placeholder */}
+            {(chartData.length === 0 || chartState.selectedMetrics.length === 0) && (
+              <div className="absolute inset-0 flex items-center justify-center text-slate-400 bg-slate-50 rounded-xl">
+                <div className="text-center">
+                  <div className="text-lg mb-2">📊</div>
+                  <div className="text-sm">Sem dados no período/filtragem</div>
+                  <div className="text-xs mt-1 text-slate-300">
+                    Selecione métricas para visualizar
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
         )}
         
         {/* Debug info if ?debug=1 */}

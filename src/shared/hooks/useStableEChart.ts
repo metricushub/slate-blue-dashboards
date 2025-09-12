@@ -1,5 +1,5 @@
-import { useRef, useEffect, useCallback } from 'react';
-import * as echarts from 'echarts/core';
+import { useRef, useEffect, useCallback, useState } from 'react';
+import * as echarts from 'echarts';
 
 interface UseStableEChartOptions {
   width?: string | number;
@@ -12,7 +12,7 @@ export function useStableEChart(options: UseStableEChartOptions = {}) {
   const resizeTimeoutRef = useRef<number>();
   const resizeObserver = useRef<ResizeObserver | null>(null);
   const isInitializedRef = useRef(false);
-
+  const [initError, setInitError] = useState(false);
   // Initialize chart safely
   const initializeChart = useCallback(() => {
     if (!containerRef.current || isInitializedRef.current) return;
@@ -40,8 +40,10 @@ export function useStableEChart(options: UseStableEChartOptions = {}) {
             renderer: 'canvas'
           });
           isInitializedRef.current = true;
+          setInitError(false);
         } catch (error) {
           console.error('Failed to initialize ECharts:', error);
+          setInitError(true);
         }
       }
     });
@@ -135,9 +137,21 @@ export function useStableEChart(options: UseStableEChartOptions = {}) {
   // Get chart instance (for advanced usage)
   const getChart = useCallback(() => chartRef.current, []);
 
+  const reinitialize = useCallback(() => {
+    if (chartRef.current && !chartRef.current.isDisposed()) {
+      chartRef.current.dispose();
+    }
+    chartRef.current = null;
+    isInitializedRef.current = false;
+    setInitError(false);
+    initializeChart();
+  }, [initializeChart]);
+
   return {
     containerRef,
     updateChart,
-    getChart
+    getChart,
+    reinitialize,
+    initError
   };
 }

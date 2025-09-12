@@ -337,7 +337,7 @@ export function CustomizeModal({
           </div>
         </TabsContent>
         
-        <TabsContent value="funnel" className="mt-6 space-y-6">
+        <TabsContent value="funnel" className="mt-6 space-y-6 min-h-[24rem] max-h-[36rem] overflow-y-auto pr-1">
           <FunnelStageManager clientId={clientId} />
         </TabsContent>
         
