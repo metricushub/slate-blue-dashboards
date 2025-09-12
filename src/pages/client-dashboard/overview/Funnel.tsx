@@ -50,13 +50,38 @@ export function Funnel({ clientId, period, platform }: FunnelProps) {
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'chart' | 'table'>('chart');
   const [funnelPrefs, setFunnelPrefs] = useState<FunnelPrefs>(() => {
-    const stored = localStorage.getItem(`client:${clientId}:funnel_prefs`);
-    return stored ? JSON.parse(stored) : defaultFunnelPrefs;
+    if (!clientId) return defaultFunnelPrefs;
+    
+    try {
+      const stored = localStorage.getItem(`client:${clientId}:funnel_prefs`);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        // Ensure backward compatibility - merge with defaults
+        return {
+          ...defaultFunnelPrefs,
+          ...parsed,
+          mapping: {
+            ...defaultFunnelPrefs.mapping,
+            ...(parsed.mapping || {})
+          }
+        };
+      }
+    } catch (error) {
+      console.warn('Failed to parse funnel preferences:', error);
+    }
+    
+    return defaultFunnelPrefs;
   });
 
   // Update localStorage when prefs change  
   useEffect(() => {
-    localStorage.setItem(`client:${clientId}:funnel_prefs`, JSON.stringify(funnelPrefs));
+    if (clientId && funnelPrefs) {
+      try {
+        localStorage.setItem(`client:${clientId}:funnel_prefs`, JSON.stringify(funnelPrefs));
+      } catch (error) {
+        console.warn('Failed to save funnel preferences:', error);
+      }
+    }
   }, [clientId, funnelPrefs]);
 
   useEffect(() => {
@@ -86,26 +111,29 @@ export function Funnel({ clientId, period, platform }: FunnelProps) {
 
         // Calculate totals based on mapping
         const getMetricTotal = (metricName: string) => {
+          if (!metricName || !filteredMetrics.length) return 0;
+          
           switch (metricName) {
             case 'impressions':
-              return filteredMetrics.reduce((sum, row) => sum + row.impressions, 0);
+              return filteredMetrics.reduce((sum, row) => sum + (row.impressions || 0), 0);
             case 'clicks':
-              return filteredMetrics.reduce((sum, row) => sum + row.clicks, 0);
+              return filteredMetrics.reduce((sum, row) => sum + (row.clicks || 0), 0);
             case 'leads':
-              return filteredMetrics.reduce((sum, row) => sum + row.leads, 0);
+              return filteredMetrics.reduce((sum, row) => sum + (row.leads || 0), 0);
             case 'revenue':
-              return filteredMetrics.reduce((sum, row) => sum + row.revenue, 0);
+              return filteredMetrics.reduce((sum, row) => sum + (row.revenue || 0), 0);
             case 'spend':
-              return filteredMetrics.reduce((sum, row) => sum + row.spend, 0);
+              return filteredMetrics.reduce((sum, row) => sum + (row.spend || 0), 0);
             default:
               return 0;
           }
         };
 
-        const stage1Value = getMetricTotal(funnelPrefs.mapping.stage1);
-        const stage2Value = getMetricTotal(funnelPrefs.mapping.stage2);
-        const stage3Value = getMetricTotal(funnelPrefs.mapping.stage3);
-        const stage4Value = getMetricTotal(funnelPrefs.mapping.stage4);
+        const mapping = funnelPrefs?.mapping || defaultFunnelPrefs.mapping;
+        const stage1Value = getMetricTotal(mapping.stage1);
+        const stage2Value = getMetricTotal(mapping.stage2);
+        const stage3Value = getMetricTotal(mapping.stage3);
+        const stage4Value = getMetricTotal(mapping.stage4);
 
         // Calculate rates between stages  
         const getStageLabel = (metricName: string) => {

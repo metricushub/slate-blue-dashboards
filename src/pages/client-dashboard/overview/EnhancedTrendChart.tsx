@@ -79,6 +79,8 @@ export function EnhancedTrendChart({
 
   // Update chart state when props change
   useEffect(() => {
+    if (!clientId) return; // Guard against undefined clientId
+    
     const endDate = new Date();
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - period);
@@ -90,7 +92,7 @@ export function EnhancedTrendChart({
       dateTo: endDate.toISOString().split('T')[0],
       granularity
     }));
-  }, [selectedMetrics, period, granularity]);
+  }, [selectedMetrics, period, granularity, clientId]);
 
   // Load chart data
   useEffect(() => {

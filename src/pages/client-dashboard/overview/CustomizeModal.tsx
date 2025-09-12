@@ -59,8 +59,27 @@ export function CustomizeModal({
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState("metrics");
   const [funnelPrefs, setFunnelPrefs] = useState<FunnelPrefs>(() => {
-    const stored = localStorage.getItem(`client:${clientId}:funnel_prefs`);
-    return stored ? JSON.parse(stored) : defaultFunnelPrefs;
+    if (!clientId) return defaultFunnelPrefs;
+    
+    try {
+      const stored = localStorage.getItem(`client:${clientId}:funnel_prefs`);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        // Ensure backward compatibility - merge with defaults
+        return {
+          ...defaultFunnelPrefs,
+          ...parsed,
+          mapping: {
+            ...defaultFunnelPrefs.mapping,
+            ...(parsed.mapping || {})
+          }
+        };
+      }
+    } catch (error) {
+      console.warn('Failed to parse funnel preferences:', error);
+    }
+    
+    return defaultFunnelPrefs;
   });
   const MAX_METRICS = 9;
 
