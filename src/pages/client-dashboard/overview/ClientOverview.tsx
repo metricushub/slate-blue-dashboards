@@ -176,9 +176,9 @@ export function ClientOverview() {
             platform={platform}
           />
 
-          {/* Analysis Section - Chart and Funnel */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div>
+          {/* Analysis Section - 2/3 Chart + 1/3 Funnel */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2">
               <TrendChart
                 clientId={clientId!}
                 period={period}
@@ -187,7 +187,7 @@ export function ClientOverview() {
                 selectedMetric={activeMetric}
               />
             </div>
-            <div>
+            <div className="lg:col-span-1">
               <Funnel
                 clientId={clientId!}
                 period={period}
