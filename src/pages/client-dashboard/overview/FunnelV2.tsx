@@ -363,10 +363,8 @@ export function FunnelV2({ clientId, period, platform }: FunnelV2Props) {
             {stages.map((stage, index) => {
               const prevStage = funnelPrefs.comparePrevious ? previousStages[index] : null;
               
-              // Color logic: neutral vs. stage-specific
-              const stageColor = funnelPrefs.colorByStage 
-                ? funnelPrefs.stages[index]?.color || '#3b82f6'
-                : `hsl(215, ${15 + (index * 3)}%, ${50 + (index * 5)}%)`; // Neutral tones with slight opacity variation
+              // Blue gradient for all bars
+              const stageColor = `linear-gradient(135deg, #3b82f6, #1d4ed8)`;
               
               return (
                 <div key={stage.id} className="relative">
@@ -424,12 +422,12 @@ export function FunnelV2({ clientId, period, platform }: FunnelV2Props) {
                       />
                     )}
                     
-                    {/* Current period bar */}
+                    {/* Current period bar with blue gradient */}
                     <div 
                       className={`${funnelPrefs.mode === 'Compacto' ? 'h-6' : 'h-12'} transition-all duration-700 relative rounded-md z-10`}
                       style={{ 
                         width: `${Math.max(20, 100 - (index * 15))}%`,
-                        backgroundColor: stageColor,
+                        background: stageColor,
                         opacity: stage.hasData ? 1 : 0.3
                       }}
                     >
