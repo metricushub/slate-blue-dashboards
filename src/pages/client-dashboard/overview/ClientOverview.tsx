@@ -8,6 +8,10 @@ import { Client } from "@/types";
 import { MetricKey, DEFAULT_SELECTED_METRICS } from "@/shared/types/metrics";
 import { STORAGE_KEYS } from "@/shared/data-source/types";
 import { MessageSquare, Brain, Settings, Target, CheckSquare } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 // Enhanced Components
 import { DashboardHeader } from "./DashboardHeader";
@@ -20,7 +24,9 @@ import { ChatIaPanel } from "./ChatIaPanel";
 import { CustomizeModal } from "./CustomizeModal";
 
 // Existing components
-import { CampaignTable } from "@/components/dashboard/CampaignTable";
+import { EnhancedCampaignTable } from "./EnhancedCampaignTable";
+import { RecentOptimizations } from "./RecentOptimizations";
+import { TasksAlertsModal, useNextTasks } from "./TasksAlertsModal";
 
 export function ClientOverview() {
   const { clientId } = useParams<{ clientId: string }>();
@@ -47,6 +53,9 @@ export function ClientOverview() {
   const [showTasksModal, setShowTasksModal] = useState(false);
   const [showChatPanel, setShowChatPanel] = useState(false);
   const [showCustomizeModal, setShowCustomizeModal] = useState(false);
+
+  // Get next tasks for overview
+  const nextTasks = useNextTasks(clientId || "");
 
   // Load client data and persist settings
   useEffect(() => {
@@ -193,8 +202,58 @@ export function ClientOverview() {
             </div>
           </div>
 
-          {/* Campaign Table with Dynamic Columns */}
-          <CampaignTable clientId={clientId!} />
+          {/* Enhanced Campaign Table with Dynamic Columns */}
+          <EnhancedCampaignTable 
+            clientId={clientId!} 
+            period={period}
+            platform={platform}
+          />
+
+          {/* Recent Optimizations */}
+          <RecentOptimizations clientId={clientId!} />
+
+          {/* Next Tasks Preview */}
+          {nextTasks.length > 0 && (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <CheckSquare className="h-5 w-5" />
+                    Próximas Tarefas ({nextTasks.length})
+                  </CardTitle>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setShowTasksModal(true)}
+                  >
+                    Ver Todas
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {nextTasks.map((task) => (
+                    <div key={task.id} className="flex items-center justify-between p-2 border rounded">
+                      <div>
+                        <div className="font-medium text-sm">{task.title}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {task.owner && `${task.owner} • `}
+                          {task.due_date && format(new Date(task.due_date), "dd/MM/yyyy", { locale: ptBR })}
+                        </div>
+                      </div>
+                      <Badge className={
+                        task.priority === "Alta" ? "bg-red-100 text-red-800" :
+                        task.priority === "Média" ? "bg-yellow-100 text-yellow-800" :
+                        "bg-green-100 text-green-800"
+                      }>
+                        {task.priority}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
 
@@ -222,6 +281,12 @@ export function ClientOverview() {
         onClose={() => setShowOptimizationsModal(false)}
         clientId={clientId!}
         clientName={client.name}
+      />
+
+      <TasksAlertsModal
+        isOpen={showTasksModal}
+        onClose={() => setShowTasksModal(false)}
+        clientId={clientId!}
       />
 
       <ChatIaPanel
