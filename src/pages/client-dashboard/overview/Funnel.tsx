@@ -203,16 +203,15 @@ export function Funnel({ clientId, period, platform }: FunnelProps) {
                     )}
                   </div>
                   
-                  <div className="relative">
+                  <div className="relative flex justify-center">
                     <div 
-                      className="h-12 bg-gradient-to-r from-blue-500 to-blue-600 transition-all duration-700 relative"
+                      className="h-12 bg-gradient-to-r from-blue-500 to-blue-600 transition-all duration-700 relative rounded-md"
                       style={{ 
-                        width: `${Math.max(stage.percentage, 15)}%`, // Minimum 15% width for visibility
-                        clipPath: index < stages.length - 1 ? clipPath : undefined
+                        width: `${100 - (index * 20)}%` // Decrease by 20% each stage (100%, 80%, 60%, 40%)
                       }}
                     >
                       {/* Funnel shape overlay for visual effect */}
-                      <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent" />
+                      <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent rounded-md" />
                     </div>
                   </div>
                   
