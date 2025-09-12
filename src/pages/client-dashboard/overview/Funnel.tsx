@@ -16,6 +16,7 @@ interface FunnelStage {
   name: string;
   value: number;
   rate?: number;
+  percentage: number; // Percentage of first stage for visual sizing
 }
 
 export function Funnel({ clientId, period, platform }: FunnelProps) {
@@ -57,19 +58,49 @@ export function Funnel({ clientId, period, platform }: FunnelProps) {
         // Mock sales calculation (15% of leads for demo)
         const totalSales = Math.round(totalLeads * 0.15);
 
-        // Calculate rates
+        // Calculate rates between stages
         const clickRate = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0;
         const conversionRate = totalClicks > 0 ? (totalLeads / totalClicks) * 100 : 0;
         const salesRate = totalLeads > 0 ? (totalSales / totalLeads) * 100 : 0;
 
         const funnelStages: FunnelStage[] = [
-          { name: 'Impressões', value: totalImpressions },
-          { name: 'Cliques', value: totalClicks, rate: clickRate },
-          { name: 'Leads', value: totalLeads, rate: conversionRate },
-          { name: 'Vendas', value: totalSales, rate: salesRate },
+          { 
+            name: 'Impressões', 
+            value: totalImpressions, 
+            percentage: 100 
+          },
+          { 
+            name: 'Cliques', 
+            value: totalClicks, 
+            rate: clickRate,
+            percentage: totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0
+          },
+          { 
+            name: 'Leads', 
+            value: totalLeads, 
+            rate: conversionRate,
+            percentage: totalImpressions > 0 ? (totalLeads / totalImpressions) * 100 : 0
+          },
+          { 
+            name: 'Vendas', 
+            value: totalSales, 
+            rate: salesRate,
+            percentage: totalImpressions > 0 ? (totalSales / totalImpressions) * 100 : 0
+          },
         ];
 
         setStages(funnelStages);
+
+        // Analytics track
+        console.log('telemetry:funnel_data_loaded', { 
+          clientId, 
+          platform, 
+          period,
+          totalImpressions,
+          totalClicks,
+          totalLeads,
+          totalSales
+        });
       } catch (error) {
         console.error('Failed to load funnel data:', error);
       } finally {
@@ -80,15 +111,20 @@ export function Funnel({ clientId, period, platform }: FunnelProps) {
     loadFunnelData();
   }, [clientId, period, platform, dataSource]);
 
+  const handleToggleView = (mode: 'chart' | 'table') => {
+    setViewMode(mode);
+    console.log('telemetry:funnel_view_toggle', { clientId, mode });
+  };
+
   if (loading) {
     return (
-      <Card className="bg-card border border-border rounded-2xl shadow-sm">
-        <CardContent className="p-6">
+      <Card className="rounded-2xl border border-slate-200 bg-white shadow-sm h-[280px]">
+        <CardContent className="p-5">
           <div className="animate-pulse">
-            <div className="h-4 bg-muted rounded mb-4"></div>
+            <div className="h-4 bg-slate-200 rounded mb-4 w-32"></div>
             <div className="space-y-3">
               {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="h-8 bg-muted rounded"></div>
+                <div key={i} className="h-8 bg-slate-200 rounded"></div>
               ))}
             </div>
           </div>
@@ -97,35 +133,33 @@ export function Funnel({ clientId, period, platform }: FunnelProps) {
     );
   }
 
-  const maxValue = Math.max(...stages.map(s => s.value));
-
   return (
-    <Card className="bg-card border border-border rounded-2xl shadow-sm">
-      <CardHeader>
+    <Card className="rounded-2xl border border-slate-200 bg-white shadow-sm h-fit">
+      <CardHeader className="p-5 pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-foreground">Funil de Conversão</CardTitle>
-          <div className="flex gap-2">
+          <CardTitle className="text-lg font-semibold text-slate-900">Funil de Conversão</CardTitle>
+          <div className="flex gap-1 bg-slate-100 rounded-lg p-1">
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setViewMode('chart')}
-              className={`${
+              onClick={() => handleToggleView('chart')}
+              className={`h-8 w-8 p-0 rounded ${
                 viewMode === 'chart' 
-                  ? 'bg-muted text-foreground' 
-                  : 'text-muted-foreground hover:text-foreground'
-              } hover:bg-muted`}
+                  ? 'bg-white text-slate-700 shadow-sm' 
+                  : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
+              }`}
             >
               <BarChart3 className="h-4 w-4" />
             </Button>
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setViewMode('table')}
-              className={`${
+              onClick={() => handleToggleView('table')}
+              className={`h-8 w-8 p-0 rounded ${
                 viewMode === 'table' 
-                  ? 'bg-muted text-foreground' 
-                  : 'text-muted-foreground hover:text-foreground'
-              } hover:bg-muted`}
+                  ? 'bg-white text-slate-700 shadow-sm' 
+                  : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
+              }`}
             >
               <List className="h-4 w-4" />
             </Button>
@@ -133,102 +167,112 @@ export function Funnel({ clientId, period, platform }: FunnelProps) {
         </div>
       </CardHeader>
       
-      <CardContent className="p-6">
+      <CardContent className="p-5 pt-0">
         {viewMode === 'chart' ? (
           <div className="space-y-4">
-            {stages.map((stage, index) => (
-              <div key={stage.name} className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm font-medium text-foreground w-20">
-                      {stage.name}
-                    </span>
-                    <span className="text-lg font-bold text-foreground">
-                      {new Intl.NumberFormat('pt-BR').format(stage.value)}
-                    </span>
-                  </div>
-                  {stage.rate !== undefined && (
-                    <div className="flex items-center gap-2">
-                      <span className={`text-sm font-medium ${
-                        stage.rate >= 2 ? 'text-green-600' : 'text-red-600'
-                      }`}>
-                        {stage.rate.toFixed(1)}%
+            {stages.map((stage, index) => {
+              // Calculate clip-path for funnel effect
+              const topWidth = 100 - (index * 6); // Start at 100%, decrease by 6% each stage
+              const bottomWidth = 100 - ((index + 1) * 6);
+              const clipPath = `polygon(${(100 - topWidth) / 2}% 0%, ${50 + topWidth / 2}% 0%, ${50 + bottomWidth / 2}% 100%, ${(100 - bottomWidth) / 2}% 100%)`;
+              
+              return (
+                <div key={stage.name} className="relative">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs font-medium text-slate-600 uppercase tracking-wide w-16">
+                        {stage.name}
                       </span>
-                      {stage.rate >= 2 ? (
-                        <TrendingUp className="h-4 w-4 text-green-600" />
-                      ) : (
-                        <TrendingDown className="h-4 w-4 text-red-600" />
-                      )}
+                      <span className="text-lg font-semibold text-slate-900">
+                        {new Intl.NumberFormat('pt-BR').format(stage.value)}
+                      </span>
                     </div>
-                  )}
-                </div>
-                
-                <div className="relative">
-                  <div className="h-6 bg-muted rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-gradient-to-r from-blue-500 to-blue-600 transition-all duration-700"
-                      style={{ 
-                        width: `${(stage.value / maxValue) * 100}%` 
-                      }}
-                    />
-                  </div>
-                  
-                  {index < stages.length - 1 && (
-                    <div className="absolute right-0 top-full mt-1">
-                      <div className="text-xs text-muted-foreground">
-                        →
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow className="border-border hover:bg-muted/50">
-                <TableHead className="text-muted-foreground">Etapa</TableHead>
-                <TableHead className="text-muted-foreground">Volume</TableHead>
-                <TableHead className="text-muted-foreground">Taxa</TableHead>
-                <TableHead className="text-muted-foreground">Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {stages.map((stage) => (
-                <TableRow key={stage.name} className="border-border hover:bg-muted/50">
-                  <TableCell className="text-foreground font-medium">
-                    {stage.name}
-                  </TableCell>
-                  <TableCell className="text-foreground">
-                    {new Intl.NumberFormat('pt-BR').format(stage.value)}
-                  </TableCell>
-                  <TableCell className="text-foreground">
-                    {stage.rate !== undefined ? `${stage.rate.toFixed(1)}%` : '-'}
-                  </TableCell>
-                  <TableCell>
-                    {stage.rate !== undefined ? (
+                    {stage.rate !== undefined && (
                       <div className="flex items-center gap-2">
+                        <span className={`text-xs font-medium ${
+                          stage.rate >= 2 ? 'text-green-600' : 'text-red-500'
+                        }`}>
+                          {stage.rate.toFixed(1)}%
+                        </span>
                         {stage.rate >= 2 ? (
-                          <>
-                            <TrendingUp className="h-4 w-4 text-green-600" />
-                            <span className="text-green-600 text-sm">Bom</span>
-                          </>
+                          <TrendingUp className="h-3 w-3 text-green-600" />
                         ) : (
-                          <>
-                            <TrendingDown className="h-4 w-4 text-red-600" />
-                            <span className="text-red-600 text-sm">Baixo</span>
-                          </>
+                          <TrendingDown className="h-3 w-3 text-red-500" />
                         )}
                       </div>
-                    ) : (
-                      <span className="text-muted-foreground text-sm">-</span>
                     )}
-                  </TableCell>
+                  </div>
+                  
+                  <div className="relative">
+                    <div 
+                      className="h-12 bg-gradient-to-r from-blue-500 to-blue-600 transition-all duration-700 relative"
+                      style={{ 
+                        width: `${Math.max(stage.percentage, 15)}%`, // Minimum 15% width for visibility
+                        clipPath: index < stages.length - 1 ? clipPath : undefined
+                      }}
+                    >
+                      {/* Funnel shape overlay for visual effect */}
+                      <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent" />
+                    </div>
+                  </div>
+                  
+                  {/* Connection arrow */}
+                  {index < stages.length - 1 && (
+                    <div className="flex justify-center mt-2 mb-1">
+                      <div className="text-slate-400 text-xs">↓</div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="overflow-hidden rounded-xl border border-slate-200">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-slate-200 bg-slate-50">
+                  <TableHead className="text-xs font-medium text-slate-600 uppercase tracking-wide">Etapa</TableHead>
+                  <TableHead className="text-xs font-medium text-slate-600 uppercase tracking-wide">Volume</TableHead>
+                  <TableHead className="text-xs font-medium text-slate-600 uppercase tracking-wide">Taxa</TableHead>
+                  <TableHead className="text-xs font-medium text-slate-600 uppercase tracking-wide">Status</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {stages.map((stage) => (
+                  <TableRow key={stage.name} className="border-slate-200 hover:bg-slate-50">
+                    <TableCell className="text-slate-900 font-medium">
+                      {stage.name}
+                    </TableCell>
+                    <TableCell className="text-slate-900 font-mono">
+                      {new Intl.NumberFormat('pt-BR').format(stage.value)}
+                    </TableCell>
+                    <TableCell className="text-slate-900 font-mono">
+                      {stage.rate !== undefined ? `${stage.rate.toFixed(1)}%` : '-'}
+                    </TableCell>
+                    <TableCell>
+                      {stage.rate !== undefined ? (
+                        <div className="flex items-center gap-2">
+                          {stage.rate >= 2 ? (
+                            <>
+                              <TrendingUp className="h-4 w-4 text-green-600" />
+                              <span className="text-green-600 text-xs font-medium">Bom</span>
+                            </>
+                          ) : (
+                            <>
+                              <TrendingDown className="h-4 w-4 text-red-500" />
+                              <span className="text-red-500 text-xs font-medium">Baixo</span>
+                            </>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-slate-400 text-xs">-</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         )}
       </CardContent>
     </Card>

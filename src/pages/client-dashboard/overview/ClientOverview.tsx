@@ -101,8 +101,8 @@ export function ClientOverview() {
   // Loading state
   if (loading) {
     return (
-      <div className="min-h-screen bg-dashboard">
-        <div className="px-4 sm:px-6 lg:px-8 py-6">
+      <div className="min-h-screen bg-slate-50">
+        <div className="max-w-[1360px] mx-auto px-6 lg:px-8 py-6">
           <div className="space-y-6">
             <Skeleton className="h-12 w-64" />
             <Skeleton className="h-16 w-full" />
@@ -120,13 +120,13 @@ export function ClientOverview() {
   // Client not found
   if (!client) {
     return (
-      <div className="min-h-screen bg-dashboard flex items-center justify-center">
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-foreground mb-2">Cliente não encontrado</h2>
-          <p className="text-muted-foreground mb-4">O cliente especificado não existe ou foi removido.</p>
+          <h2 className="text-2xl font-semibold text-slate-900 mb-2">Cliente não encontrado</h2>
+          <p className="text-sm text-slate-500 mb-4">O cliente especificado não existe ou foi removido.</p>
           <Button 
             onClick={() => navigate("/")}
-            className="bg-primary hover:bg-primary-hover"
+            className="bg-blue-600 hover:bg-blue-700 text-white"
           >
             Voltar ao Dashboard
           </Button>
@@ -139,9 +139,9 @@ export function ClientOverview() {
   const activeMetric = selectedMetrics[0] || 'spend';
 
   return (
-    <div className="min-h-screen bg-dashboard">
-      <div className="px-4 sm:px-6 lg:px-8 py-6">
-        <div className="space-y-6 md:space-y-8">
+    <div className="min-h-screen bg-slate-50">
+      <div className="max-w-[1360px] mx-auto px-6 lg:px-8 py-6">
+        <div className="space-y-6">
           {/* Header */}
           <div className="flex items-center justify-between">
             <DashboardHeader 
@@ -151,10 +151,10 @@ export function ClientOverview() {
             <Button
               variant="outline"
               onClick={() => setShowCustomizeModal(true)}
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 rounded-2xl border-slate-200 text-slate-700 hover:bg-slate-50"
             >
               <Settings className="h-4 w-4" />
-              Personalizar
+              ⚙️ Personalizar
             </Button>
           </div>
 
@@ -176,30 +176,29 @@ export function ClientOverview() {
             platform={platform}
           />
 
-          {/* Charts Row */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <TrendChart
-              clientId={clientId!}
-              period={period}
-              platform={platform}
-              granularity={granularity}
-              selectedMetric={activeMetric}
-            />
-            <Funnel
-              clientId={clientId!}
-              period={period}
-              platform={platform}
-            />
+          {/* Analysis Section - 2/3 Chart + 1/3 Funnel */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2">
+              <TrendChart
+                clientId={clientId!}
+                period={period}
+                platform={platform}
+                granularity={granularity}
+                selectedMetric={activeMetric}
+              />
+            </div>
+            <div className="lg:col-span-1">
+              <Funnel
+                clientId={clientId!}
+                period={period}
+                platform={platform}
+              />
+            </div>
           </div>
 
-          {/* Tables Row */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
-              <CampaignTable clientId={clientId!} />
-            </div>
-            <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
-              <AlertList clientId={clientId!} />
-            </div>
+          {/* Campaigns Full Width */}
+          <div className="w-full">
+            <CampaignTable clientId={clientId!} />
           </div>
         </div>
       </div>

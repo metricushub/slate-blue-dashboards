@@ -113,8 +113,11 @@ export function CampaignTable({ clientId }: CampaignTableProps) {
 
   const SortableHeader = ({ field, children }: { field: SortField; children: React.ReactNode }) => (
     <TableHead 
-      className="cursor-pointer hover:bg-muted/50 select-none"
-      onClick={() => handleSort(field)}
+      className="cursor-pointer hover:bg-slate-100 select-none text-xs font-medium text-slate-600 uppercase tracking-wide"
+      onClick={() => {
+        handleSort(field);
+        console.log('telemetry:campaign_sort', { field, direction: sortField === field ? (sortDirection === 'asc' ? 'desc' : 'asc') : 'desc' });
+      }}
     >
       <div className="flex items-center gap-2">
         {children}
@@ -125,15 +128,15 @@ export function CampaignTable({ clientId }: CampaignTableProps) {
 
   if (loading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Campanhas</CardTitle>
+      <Card className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <CardHeader className="p-5">
+          <CardTitle className="text-lg font-semibold text-slate-900">Campanhas</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-5 pt-0">
           <div className="space-y-4">
-            <div className="h-10 bg-muted rounded animate-pulse"></div>
+            <div className="h-10 bg-slate-200 rounded animate-pulse"></div>
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="h-12 bg-muted rounded animate-pulse"></div>
+              <div key={i} className="h-12 bg-slate-200 rounded animate-pulse"></div>
             ))}
           </div>
         </CardContent>
@@ -142,42 +145,49 @@ export function CampaignTable({ clientId }: CampaignTableProps) {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Campanhas ({filteredCampaigns.length})</CardTitle>
+    <Card className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <CardHeader className="p-5">
+        <div className="flex items-center justify-between mb-4">
+          <CardTitle className="text-lg font-semibold text-slate-900">
+            Campanhas ({filteredCampaigns.length})
+          </CardTitle>
+          <div className="text-xs text-slate-500">
+            {campaigns.filter(c => c.status === 'active').length} ativas
+          </div>
+        </div>
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
           <Input
             placeholder="Buscar campanhas..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
+            className="pl-10 rounded-2xl border-slate-200"
           />
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="p-5 pt-0">
         {filteredCampaigns.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
+          <div className="text-center py-12 text-slate-400">
             {campaigns.length === 0 ? "Nenhuma campanha encontrada" : "Nenhuma campanha corresponde à busca"}
           </div>
         ) : (
-          <div className="rounded-md border overflow-x-auto">
+          <div className="rounded-xl border border-slate-200 overflow-hidden">
             <Table>
               <TableHeader>
-                <TableRow>
+                <TableRow className="border-slate-200 bg-slate-50">
                   <SortableHeader field="name">Nome</SortableHeader>
-                  <TableHead>Plataforma</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead className="text-xs font-medium text-slate-600 uppercase tracking-wide">Plataforma</TableHead>
+                  <TableHead className="text-xs font-medium text-slate-600 uppercase tracking-wide">Status</TableHead>
                   <SortableHeader field="spend">Investimento</SortableHeader>
                   <SortableHeader field="leads">Leads</SortableHeader>
-                  <SortableHeader field="cpa">CPA</SortableHeader>
+                  <SortableHeader field="cpa">CPL</SortableHeader>
                   <SortableHeader field="roas">ROAS</SortableHeader>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredCampaigns.map((campaign) => (
-                  <TableRow key={campaign.id} className="hover:bg-muted/50">
-                    <TableCell className="font-medium max-w-xs">
+                  <TableRow key={campaign.id} className="border-slate-200 hover:bg-slate-50">
+                    <TableCell className="font-medium text-slate-900 max-w-xs">
                       <div className="truncate" title={campaign.name}>
                         {campaign.name}
                       </div>
@@ -188,7 +198,7 @@ export function CampaignTable({ clientId }: CampaignTableProps) {
                     <TableCell>
                       <div className="flex items-center gap-2">
                         {getStatusIcon(campaign.status)}
-                        <span className="capitalize text-sm">
+                        <span className="capitalize text-sm text-slate-600">
                           {campaign.status === 'active' && 'Ativa'}
                           {campaign.status === 'paused' && 'Pausada'}
                           {campaign.status === 'draft' && 'Rascunho'}
@@ -196,20 +206,20 @@ export function CampaignTable({ clientId }: CampaignTableProps) {
                         </span>
                       </div>
                     </TableCell>
-                    <TableCell className="font-mono">
+                    <TableCell className="font-mono text-slate-900">
                       R$ {campaign.spend.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </TableCell>
-                    <TableCell className="font-mono">
+                    <TableCell className="font-mono text-slate-900">
                       {campaign.leads.toLocaleString('pt-BR')}
                     </TableCell>
-                    <TableCell className="font-mono">
+                    <TableCell className="font-mono text-slate-900">
                       R$ {campaign.cpa.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </TableCell>
                     <TableCell>
                       <span className={cn(
                         "font-mono font-medium",
-                        campaign.roas >= 3 ? "text-success" : 
-                        campaign.roas >= 2 ? "text-warning" : "text-destructive"
+                        campaign.roas >= 3 ? "text-green-600" : 
+                        campaign.roas >= 2 ? "text-yellow-600" : "text-red-500"
                       )}>
                         {campaign.roas.toFixed(2)}x
                       </span>

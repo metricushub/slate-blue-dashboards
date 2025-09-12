@@ -79,6 +79,47 @@ export const METRICS: Record<MetricKey, MetricDef> = {
 
 export const DEFAULT_SELECTED_METRICS: MetricKey[] = ['spend', 'leads', 'cpl', 'roas'];
 
+// Data source configuration
+export const DATA_SOURCE_CONFIG = {
+  FEATURE_FLAG: import.meta.env.VITE_DATA_SOURCE || 'mock',
+} as const;
+
+// Formatting utilities
+export function formatCurrency(value: number): string {
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  }).format(value);
+}
+
+export function formatPercent(value: number): string {
+  return `${value.toFixed(1)}%`;
+}
+
+export function formatInt(value: number): string {
+  return new Intl.NumberFormat('pt-BR').format(Math.round(value));
+}
+
+// Period comparison utilities
+export function calculatePeriodChange(current: number, previous: number): {
+  change: number;
+  isPositive: boolean | null;
+} {
+  if (previous === 0 && current === 0) {
+    return { change: 0, isPositive: null };
+  }
+  
+  if (previous === 0) {
+    return { change: 100, isPositive: true };
+  }
+  
+  const change = ((current - previous) / previous) * 100;
+  return { 
+    change: Math.abs(change), 
+    isPositive: change >= 0 
+  };
+}
+
 export function formatMetricValue(value: number, unit: MetricDef['unit']): string {
   switch (unit) {
     case 'currency':

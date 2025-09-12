@@ -141,25 +141,22 @@ export function KpiBoard({ selectedMetrics, clientId, period, platform }: KPIBoa
 
   if (loading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        {Array.from({ length: selectedMetrics.length || 6 }).map((_, i) => (
-          <Card key={i} className="rounded-2xl border border-border bg-card shadow-sm">
-            <CardContent className="p-5">
-              <Skeleton className="h-4 w-20 mb-3" />
-              <Skeleton className="h-8 w-24 mb-2" />
-              <Skeleton className="h-5 w-16" />
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      <Card className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <CardContent className="p-5">
+          <div className="animate-pulse">
+            <div className="h-6 bg-slate-200 rounded mb-4 w-32"></div>
+            <div className="h-80 bg-slate-200 rounded"></div>
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 
   if (selectedMetrics.length === 0) {
     return (
-      <Card className="rounded-2xl border border-border bg-card shadow-sm">
+      <Card className="rounded-2xl border border-slate-200 bg-white shadow-sm">
         <CardContent className="p-8 text-center">
-          <p className="text-muted-foreground">
+          <p className="text-slate-500">
             Selecione métricas para visualizar os KPIs
           </p>
         </CardContent>
@@ -171,16 +168,16 @@ export function KpiBoard({ selectedMetrics, clientId, period, platform }: KPIBoa
     <TooltipProvider>
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {kpiData.map((kpi) => (
-          <Card key={kpi.key} className="rounded-2xl border border-border bg-card shadow-sm hover:shadow-md transition-shadow">
+          <Card key={kpi.key} className="rounded-2xl border border-slate-200 bg-white shadow-sm hover:shadow-md transition-shadow">
             <CardContent className="p-5">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  <h3 className="text-xs font-medium text-slate-500 uppercase tracking-wide">
                     {kpi.label}
                   </h3>
                   <Tooltip>
                     <TooltipTrigger>
-                      <HelpCircle className="h-3 w-3 text-muted-foreground" />
+                      <HelpCircle className="h-3 w-3 text-slate-400" />
                     </TooltipTrigger>
                     <TooltipContent>
                       <p className="text-xs max-w-48">{kpi.description}</p>
@@ -190,7 +187,7 @@ export function KpiBoard({ selectedMetrics, clientId, period, platform }: KPIBoa
               </div>
 
               <div className="space-y-2">
-                <div className="text-2xl font-semibold text-foreground">
+                <div className="text-2xl font-semibold text-slate-900">
                   {formatMetricValue(kpi.value, kpi.unit as any)}
                 </div>
                 
@@ -199,8 +196,8 @@ export function KpiBoard({ selectedMetrics, clientId, period, platform }: KPIBoa
                     variant={kpi.isPositive ? "default" : "destructive"}
                     className={`text-xs flex items-center gap-1 w-fit ${
                       kpi.isPositive 
-                        ? "bg-success/10 text-success hover:bg-success/20 border-success/20" 
-                        : "bg-destructive/10 text-destructive hover:bg-destructive/20 border-destructive/20"
+                        ? "bg-green-50 text-green-700 hover:bg-green-100 border-green-200" 
+                        : "bg-red-50 text-red-700 hover:bg-red-100 border-red-200"
                     }`}
                   >
                     {getTrendIcon(kpi.isPositive, kpi.change)}

@@ -130,11 +130,11 @@ export function TrendChart({ clientId, period, platform, granularity, selectedMe
 
   if (loading) {
     return (
-      <Card className="bg-card border border-border rounded-2xl shadow-sm">
-        <CardHeader>
+      <Card className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <CardHeader className="p-5">
           <Skeleton className="h-6 w-40" />
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-5 pt-0">
           <Skeleton className="h-80 w-full" />
         </CardContent>
       </Card>
@@ -143,15 +143,15 @@ export function TrendChart({ clientId, period, platform, granularity, selectedMe
 
   if (chartData.length === 0) {
     return (
-      <Card className="bg-card border border-border rounded-2xl shadow-sm">
-        <CardHeader>
-          <CardTitle className="text-foreground">
-            Tendência - {METRICS[selectedMetric]?.label || 'Métrica'}
+      <Card className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <CardHeader className="p-5 pb-3">
+          <CardTitle className="text-lg font-semibold text-slate-900">
+            Tendência: {METRICS[selectedMetric]?.label || 'Métrica'}
           </CardTitle>
         </CardHeader>
-        <CardContent className="p-6">
-          <div className="flex items-center justify-center h-80">
-            <p className="text-muted-foreground">Nenhum dados encontrado para o período selecionado</p>
+        <CardContent className="p-5 pt-0">
+          <div className="flex items-center justify-center h-80 text-slate-400">
+            Nenhum dado encontrado para o período selecionado
           </div>
         </CardContent>
       </Card>
@@ -161,13 +161,13 @@ export function TrendChart({ clientId, period, platform, granularity, selectedMe
   const metricDef = METRICS[selectedMetric];
 
   return (
-    <Card className="bg-card border border-border rounded-2xl shadow-sm">
-      <CardHeader>
-        <CardTitle className="text-foreground">
-          Tendência - {metricDef.label}
+    <Card className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <CardHeader className="p-5 pb-3">
+        <CardTitle className="text-lg font-semibold text-slate-900">
+          Tendência: {metricDef.label}
         </CardTitle>
       </CardHeader>
-      <CardContent className="p-6">
+      <CardContent className="p-5 pt-0">
         <ResponsiveContainer width="100%" height={320}>
           <AreaChart data={chartData}>
             <defs>
@@ -188,14 +188,14 @@ export function TrendChart({ clientId, period, platform, granularity, selectedMe
               dataKey="displayDate"
               axisLine={false}
               tickLine={false}
-              tick={{ fill: '#475569', fontSize: 12 }}
+              tick={{ fill: '#64748b', fontSize: 11 }}
               dy={10}
             />
             
             <YAxis
               axisLine={false}
               tickLine={false}
-              tick={{ fill: '#475569', fontSize: 12 }}
+              tick={{ fill: '#64748b', fontSize: 11 }}
               tickFormatter={(value) => formatMetricValue(value, metricDef.unit)}
               dx={-10}
             />
@@ -203,17 +203,18 @@ export function TrendChart({ clientId, period, platform, granularity, selectedMe
             <Tooltip
               contentStyle={{
                 backgroundColor: '#ffffff',
-                border: '1px solid #e5e7eb',
-                borderRadius: '8px',
+                border: '1px solid #e2e8f0',
+                borderRadius: '12px',
                 color: '#0f172a',
-                fontSize: '14px',
+                fontSize: '12px',
                 boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
               }}
-              labelStyle={{ color: '#475569' }}
+              labelStyle={{ color: '#64748b' }}
               formatter={(value: number) => [
                 formatMetricValue(value, metricDef.unit),
                 metricDef.label
               ]}
+              labelFormatter={(label) => `Período: ${label}`}
             />
             
             <Area
