@@ -95,22 +95,21 @@ export default function DiagnosticsPage() {
       // Test 1: IndexedDB Operations
       const dbTest = await runTest("IndexedDB Operations", async () => {
         // Test creating and reading a lead
-        const { leadsOperations } = await import('@/shared/db/leadsStore');
+        const { LeadsStore } = await import('@/shared/db/leadsStore');
         const testLead = {
           name: "Test Lead",
           stage: "Novo" as const,
-          created_at: new Date().toISOString()
         };
         
-        const created = await leadsOperations.create(testLead);
-        const retrieved = await leadsOperations.getById(created.id);
+        const created = await LeadsStore.createLead(testLead);
+        const retrieved = await LeadsStore.getLead(created.id);
         
         if (!retrieved || retrieved.name !== testLead.name) {
           throw new Error("Failed to create or retrieve lead");
         }
         
         // Cleanup
-        await leadsOperations.delete(created.id);
+        await LeadsStore.deleteLead(created.id);
         
         return "Lead CRUD operations working";
       });

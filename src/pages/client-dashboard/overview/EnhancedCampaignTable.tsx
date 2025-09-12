@@ -134,9 +134,17 @@ export function EnhancedCampaignTable({ clientId, period, platform }: EnhancedCa
   const loadCampaignsData = async () => {
     setLoading(true);
     try {
+      // Convert period (days) to from/to date strings for getMetrics
+      const toDate = new Date();
+      const fromDate = new Date();
+      fromDate.setDate(toDate.getDate() - period);
+      
+      const from = fromDate.toISOString().split('T')[0]; // YYYY-MM-DD
+      const to = toDate.toISOString().split('T')[0]; // YYYY-MM-DD
+
       const [campaignsData, metricsData] = await Promise.all([
         dataSource.getCampaigns(clientId),
-        dataSource.getMetrics(clientId, period, platform)
+        dataSource.getMetrics(clientId, from, to)
       ]);
 
       // Filter campaigns by platform if specified
