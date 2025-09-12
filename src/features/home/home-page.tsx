@@ -274,7 +274,7 @@ const HomePage = () => {
       <EnhancedClientRegistrationModal
         open={showRegistrationModal}
         onOpenChange={setShowRegistrationModal}
-        onClientRegistered={handleClientRegistered}
+        onSave={handleClientRegistered}
       />
     </div>
   );

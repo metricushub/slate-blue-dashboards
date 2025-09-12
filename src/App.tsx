@@ -13,7 +13,8 @@ import LeadsPage from "./pages/LeadsPage";
 import OptimizationsPage from "./pages/OptimizationsPage";
 import AnalyticsPage from "./pages/AnalyticsPage";
 import ReportsPage from "./pages/ReportsPage";
-import SettingsPage from "./pages/SettingsPage";
+import { SettingsPage } from "./pages/SettingsPage";
+import { IntegrationsPage } from "./pages/IntegrationsPage";
 import { ClientOverview } from "./pages/client-dashboard/overview/ClientOverview";
 import NotFound from "./pages/NotFound";
 
@@ -34,8 +35,9 @@ const App = () => (
                 <Route path="/leads" element={<LeadsPage />} />
                 <Route path="/otimizacoes" element={<OptimizationsPage />} />
                 <Route path="/analytics" element={<AnalyticsPage />} />
-                <Route path="/relatorios" element={<ReportsPage />} />
-                <Route path="/configuracoes" element={<SettingsPage />} />
+                <Route path="/reports" element={<ReportsPage />} />
+                <Route path="/integracoes" element={<IntegrationsPage />} />
+                <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/cliente/:clientId/overview" element={<ClientOverview />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
