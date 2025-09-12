@@ -134,7 +134,7 @@ export function Funnel({ clientId, period, platform }: FunnelProps) {
   }
 
   return (
-    <Card className="rounded-2xl border border-slate-200 bg-white shadow-sm h-[240px] flex flex-col">
+    <Card className="rounded-2xl border border-slate-200 bg-white shadow-sm flex-1 flex flex-col">
       <CardHeader className="p-5 pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg font-semibold text-slate-900">Funil de Conversão</CardTitle>
