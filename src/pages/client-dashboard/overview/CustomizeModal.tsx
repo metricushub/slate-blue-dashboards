@@ -27,6 +27,7 @@ export function CustomizeModal({
   const [localSelectedMetrics, setLocalSelectedMetrics] = useState<MetricKey[]>(selectedMetrics);
   const [searchQuery, setSearchQuery] = useState("");
   const [activePreset, setActivePreset] = useState<string>("");
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
   const MAX_METRICS = 6;
 
   // Metric presets
@@ -212,50 +213,43 @@ export function CustomizeModal({
                   return (
                     <div
                       key={metricKey}
-                      className="flex items-center gap-4 p-4 bg-white rounded-2xl border border-slate-200 shadow-sm"
+                      className="flex items-center gap-4 p-4 bg-white rounded-2xl border border-slate-200 shadow-sm cursor-move"
+                      draggable
+                      onDragStart={() => setDragIndex(index)}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={() => {
+                        if (dragIndex === null || dragIndex === index) return;
+                        const items = Array.from(localSelectedMetrics);
+                        const [m] = items.splice(dragIndex, 1);
+                        items.splice(index, 0, m);
+                        setLocalSelectedMetrics(items);
+                        setDragIndex(null);
+                      }}
+                      aria-label={`Reordenar ${metric.label}`}
                     >
-                      <div className="flex items-center gap-2">
-                        <GripVertical className="h-4 w-4 text-slate-400" />
-                        <div className="flex flex-col gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleMoveUp(index)}
-                            disabled={index === 0}
-                            className="h-5 w-5 p-0 hover:bg-slate-100 disabled:opacity-30"
-                          >
-                            <ChevronUp className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleMoveDown(index)}
-                            disabled={index === localSelectedMetrics.length - 1}
-                            className="h-5 w-5 p-0 hover:bg-slate-100 disabled:opacity-30"
-                          >
-                            <ChevronDown className="h-3 w-3" />
-                          </Button>
-                        </div>
+                      <div className="flex items-center gap-2 text-slate-400">
+                        <GripVertical className="h-4 w-4" />
                       </div>
-                      
-                      <div className="flex-1">
+                      <div className="flex-1 min-w-0">
                         <div className="font-medium text-slate-900">{metric.label}</div>
-                        <div className="text-xs text-slate-500">
-                          {metric.unit === 'currency' && 'Valor monetário'} 
+                        <div className="text-xs text-slate-500 truncate">
+                          {metric.unit === 'currency' && 'Valor monetário'}
                           {metric.unit === 'int' && 'Número inteiro'}
                           {metric.unit === 'percent' && 'Percentual'}
                           {metric.unit === 'decimal' && 'Número decimal'}
                         </div>
                       </div>
-                      
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleRemoveMetric(metricKey)}
-                        className="h-8 w-8 p-0 text-slate-400 hover:text-red-500 hover:bg-red-50"
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRemoveMetric(metricKey)}
+                          className="h-8 w-8 p-0 text-slate-400 hover:text-red-500 hover:bg-red-50"
+                          aria-label={`Remover ${metric.label}`}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                   );
                 })}
@@ -271,35 +265,26 @@ export function CustomizeModal({
           <div className="space-y-3">
             <h3 className="text-lg font-semibold text-slate-900">Métricas Disponíveis</h3>
             {unselectedMetrics.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {unselectedMetrics.map((metric) => (
-                  <label
-                    key={metric.key}
-                    className={`flex items-center gap-3 p-3 rounded-2xl border cursor-pointer transition-colors ${
-                      localSelectedMetrics.length >= MAX_METRICS
-                        ? 'border-slate-200 bg-slate-50 opacity-50 cursor-not-allowed'
-                        : 'border-slate-200 hover:bg-slate-50 hover:border-slate-300'
-                    }`}
-                  >
-                    <Checkbox
-                      checked={false}
-                      onCheckedChange={(checked) => 
-                        handleMetricToggle(metric.key, checked as boolean)
-                      }
-                      disabled={localSelectedMetrics.length >= MAX_METRICS}
-                      className="border-slate-300"
-                    />
-                    <div className="flex-1">
-                      <div className="font-medium text-slate-900">{metric.label}</div>
-                      <div className="text-xs text-slate-500">
-                        {metric.unit === 'currency' && 'Valor monetário'} 
-                        {metric.unit === 'int' && 'Número inteiro'}
-                        {metric.unit === 'percent' && 'Percentual'}
-                        {metric.unit === 'decimal' && 'Número decimal'}
-                      </div>
-                    </div>
-                  </label>
-                ))}
+              <div className="flex flex-wrap gap-2">
+                {unselectedMetrics.map((metric) => {
+                  const disabled = localSelectedMetrics.length >= MAX_METRICS;
+                  return (
+                    <Button
+                      key={metric.key}
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      aria-pressed={false}
+                      disabled={disabled}
+                      onClick={() => !disabled && handleMetricToggle(metric.key, true)}
+                      className={`rounded-full border-slate-200 text-xs px-3 py-1 ${
+                        disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-slate-50'
+                      }`}
+                    >
+                      {metric.label}
+                    </Button>
+                  );
+                })}
               </div>
             ) : (
               <div className="text-center py-6 text-slate-400">

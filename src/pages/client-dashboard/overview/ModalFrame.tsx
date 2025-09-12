@@ -49,7 +49,7 @@ export function ModalFrame({
         </DialogHeader>
 
         {/* Content */}
-        <div className="px-6 py-4 md:px-8 space-y-4">
+        <div className="px-6 py-4 md:px-8 space-y-4 max-h-[70vh] overflow-y-auto">
           {children}
         </div>
 
