@@ -524,10 +524,18 @@ export function EnhancedTrendChart({
               <p>Nenhum dado encontrado para o período selecionado</p>
             </div>
           </div>
+        ) : chartData.length === 0 && chartState.selectedMetrics.length > 0 ? (
+          <div className="w-full h-80 md:h-96 flex items-center justify-center text-slate-400">
+            <div className="text-center">
+              <TrendingUp className="h-12 w-12 mx-auto mb-2 opacity-50" />
+              <p>Sem dados no período/filtragem selecionada</p>
+            </div>
+          </div>
         ) : (
           <div 
             ref={containerRef}
-            style={{ width: '100%', height: '400px' }}
+            className="w-full h-80 md:h-96"
+            style={{ minHeight: '320px' }}
           />
         )}
       </CardContent>

@@ -10,12 +10,24 @@ type FunnelPrefs = {
   mode: 'Detalhado' | 'Compacto';
   showRates: boolean;
   comparePrevious: boolean;
+  mapping: {
+    stage1: string;
+    stage2: string; 
+    stage3: string;
+    stage4: string;
+  };
 };
 
 const defaultFunnelPrefs: FunnelPrefs = {
   mode: 'Detalhado',
   showRates: true,
-  comparePrevious: false
+  comparePrevious: false,
+  mapping: {
+    stage1: 'impressions',
+    stage2: 'clicks',
+    stage3: 'leads',
+    stage4: 'revenue'
+  }
 };
 
 interface FunnelProps {
@@ -72,42 +84,73 @@ export function Funnel({ clientId, period, platform }: FunnelProps) {
           ? metrics 
           : metrics.filter(metric => metric.platform === platform);
 
-        // Calculate totals
-        const totalImpressions = filteredMetrics.reduce((sum, row) => sum + row.impressions, 0);
-        const totalClicks = filteredMetrics.reduce((sum, row) => sum + row.clicks, 0);
-        const totalLeads = filteredMetrics.reduce((sum, row) => sum + row.leads, 0);
-        
-        // Mock sales calculation (15% of leads for demo)
-        const totalSales = Math.round(totalLeads * 0.15);
+        // Calculate totals based on mapping
+        const getMetricTotal = (metricName: string) => {
+          switch (metricName) {
+            case 'impressions':
+              return filteredMetrics.reduce((sum, row) => sum + row.impressions, 0);
+            case 'clicks':
+              return filteredMetrics.reduce((sum, row) => sum + row.clicks, 0);
+            case 'leads':
+              return filteredMetrics.reduce((sum, row) => sum + row.leads, 0);
+            case 'revenue':
+              return filteredMetrics.reduce((sum, row) => sum + row.revenue, 0);
+            case 'spend':
+              return filteredMetrics.reduce((sum, row) => sum + row.spend, 0);
+            default:
+              return 0;
+          }
+        };
 
-        // Calculate rates between stages
-        const clickRate = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0;
-        const conversionRate = totalClicks > 0 ? (totalLeads / totalClicks) * 100 : 0;
-        const salesRate = totalLeads > 0 ? (totalSales / totalLeads) * 100 : 0;
+        const stage1Value = getMetricTotal(funnelPrefs.mapping.stage1);
+        const stage2Value = getMetricTotal(funnelPrefs.mapping.stage2);
+        const stage3Value = getMetricTotal(funnelPrefs.mapping.stage3);
+        const stage4Value = getMetricTotal(funnelPrefs.mapping.stage4);
+
+        // Calculate rates between stages  
+        const getStageLabel = (metricName: string) => {
+          const labels = {
+            impressions: 'Impressões',
+            clicks: 'Cliques', 
+            leads: 'Leads',
+            revenue: 'Receita',
+            spend: 'Investimento'
+          };
+          return labels[metricName as keyof typeof labels] || metricName;
+        };
+
+        const stage1Label = getStageLabel(funnelPrefs.mapping.stage1);
+        const stage2Label = getStageLabel(funnelPrefs.mapping.stage2);
+        const stage3Label = getStageLabel(funnelPrefs.mapping.stage3);
+        const stage4Label = getStageLabel(funnelPrefs.mapping.stage4);
+
+        const rate2 = stage1Value > 0 ? (stage2Value / stage1Value) * 100 : 0;
+        const rate3 = stage2Value > 0 ? (stage3Value / stage2Value) * 100 : 0;
+        const rate4 = stage3Value > 0 ? (stage4Value / stage3Value) * 100 : 0;
 
         const funnelStages: FunnelStage[] = [
           { 
-            name: 'Impressões', 
-            value: totalImpressions, 
+            name: stage1Label, 
+            value: stage1Value, 
             percentage: 100 
           },
           { 
-            name: 'Cliques', 
-            value: totalClicks, 
-            rate: clickRate,
-            percentage: totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0
+            name: stage2Label,
+            value: stage2Value, 
+            rate: rate2,
+            percentage: stage1Value > 0 ? (stage2Value / stage1Value) * 100 : 0
           },
           { 
-            name: 'Leads', 
-            value: totalLeads, 
-            rate: conversionRate,
-            percentage: totalImpressions > 0 ? (totalLeads / totalImpressions) * 100 : 0
+            name: stage3Label, 
+            value: stage3Value, 
+            rate: rate3,
+            percentage: stage1Value > 0 ? (stage3Value / stage1Value) * 100 : 0
           },
           { 
-            name: 'Vendas', 
-            value: totalSales, 
-            rate: salesRate,
-            percentage: totalImpressions > 0 ? (totalSales / totalImpressions) * 100 : 0
+            name: stage4Label, 
+            value: stage4Value, 
+            rate: rate4,
+            percentage: stage1Value > 0 ? (stage4Value / stage1Value) * 100 : 0
           },
         ];
 
@@ -129,20 +172,37 @@ export function Funnel({ clientId, period, platform }: FunnelProps) {
             ? prevMetrics 
             : prevMetrics.filter(metric => metric.platform === platform);
 
-          const prevTotalImpressions = prevFilteredMetrics.reduce((sum, row) => sum + row.impressions, 0);
-          const prevTotalClicks = prevFilteredMetrics.reduce((sum, row) => sum + row.clicks, 0);
-          const prevTotalLeads = prevFilteredMetrics.reduce((sum, row) => sum + row.leads, 0);
-          const prevTotalSales = Math.round(prevTotalLeads * 0.15);
+          const getPrevMetricTotal = (metricName: string) => {
+            switch (metricName) {
+              case 'impressions':
+                return prevFilteredMetrics.reduce((sum, row) => sum + row.impressions, 0);
+              case 'clicks':
+                return prevFilteredMetrics.reduce((sum, row) => sum + row.clicks, 0);
+              case 'leads':
+                return prevFilteredMetrics.reduce((sum, row) => sum + row.leads, 0);
+              case 'revenue':
+                return prevFilteredMetrics.reduce((sum, row) => sum + row.revenue, 0);
+              case 'spend':
+                return prevFilteredMetrics.reduce((sum, row) => sum + row.spend, 0);
+              default:
+                return 0;
+            }
+          };
 
-          const prevClickRate = prevTotalImpressions > 0 ? (prevTotalClicks / prevTotalImpressions) * 100 : 0;
-          const prevConversionRate = prevTotalClicks > 0 ? (prevTotalLeads / prevTotalClicks) * 100 : 0;
-          const prevSalesRate = prevTotalLeads > 0 ? (prevTotalSales / prevTotalLeads) * 100 : 0;
+          const prevStage1Value = getPrevMetricTotal(funnelPrefs.mapping.stage1);
+          const prevStage2Value = getPrevMetricTotal(funnelPrefs.mapping.stage2);
+          const prevStage3Value = getPrevMetricTotal(funnelPrefs.mapping.stage3);
+          const prevStage4Value = getPrevMetricTotal(funnelPrefs.mapping.stage4);
+
+          const prevRate2 = prevStage1Value > 0 ? (prevStage2Value / prevStage1Value) * 100 : 0;
+          const prevRate3 = prevStage2Value > 0 ? (prevStage3Value / prevStage2Value) * 100 : 0;
+          const prevRate4 = prevStage3Value > 0 ? (prevStage4Value / prevStage3Value) * 100 : 0;
 
           const prevFunnelStages: FunnelStage[] = [
-            { name: 'Impressões', value: prevTotalImpressions, percentage: 100 },
-            { name: 'Cliques', value: prevTotalClicks, rate: prevClickRate, percentage: prevTotalImpressions > 0 ? (prevTotalClicks / prevTotalImpressions) * 100 : 0 },
-            { name: 'Leads', value: prevTotalLeads, rate: prevConversionRate, percentage: prevTotalImpressions > 0 ? (prevTotalLeads / prevTotalImpressions) * 100 : 0 },
-            { name: 'Vendas', value: prevTotalSales, rate: prevSalesRate, percentage: prevTotalImpressions > 0 ? (prevTotalSales / prevTotalImpressions) * 100 : 0 },
+            { name: stage1Label, value: prevStage1Value, percentage: 100 },
+            { name: stage2Label, value: prevStage2Value, rate: prevRate2, percentage: prevStage1Value > 0 ? (prevStage2Value / prevStage1Value) * 100 : 0 },
+            { name: stage3Label, value: prevStage3Value, rate: prevRate3, percentage: prevStage1Value > 0 ? (prevStage3Value / prevStage1Value) * 100 : 0 },
+            { name: stage4Label, value: prevStage4Value, rate: prevRate4, percentage: prevStage1Value > 0 ? (prevStage4Value / prevStage1Value) * 100 : 0 },
           ];
 
           setPreviousStages(prevFunnelStages);
@@ -155,10 +215,11 @@ export function Funnel({ clientId, period, platform }: FunnelProps) {
           clientId, 
           platform, 
           period,
-          totalImpressions,
-          totalClicks,
-          totalLeads,
-          totalSales
+          stage1Value,
+          stage2Value,
+          stage3Value,
+          stage4Value,
+          mapping: funnelPrefs.mapping
         });
       } catch (error) {
         console.error('Failed to load funnel data:', error);
@@ -194,7 +255,7 @@ export function Funnel({ clientId, period, platform }: FunnelProps) {
 
   return (
     <Card className={`rounded-2xl border border-slate-200 bg-white shadow-sm flex-1 flex flex-col ${
-      funnelPrefs.mode === 'Compacto' ? 'max-h-60' : ''
+      funnelPrefs.mode === 'Compacto' ? 'h-60' : ''
     }`}>
       <CardHeader className={`p-5 pb-3 ${funnelPrefs.mode === 'Compacto' ? 'pb-2' : ''}`}>
         <div className="flex items-center justify-between">

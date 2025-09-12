@@ -17,12 +17,24 @@ type FunnelPrefs = {
   mode: 'Detalhado' | 'Compacto';
   showRates: boolean;
   comparePrevious: boolean;
+  mapping: {
+    stage1: string;
+    stage2: string;
+    stage3: string;
+    stage4: string;
+  };
 };
 
 const defaultFunnelPrefs: FunnelPrefs = {
   mode: 'Detalhado',
   showRates: true,
-  comparePrevious: false
+  comparePrevious: false,
+  mapping: {
+    stage1: 'impressions',
+    stage2: 'clicks',
+    stage3: 'leads',
+    stage4: 'revenue'
+  }
 };
 
 interface CustomizeModalProps {
@@ -373,6 +385,113 @@ export function CustomizeModal({
                     setFunnelPrefs(prev => ({ ...prev, comparePrevious: checked }))
                   }
                 />
+              </div>
+
+              {/* Mapping Configuration */}
+              <div className="border-t pt-6">
+                <label className="text-sm font-medium text-slate-700 mb-4 block">
+                  Mapeamento de Métricas
+                </label>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-xs text-slate-600">Etapa 1</Label>
+                    <Select 
+                      value={funnelPrefs.mapping.stage1} 
+                      onValueChange={(value) => 
+                        setFunnelPrefs(prev => ({ 
+                          ...prev, 
+                          mapping: { ...prev.mapping, stage1: value } 
+                        }))
+                      }
+                    >
+                      <SelectTrigger className="h-8">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="impressions">Impressões</SelectItem>
+                        <SelectItem value="clicks">Cliques</SelectItem>
+                        <SelectItem value="leads">Leads</SelectItem>
+                        <SelectItem value="revenue">Receita</SelectItem>
+                        <SelectItem value="spend">Investimento</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div>
+                    <Label className="text-xs text-slate-600">Etapa 2</Label>
+                    <Select 
+                      value={funnelPrefs.mapping.stage2} 
+                      onValueChange={(value) => 
+                        setFunnelPrefs(prev => ({ 
+                          ...prev, 
+                          mapping: { ...prev.mapping, stage2: value } 
+                        }))
+                      }
+                    >
+                      <SelectTrigger className="h-8">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="impressions">Impressões</SelectItem>
+                        <SelectItem value="clicks">Cliques</SelectItem>
+                        <SelectItem value="leads">Leads</SelectItem>
+                        <SelectItem value="revenue">Receita</SelectItem>
+                        <SelectItem value="spend">Investimento</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div>
+                    <Label className="text-xs text-slate-600">Etapa 3</Label>
+                    <Select 
+                      value={funnelPrefs.mapping.stage3} 
+                      onValueChange={(value) => 
+                        setFunnelPrefs(prev => ({ 
+                          ...prev, 
+                          mapping: { ...prev.mapping, stage3: value } 
+                        }))
+                      }
+                    >
+                      <SelectTrigger className="h-8">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="impressions">Impressões</SelectItem>
+                        <SelectItem value="clicks">Cliques</SelectItem>
+                        <SelectItem value="leads">Leads</SelectItem>
+                        <SelectItem value="revenue">Receita</SelectItem>
+                        <SelectItem value="spend">Investimento</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div>
+                    <Label className="text-xs text-slate-600">Etapa 4</Label>
+                    <Select 
+                      value={funnelPrefs.mapping.stage4} 
+                      onValueChange={(value) => 
+                        setFunnelPrefs(prev => ({ 
+                          ...prev, 
+                          mapping: { ...prev.mapping, stage4: value } 
+                        }))
+                      }
+                    >
+                      <SelectTrigger className="h-8">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="impressions">Impressões</SelectItem>
+                        <SelectItem value="clicks">Cliques</SelectItem>
+                        <SelectItem value="leads">Leads</SelectItem>
+                        <SelectItem value="revenue">Receita</SelectItem>
+                        <SelectItem value="spend">Investimento</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <p className="text-xs text-slate-500 mt-2">
+                  Configure quais métricas alimentam cada etapa do funil
+                </p>
               </div>
             </div>
         </TabsContent>
