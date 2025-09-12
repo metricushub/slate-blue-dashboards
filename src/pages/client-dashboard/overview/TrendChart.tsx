@@ -161,14 +161,15 @@ export function TrendChart({ clientId, period, platform, granularity, selectedMe
   const metricDef = METRICS[selectedMetric];
 
   return (
-    <Card className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <Card className="rounded-2xl border border-slate-200 bg-white shadow-sm flex-1 flex flex-col">
       <CardHeader className="p-5 pb-3">
         <CardTitle className="text-lg font-semibold text-slate-900">
           Tendência: {metricDef.label}
         </CardTitle>
       </CardHeader>
-      <CardContent className="p-5 pt-0">
-        <ResponsiveContainer width="100%" height={260}>
+      <CardContent className="p-5 pt-0 flex-1 flex flex-col">
+        <div className="flex-1 min-h-0">
+          <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={chartData}>
             <defs>
               <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
@@ -231,7 +232,8 @@ export function TrendChart({ clientId, period, platform, granularity, selectedMe
               }}
             />
           </AreaChart>
-        </ResponsiveContainer>
+          </ResponsiveContainer>
+        </div>
       </CardContent>
     </Card>
   );

@@ -134,7 +134,7 @@ export function Funnel({ clientId, period, platform }: FunnelProps) {
   }
 
   return (
-    <Card className="rounded-2xl border border-slate-200 bg-white shadow-sm h-fit">
+    <Card className="rounded-2xl border border-slate-200 bg-white shadow-sm flex-1 flex flex-col">
       <CardHeader className="p-5 pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg font-semibold text-slate-900">Funil de Conversão</CardTitle>
@@ -167,7 +167,7 @@ export function Funnel({ clientId, period, platform }: FunnelProps) {
         </div>
       </CardHeader>
       
-      <CardContent className="p-5 pt-0">
+      <CardContent className="p-5 pt-0 flex-1">
         {viewMode === 'chart' ? (
           <div className="space-y-4">
             {stages.map((stage, index) => {
