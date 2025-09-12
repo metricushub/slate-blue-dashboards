@@ -4,6 +4,9 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ChevronUp, ChevronDown, X, Search, GripVertical } from "lucide-react";
 import { ModalFrame } from "./ModalFrame";
 import { METRICS, MetricKey, DEFAULT_SELECTED_METRICS } from "@/shared/types/metrics";
@@ -306,24 +309,137 @@ export function CustomizeModal({
           </div>
         </TabsContent>
         
-        <TabsContent value="funnel" className="mt-6">
-          <div className="text-center py-16 text-slate-400">
-            <div className="text-lg font-medium mb-2">🚧 Em breve</div>
-            <p className="text-sm">Configuração personalizada do funil de conversão</p>
+        <TabsContent value="funnel" className="mt-6 space-y-6">
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-slate-900">Configuração do Funil</h3>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="funnel-mode">Modo de Exibição</Label>
+                <Select defaultValue="detailed">
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecionar modo..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="detailed">Detalhado</SelectItem>
+                    <SelectItem value="compact">Compacto</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="funnel-rates">Mostrar Taxas (%)</Label>
+                <div className="flex items-center space-x-2">
+                  <Switch id="funnel-rates" defaultChecked />
+                  <Label htmlFor="funnel-rates" className="text-sm text-slate-600">
+                    Exibir % vs etapa anterior
+                  </Label>
+                </div>
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="funnel-compare">Comparar Período</Label>
+              <div className="flex items-center space-x-2">
+                <Switch id="funnel-compare" />
+                <Label htmlFor="funnel-compare" className="text-sm text-slate-600">
+                  Desenhar sombra tracejada do período anterior
+                </Label>
+              </div>
+            </div>
           </div>
         </TabsContent>
         
-        <TabsContent value="layout" className="mt-6">
-          <div className="text-center py-16 text-slate-400">
-            <div className="text-lg font-medium mb-2">🎨 Em breve</div>
-            <p className="text-sm">Personalização de layout e aparência</p>
+        <TabsContent value="layout" className="mt-6 space-y-6">
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-slate-900">Layout dos KPIs</h3>
+            
+            <div className="space-y-4">
+              <div>
+                <Label>Disposição do Grid</Label>
+                <div className="grid grid-cols-3 gap-3 mt-2">
+                  <Button variant="outline" className="h-16 flex-col text-xs">
+                    <div className="text-lg mb-1">⚏</div>
+                    3x3
+                  </Button>
+                  <Button variant="outline" className="h-16 flex-col text-xs">
+                    <div className="text-lg mb-1">⚍</div>
+                    2x4+1
+                  </Button>
+                  <Button variant="outline" className="h-16 flex-col text-xs">
+                    <div className="text-lg mb-1">⚐</div>
+                    1x5+2x2
+                  </Button>
+                </div>
+              </div>
+              
+              <div>
+                <Label>Densidade dos Cards</Label>
+                <div className="grid grid-cols-2 gap-3 mt-2">
+                  <Button variant="outline" className="h-12 text-xs">
+                    Confortável
+                  </Button>
+                  <Button variant="outline" className="h-12 text-xs">
+                    Compacto
+                  </Button>
+                </div>
+              </div>
+            </div>
           </div>
         </TabsContent>
         
-        <TabsContent value="advanced" className="mt-6">
-          <div className="text-center py-16 text-slate-400">
-            <div className="text-lg font-medium mb-2">⚙️ Em breve</div>
-            <p className="text-sm">Configurações avançadas e automações</p>
+        <TabsContent value="advanced" className="mt-6 space-y-6">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-slate-900">Presets Avançados</h3>
+              <Badge variant="outline" className="text-xs">
+                Máx. {MAX_METRICS} métricas
+              </Badge>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <Label>Presets Salvos</Label>
+                <div className="space-y-2 mt-2">
+                  {Object.entries(PRESETS).map(([key, metrics]) => (
+                    <div key={key} className="flex items-center justify-between p-3 border rounded-xl">
+                      <div>
+                        <div className="font-medium text-sm">
+                          {key === 'default' && '📊 Padrão'}
+                          {key === 'performance' && '⚡ Performance'}
+                          {key === 'acquisition' && '🎯 Aquisição'}
+                          {key === 'revenue' && '💰 Receita'}
+                          {key === 'traffic' && '📈 Tráfego'}
+                          {key === 'engagement' && '❤️ Engajamento'}
+                          {key === 'complete' && '🔥 Completo'}
+                        </div>
+                        <div className="text-xs text-slate-500">
+                          {metrics.length} métricas
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => handlePresetSelect(key)}
+                        >
+                          Aplicar
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              <div className="pt-4 border-t">
+                <Button variant="outline" className="w-full" disabled>
+                  + Salvar Configuração Atual
+                </Button>
+                <p className="text-xs text-slate-500 mt-2 text-center">
+                  Funcionalidade em desenvolvimento
+                </p>
+              </div>
+            </div>
           </div>
         </TabsContent>
       </Tabs>

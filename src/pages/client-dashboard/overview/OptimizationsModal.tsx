@@ -15,9 +15,10 @@ interface OptimizationsModalProps {
   onClose: () => void;
   clientId: string;
   clientName: string;
+  onOptimizationCreated?: () => void;
 }
 
-export function OptimizationsModal({ isOpen, onClose, clientId, clientName }: OptimizationsModalProps) {
+export function OptimizationsModal({ isOpen, onClose, clientId, clientName, onOptimizationCreated }: OptimizationsModalProps) {
   const { toast } = useToast();
   const [formData, setFormData] = useState({
     client_id: clientId,
@@ -33,6 +34,7 @@ export function OptimizationsModal({ isOpen, onClose, clientId, clientName }: Op
     status: 'Planejada' as 'Planejada' | 'Em teste' | 'Concluída' | 'Abortada'
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async () => {
     const newErrors: Record<string, string> = {};
@@ -54,6 +56,8 @@ export function OptimizationsModal({ isOpen, onClose, clientId, clientName }: Op
       });
       return;
     }
+
+    setSubmitting(true);
 
     try {
       await optimizationOperations.create(formData);
@@ -79,6 +83,9 @@ export function OptimizationsModal({ isOpen, onClose, clientId, clientName }: Op
       });
       setErrors({});
       
+      // Trigger immediate update of Recent Optimizations
+      onOptimizationCreated?.();
+      
       onClose();
     } catch (error) {
       console.error('Failed to save optimization:', error);
@@ -87,19 +94,12 @@ export function OptimizationsModal({ isOpen, onClose, clientId, clientName }: Op
         description: "Ocorreu um erro ao salvar a otimização.",
         variant: "destructive",
       });
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const footer = (
-    <>
-      <Button variant="outline" onClick={onClose}>
-        Cancelar
-      </Button>
-      <Button onClick={handleSubmit}>
-        Salvar Otimização
-      </Button>
-    </>
-  );
+  const footer = null; // Footer will be rendered as sticky
 
   return (
     <ModalFrame
@@ -228,6 +228,16 @@ export function OptimizationsModal({ isOpen, onClose, clientId, clientName }: Op
             className="mt-1"
           />
         </div>
+      </div>
+      
+      {/* Sticky Footer */}
+      <div className="sticky bottom-0 inset-x-0 border-t bg-white/80 backdrop-blur px-4 py-3 flex justify-end gap-2 z-10">
+        <Button variant="outline" onClick={onClose} disabled={submitting}>
+          Cancelar
+        </Button>
+        <Button onClick={handleSubmit} disabled={submitting}>
+          {submitting ? 'Salvando...' : 'Salvar Otimização'}
+        </Button>
       </div>
     </ModalFrame>
   );

@@ -37,6 +37,7 @@ export function ClientOverview() {
   // State
   const [client, setClient] = useState<Client | null>(null);
   const [loading, setLoading] = useState(true);
+  const [optimizationsKey, setOptimizationsKey] = useState(0);
   
   // Enhanced filters
   const [period, setPeriod] = useState(30);
@@ -189,7 +190,6 @@ export function ClientOverview() {
             clientId={clientId!}
             period={period}
             platform={platform}
-            onCustomize={() => setShowCustomizeModal(true)}
           />
 
           {/* Enhanced Chart & Funnel */}
@@ -220,7 +220,7 @@ export function ClientOverview() {
           />
 
           {/* Recent Optimizations */}
-          <RecentOptimizations clientId={clientId!} />
+          <RecentOptimizations key={optimizationsKey} clientId={clientId!} />
 
           {/* Next Tasks Preview */}
           {nextTasks.length > 0 && (
@@ -282,6 +282,7 @@ export function ClientOverview() {
         onClose={() => setShowOptimizationsModal(false)}
         clientId={clientId!}
         clientName={client.name}
+        onOptimizationCreated={() => setOptimizationsKey(prev => prev + 1)}
       />
 
       <TasksAlertsModal
@@ -295,6 +296,17 @@ export function ClientOverview() {
         onClose={() => setShowChatPanel(false)}
         client={client}
       />
+
+      {/* Floating Chat IA Button - Desktop Only */}
+      <div className="hidden lg:block">
+        <Button
+          onClick={() => setShowChatPanel(true)}
+          className="fixed right-6 top-1/2 transform -translate-y-1/2 z-50 animate-pulse bg-blue-600 hover:bg-blue-700 text-white shadow-xl rounded-full w-12 h-12 p-0"
+          title="Chat IA - Converse com os dados"
+        >
+          <Brain className="h-5 w-5" />
+        </Button>
+      </div>
     </div>
   );
 }

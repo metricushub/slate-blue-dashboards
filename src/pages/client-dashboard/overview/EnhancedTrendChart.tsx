@@ -168,7 +168,9 @@ export function EnhancedTrendChart({
       }
     };
 
-    loadChartData();
+    // Debounce chart updates
+    const timeoutId = setTimeout(loadChartData, 150);
+    return () => clearTimeout(timeoutId);
   }, [clientId, period, platform, granularity, activeMetrics, comparePrevious, dataSource]);
 
   const groupMetricsByDate = (metrics: MetricRow[], granularity: 'day' | 'week' | 'month') => {
