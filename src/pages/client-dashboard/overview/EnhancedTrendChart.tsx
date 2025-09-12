@@ -435,7 +435,7 @@ export function EnhancedTrendChart({
     if (chartOption && !loading) {
       updateChart(chartOption);
     }
-  }, [chartOption, loading, updateChart, updateChart]);
+  }, [chartOption, loading, updateChart]);
 
   const exportChart = () => {
     // Implementation for chart export would go here
@@ -449,7 +449,7 @@ export function EnhancedTrendChart({
           <Skeleton className="h-6 w-40" />
         </CardHeader>
         <CardContent className="p-5 pt-0">
-          <Skeleton className="h-80 w-full" />
+          <Skeleton className="h-[320px] md:h-[380px] w-full" />
         </CardContent>
       </Card>
     );
@@ -498,47 +498,59 @@ export function EnhancedTrendChart({
               )}
             </Badge>
           ))}
-          {chartState.selectedMetrics.length < 3 && (
-            <Badge variant="outline" className="text-xs text-slate-500">
-              +{3 - chartState.selectedMetrics.length} métricas
+        </div>
+
+        {/* Compare Period Toggle */}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center space-x-2">
+            <Switch
+              id="compare-previous"
+              checked={chartState.comparePrevious}
+              onCheckedChange={handleComparePreviousToggle}
+            />
+            <Label htmlFor="compare-previous" className="text-sm text-slate-600">
+              Comparar período anterior
+            </Label>
+          </div>
+          {chartState.comparePrevious && (
+            <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+              <TrendingUp className="h-3 w-3 mr-1" />
+              Comparação ativa
             </Badge>
           )}
         </div>
-
-        {/* Comparison Toggle */}
-        <div className="flex items-center space-x-2">
-          <Switch
-            id="compare-previous"
-            checked={chartState.comparePrevious}
-            onCheckedChange={handleComparePreviousToggle}
-          />
-          <Label htmlFor="compare-previous" className="text-sm text-slate-600">
-            Comparar com período anterior
-          </Label>
-        </div>
       </CardHeader>
-      
-      <CardContent className="p-5 pt-0">
-        {chartData.length === 0 ? (
-          <div className="flex items-center justify-center h-80 text-slate-400">
+
+      <CardContent className="p-5 pt-0 relative">
+        {/* Chart container with explicit height - never hide with display:none */}
+        <div 
+          ref={containerRef} 
+          className={`w-full h-[320px] md:h-[380px] ${
+            chartData.length === 0 || chartState.selectedMetrics.length === 0 
+              ? 'opacity-0 pointer-events-none' 
+              : 'opacity-100'
+          }`}
+        />
+        
+        {/* Empty state placeholder */}
+        {(chartData.length === 0 || chartState.selectedMetrics.length === 0) && (
+          <div className="absolute inset-0 flex items-center justify-center text-slate-400 bg-slate-50 rounded-xl">
             <div className="text-center">
-              <TrendingUp className="h-12 w-12 mx-auto mb-2 opacity-50" />
-              <p>Nenhum dado encontrado para o período selecionado</p>
+              <div className="text-lg mb-2">📊</div>
+              <div className="text-sm">Sem dados no período/filtragem</div>
+              <div className="text-xs mt-1 text-slate-300">
+                Selecione métricas para visualizar
+              </div>
             </div>
           </div>
-        ) : chartData.length === 0 && chartState.selectedMetrics.length > 0 ? (
-          <div className="w-full h-80 md:h-96 flex items-center justify-center text-slate-400">
-            <div className="text-center">
-              <TrendingUp className="h-12 w-12 mx-auto mb-2 opacity-50" />
-              <p>Sem dados no período/filtragem selecionada</p>
-            </div>
+        )}
+        
+        {/* Debug info if ?debug=1 */}
+        {new URLSearchParams(window.location.search).get('debug') === '1' && (
+          <div className="mt-2 p-2 bg-slate-100 rounded text-xs text-slate-600">
+            Chart: {chartData.length} points, {chartState.selectedMetrics.length} metrics, 
+            compare={chartState.comparePrevious ? 'on' : 'off'}
           </div>
-        ) : (
-          <div 
-            ref={containerRef}
-            className="w-full h-80 md:h-96"
-            style={{ minHeight: '320px' }}
-          />
         )}
       </CardContent>
     </Card>

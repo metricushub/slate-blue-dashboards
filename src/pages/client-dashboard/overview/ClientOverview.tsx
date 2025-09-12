@@ -18,7 +18,7 @@ import { DashboardHeader } from "./DashboardHeader";
 import { EnhancedFiltersToolbar } from "./EnhancedFiltersToolbar";
 import { EnhancedKpiBoard } from "./EnhancedKpiBoard";
 import { EnhancedTrendChart } from "./EnhancedTrendChart";
-import { Funnel } from "./Funnel";
+import { FunnelV2 } from "./FunnelV2";
 import { OptimizationsModal } from "./OptimizationsModal";
 import { ChatIaPanel } from "./ChatIaPanel";
 import { CustomizeModal } from "./CustomizeModal";
@@ -204,7 +204,7 @@ export function ClientOverview() {
               />
             </div>
             <div className="lg:col-span-1">
-              <Funnel
+              <FunnelV2
                 clientId={clientId!}
                 period={period}
                 platform={platform}

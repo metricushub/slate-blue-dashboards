@@ -7,34 +7,37 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronUp, ChevronDown, X, Search, GripVertical } from "lucide-react";
+import { ChevronUp, ChevronDown, X, Search, GripVertical, Plus, Trash2 } from "lucide-react";
 import { ModalFrame } from "./ModalFrame";
 import { METRICS, MetricKey, DEFAULT_SELECTED_METRICS } from "@/shared/types/metrics";
 import { STORAGE_KEYS_EXTENDED } from "@/shared/data-source";
 import { useToast } from "@/hooks/use-toast";
 
-type FunnelPrefs = {
+// New V2 structure for dynamic funnel
+type FunnelStage = { 
+  id: string; 
+  label: string; 
+  metric: string; 
+  color?: string;
+};
+
+type FunnelPrefsV2 = {
   mode: 'Detalhado' | 'Compacto';
   showRates: boolean;
   comparePrevious: boolean;
-  mapping: {
-    stage1: string;
-    stage2: string;
-    stage3: string;
-    stage4: string;
-  };
+  stages: FunnelStage[]; // 2..8 stages
 };
 
-const defaultFunnelPrefs: FunnelPrefs = {
+const defaultFunnelPrefsV2: FunnelPrefsV2 = {
   mode: 'Detalhado',
   showRates: true,
   comparePrevious: false,
-  mapping: {
-    stage1: 'impressions',
-    stage2: 'clicks',
-    stage3: 'leads',
-    stage4: 'revenue'
-  }
+  stages: [
+    { id: 'stage1', label: 'Impressões', metric: 'impressions', color: '#3b82f6' },
+    { id: 'stage2', label: 'Cliques', metric: 'clicks', color: '#10b981' },
+    { id: 'stage3', label: 'Leads', metric: 'leads', color: '#f59e0b' },
+    { id: 'stage4', label: 'Receita', metric: 'revenue', color: '#ef4444' },
+  ]
 };
 
 interface CustomizeModalProps {
@@ -58,29 +61,7 @@ export function CustomizeModal({
   const [activePreset, setActivePreset] = useState<string>("");
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState("metrics");
-  const [funnelPrefs, setFunnelPrefs] = useState<FunnelPrefs>(() => {
-    if (!clientId) return defaultFunnelPrefs;
-    
-    try {
-      const stored = localStorage.getItem(`client:${clientId}:funnel_prefs`);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        // Ensure backward compatibility - merge with defaults
-        return {
-          ...defaultFunnelPrefs,
-          ...parsed,
-          mapping: {
-            ...defaultFunnelPrefs.mapping,
-            ...(parsed.mapping || {})
-          }
-        };
-      }
-    } catch (error) {
-      console.warn('Failed to parse funnel preferences:', error);
-    }
-    
-    return defaultFunnelPrefs;
-  });
+  // Remove old funnel prefs since we're using V2 now
   const MAX_METRICS = 9;
 
   // Metric presets
@@ -357,270 +338,339 @@ export function CustomizeModal({
         </TabsContent>
         
         <TabsContent value="funnel" className="mt-6 space-y-6">
-            <div className="space-y-6">
-              <div>
-                <label className="text-sm font-medium text-slate-700 mb-3 block">
-                  Modo de Exibição
-                </label>
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    variant={funnelPrefs.mode === 'Detalhado' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setFunnelPrefs(prev => ({ ...prev, mode: 'Detalhado' }))}
-                  >
-                    Detalhado
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={funnelPrefs.mode === 'Compacto' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setFunnelPrefs(prev => ({ ...prev, mode: 'Compacto' }))}
-                  >
-                    Compacto
-                  </Button>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <label className="text-sm font-medium text-slate-700">
-                  Mostrar taxas (%)
-                </label>
-                <Switch
-                  checked={funnelPrefs.showRates}
-                  onCheckedChange={(checked) => 
-                    setFunnelPrefs(prev => ({ ...prev, showRates: checked }))
-                  }
-                />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <label className="text-sm font-medium text-slate-700">
-                  Comparar com período anterior
-                </label>
-                <Switch
-                  checked={funnelPrefs.comparePrevious}
-                  onCheckedChange={(checked) => 
-                    setFunnelPrefs(prev => ({ ...prev, comparePrevious: checked }))
-                  }
-                />
-              </div>
-
-              {/* Mapping Configuration */}
-              <div className="border-t pt-6">
-                <label className="text-sm font-medium text-slate-700 mb-4 block">
-                  Mapeamento de Métricas
-                </label>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-xs text-slate-600">Etapa 1</Label>
-                    <Select 
-                      value={funnelPrefs.mapping.stage1} 
-                      onValueChange={(value) => 
-                        setFunnelPrefs(prev => ({ 
-                          ...prev, 
-                          mapping: { ...prev.mapping, stage1: value } 
-                        }))
-                      }
-                    >
-                      <SelectTrigger className="h-8">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="impressions">Impressões</SelectItem>
-                        <SelectItem value="clicks">Cliques</SelectItem>
-                        <SelectItem value="leads">Leads</SelectItem>
-                        <SelectItem value="revenue">Receita</SelectItem>
-                        <SelectItem value="spend">Investimento</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div>
-                    <Label className="text-xs text-slate-600">Etapa 2</Label>
-                    <Select 
-                      value={funnelPrefs.mapping.stage2} 
-                      onValueChange={(value) => 
-                        setFunnelPrefs(prev => ({ 
-                          ...prev, 
-                          mapping: { ...prev.mapping, stage2: value } 
-                        }))
-                      }
-                    >
-                      <SelectTrigger className="h-8">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="impressions">Impressões</SelectItem>
-                        <SelectItem value="clicks">Cliques</SelectItem>
-                        <SelectItem value="leads">Leads</SelectItem>
-                        <SelectItem value="revenue">Receita</SelectItem>
-                        <SelectItem value="spend">Investimento</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div>
-                    <Label className="text-xs text-slate-600">Etapa 3</Label>
-                    <Select 
-                      value={funnelPrefs.mapping.stage3} 
-                      onValueChange={(value) => 
-                        setFunnelPrefs(prev => ({ 
-                          ...prev, 
-                          mapping: { ...prev.mapping, stage3: value } 
-                        }))
-                      }
-                    >
-                      <SelectTrigger className="h-8">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="impressions">Impressões</SelectItem>
-                        <SelectItem value="clicks">Cliques</SelectItem>
-                        <SelectItem value="leads">Leads</SelectItem>
-                        <SelectItem value="revenue">Receita</SelectItem>
-                        <SelectItem value="spend">Investimento</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div>
-                    <Label className="text-xs text-slate-600">Etapa 4</Label>
-                    <Select 
-                      value={funnelPrefs.mapping.stage4} 
-                      onValueChange={(value) => 
-                        setFunnelPrefs(prev => ({ 
-                          ...prev, 
-                          mapping: { ...prev.mapping, stage4: value } 
-                        }))
-                      }
-                    >
-                      <SelectTrigger className="h-8">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="impressions">Impressões</SelectItem>
-                        <SelectItem value="clicks">Cliques</SelectItem>
-                        <SelectItem value="leads">Leads</SelectItem>
-                        <SelectItem value="revenue">Receita</SelectItem>
-                        <SelectItem value="spend">Investimento</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <p className="text-xs text-slate-500 mt-2">
-                  Configure quais métricas alimentam cada etapa do funil
-                </p>
-              </div>
-            </div>
+          <FunnelStageManager clientId={clientId} />
         </TabsContent>
         
         <TabsContent value="layout" className="mt-6 space-y-6">
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-slate-900">Layout dos KPIs</h3>
-            
-            <div className="space-y-4">
-              <div>
-                <Label>Disposição do Grid</Label>
-                <div className="grid grid-cols-3 gap-3 mt-2">
-                  <Button variant="outline" className="h-16 flex-col text-xs">
-                    <div className="text-lg mb-1">⚏</div>
-                    3x3
-                  </Button>
-                  <Button variant="outline" className="h-16 flex-col text-xs">
-                    <div className="text-lg mb-1">⚍</div>
-                    2x4+1
-                  </Button>
-                  <Button variant="outline" className="h-16 flex-col text-xs">
-                    <div className="text-lg mb-1">⚐</div>
-                    1x5+2x2
-                  </Button>
-                </div>
-              </div>
-              
-              <div>
-                <Label>Densidade dos Cards</Label>
-                <div className="grid grid-cols-2 gap-3 mt-2">
-                  <Button variant="outline" className="h-12 text-xs">
-                    Confortável
-                  </Button>
-                  <Button variant="outline" className="h-12 text-xs">
-                    Compacto
-                  </Button>
-                </div>
-              </div>
-            </div>
+          <div className="text-center py-12 text-slate-400">
+            <div className="text-lg mb-2">🎨</div>
+            <div className="text-sm">Configurações de layout</div>
+            <div className="text-xs mt-1">Em breve...</div>
           </div>
         </TabsContent>
         
         <TabsContent value="advanced" className="mt-6 space-y-6">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-slate-900">Presets Avançados</h3>
-              <Badge variant="outline" className="text-xs">
-                Máx. {MAX_METRICS} métricas
-              </Badge>
-            </div>
-            
-            <div className="space-y-4">
-              <div>
-                <Label>Presets Salvos</Label>
-                <div className="space-y-2 mt-2">
-                  {Object.entries(PRESETS).map(([key, metrics]) => (
-                    <div key={key} className="flex items-center justify-between p-3 border rounded-xl">
-                      <div>
-                        <div className="font-medium text-sm">
-                          {key === 'default' && '📊 Padrão'}
-                          {key === 'performance' && '⚡ Performance'}
-                          {key === 'acquisition' && '🎯 Aquisição'}
-                          {key === 'revenue' && '💰 Receita'}
-                          {key === 'traffic' && '📈 Tráfego'}
-                          {key === 'engagement' && '❤️ Engajamento'}
-                          {key === 'complete' && '🔥 Completo'}
-                        </div>
-                        <div className="text-xs text-slate-500">
-                          {metrics.length} métricas
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          onClick={() => handlePresetSelect(key)}
-                        >
-                          Aplicar
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              
-              <div className="pt-4 border-t">
-                <Button variant="outline" className="w-full" disabled>
-                  + Salvar Configuração Atual
-                </Button>
-                <p className="text-xs text-slate-500 mt-2 text-center">
-                  Funcionalidade em desenvolvimento
-                </p>
-              </div>
-            </div>
+          <div className="text-center py-12 text-slate-400">
+            <div className="text-lg mb-2">⚙️</div>
+            <div className="text-sm">Configurações avançadas</div>
+            <div className="text-xs mt-1">Em breve...</div>
           </div>
         </TabsContent>
       </Tabs>
-      
-      {/* Sticky Footer */}
-      <div className="sticky bottom-0 inset-x-0 border-t bg-white/80 backdrop-blur px-4 py-3 flex justify-end gap-2 z-10">
-        <Button variant="outline" onClick={onClose} className="border-slate-200 text-slate-600">
-          Cancelar
-        </Button>
-        <Button variant="outline" onClick={handleReset} className="border-slate-200 text-slate-600">
-          Restaurar Padrão
-        </Button>
-        <Button onClick={handleSave} className="bg-blue-600 hover:bg-blue-700 text-white">
-          Salvar Alterações
-        </Button>
+
+      <div className="sticky bottom-0 bg-white border-t border-slate-200 p-6 flex items-center justify-between">
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={handleReset}>
+            Restaurar Padrão
+          </Button>
+        </div>
+        
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button onClick={handleSave}>
+            Salvar
+          </Button>
+        </div>
       </div>
     </ModalFrame>
+  );
+}
+
+// Funnel Stage Manager Component
+function FunnelStageManager({ clientId }: { clientId: string }) {
+  const { toast } = useToast();
+  const [funnelPrefs, setFunnelPrefs] = useState<FunnelPrefsV2>(() => {
+    if (!clientId) return defaultFunnelPrefsV2;
+    
+    try {
+      // Try V2 format first
+      const storedV2 = localStorage.getItem(`client:${clientId}:funnel_prefs@v2`);
+      if (storedV2) {
+        const parsed = JSON.parse(storedV2);
+        return {
+          ...defaultFunnelPrefsV2,
+          ...parsed,
+          stages: parsed.stages || defaultFunnelPrefsV2.stages
+        };
+      }
+
+      // Migrate from V1 format
+      const storedV1 = localStorage.getItem(`client:${clientId}:funnel_prefs`);
+      if (storedV1) {
+        const parsedV1 = JSON.parse(storedV1);
+        
+        // Convert V1 mapping to V2 stages
+        const migratedStages: FunnelStage[] = [];
+        if (parsedV1.mapping) {
+          const { stage1, stage2, stage3, stage4 } = parsedV1.mapping;
+          const getLabel = (metric: string) => {
+            const labels = {
+              impressions: 'Impressões',
+              clicks: 'Cliques', 
+              leads: 'Leads',
+              revenue: 'Receita',
+              spend: 'Investimento'
+            };
+            return labels[metric as keyof typeof labels] || metric;
+          };
+
+          if (stage1) migratedStages.push({ id: 'stage1', label: getLabel(stage1), metric: stage1 });
+          if (stage2) migratedStages.push({ id: 'stage2', label: getLabel(stage2), metric: stage2 });
+          if (stage3) migratedStages.push({ id: 'stage3', label: getLabel(stage3), metric: stage3 });
+          if (stage4) migratedStages.push({ id: 'stage4', label: getLabel(stage4), metric: stage4 });
+        }
+
+        const migrated: FunnelPrefsV2 = {
+          mode: parsedV1.mode || 'Detalhado',
+          showRates: parsedV1.showRates !== false,
+          comparePrevious: parsedV1.comparePrevious === true,
+          stages: migratedStages.length > 0 ? migratedStages : defaultFunnelPrefsV2.stages
+        };
+
+        // Save as V2
+        localStorage.setItem(`client:${clientId}:funnel_prefs@v2`, JSON.stringify(migrated));
+        return migrated;
+      }
+    } catch (error) {
+      console.warn('Failed to parse funnel preferences:', error);
+    }
+    
+    return defaultFunnelPrefsV2;
+  });
+
+  // Available metrics for funnel stages
+  const AVAILABLE_METRICS = [
+    { value: 'impressions', label: 'Impressões' },
+    { value: 'clicks', label: 'Cliques' },
+    { value: 'leads', label: 'Leads' },
+    { value: 'revenue', label: 'Receita' },
+    { value: 'spend', label: 'Investimento' },
+  ];
+
+  const handleUpdateFunnelPrefs = (updates: Partial<FunnelPrefsV2>) => {
+    const newPrefs = { ...funnelPrefs, ...updates };
+    setFunnelPrefs(newPrefs);
+    
+    // Persist to localStorage
+    try {
+      localStorage.setItem(`client:${clientId}:funnel_prefs@v2`, JSON.stringify(newPrefs));
+    } catch (error) {
+      console.warn('Failed to save funnel preferences:', error);
+    }
+
+    // Update the live funnel component if available
+    if ((window as any).updateFunnelV2Prefs) {
+      (window as any).updateFunnelV2Prefs(updates);
+    }
+  };
+
+  const handleStageUpdate = (stageIndex: number, updates: Partial<FunnelStage>) => {
+    const newStages = [...funnelPrefs.stages];
+    newStages[stageIndex] = { ...newStages[stageIndex], ...updates };
+    handleUpdateFunnelPrefs({ stages: newStages });
+  };
+
+  const handleAddStage = () => {
+    if (funnelPrefs.stages.length >= 8) {
+      toast({
+        title: "Limite atingido",
+        description: "Máximo de 8 estágios permitidos.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const newStage: FunnelStage = {
+      id: `stage${Date.now()}`,
+      label: `Etapa ${funnelPrefs.stages.length + 1}`,
+      metric: 'leads',
+      color: '#8b5cf6'
+    };
+
+    handleUpdateFunnelPrefs({ 
+      stages: [...funnelPrefs.stages, newStage] 
+    });
+  };
+
+  const handleRemoveStage = (stageIndex: number) => {
+    if (funnelPrefs.stages.length <= 2) {
+      toast({
+        title: "Mínimo necessário",
+        description: "Mínimo de 2 estágios necessários.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const newStages = funnelPrefs.stages.filter((_, index) => index !== stageIndex);
+    handleUpdateFunnelPrefs({ stages: newStages });
+  };
+
+  const handleMoveStage = (fromIndex: number, toIndex: number) => {
+    if (toIndex < 0 || toIndex >= funnelPrefs.stages.length) return;
+    
+    const newStages = [...funnelPrefs.stages];
+    const [movedStage] = newStages.splice(fromIndex, 1);
+    newStages.splice(toIndex, 0, movedStage);
+    
+    handleUpdateFunnelPrefs({ stages: newStages });
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Mode and Options */}
+      <div className="space-y-4">
+        <div>
+          <label className="text-sm font-medium text-slate-700 mb-3 block">
+            Modo de Exibição
+          </label>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant={funnelPrefs.mode === 'Detalhado' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => handleUpdateFunnelPrefs({ mode: 'Detalhado' })}
+            >
+              Detalhado
+            </Button>
+            <Button
+              type="button"
+              variant={funnelPrefs.mode === 'Compacto' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => handleUpdateFunnelPrefs({ mode: 'Compacto' })}
+            >
+              Compacto
+            </Button>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <label className="text-sm font-medium text-slate-700">
+            Mostrar taxas (%)
+          </label>
+          <Switch
+            checked={funnelPrefs.showRates}
+            onCheckedChange={(checked) => handleUpdateFunnelPrefs({ showRates: checked })}
+          />
+        </div>
+
+        <div className="flex items-center justify-between">
+          <label className="text-sm font-medium text-slate-700">
+            Comparar com período anterior
+          </label>
+          <Switch
+            checked={funnelPrefs.comparePrevious}
+            onCheckedChange={(checked) => handleUpdateFunnelPrefs({ comparePrevious: checked })}
+          />
+        </div>
+      </div>
+
+      {/* Dynamic Stages Management */}
+      <div className="border-t pt-6">
+        <div className="flex items-center justify-between mb-4">
+          <label className="text-sm font-medium text-slate-700">
+            Estágios do Funil ({funnelPrefs.stages.length}/8)
+          </label>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleAddStage}
+            disabled={funnelPrefs.stages.length >= 8}
+            className="gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            Adicionar
+          </Button>
+        </div>
+
+        <div className="space-y-3">
+          {funnelPrefs.stages.map((stage, index) => (
+            <div
+              key={stage.id}
+              className="flex items-center gap-3 p-4 bg-slate-50 rounded-xl border"
+            >
+              <div className="flex flex-col gap-1">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleMoveStage(index, index - 1)}
+                  disabled={index === 0}
+                  className="h-6 w-6 p-0"
+                >
+                  <ChevronUp className="h-3 w-3" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleMoveStage(index, index + 1)}
+                  disabled={index === funnelPrefs.stages.length - 1}
+                  className="h-6 w-6 p-0"
+                >
+                  <ChevronDown className="h-3 w-3" />
+                </Button>
+              </div>
+
+              <div className="flex-1 grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs text-slate-600">Nome</Label>
+                  <Input
+                    value={stage.label}
+                    onChange={(e) => handleStageUpdate(index, { label: e.target.value })}
+                    className="h-8"
+                    placeholder="Nome do estágio"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-slate-600">Métrica</Label>
+                  <Select 
+                    value={stage.metric} 
+                    onValueChange={(value) => handleStageUpdate(index, { metric: value })}
+                  >
+                    <SelectTrigger className="h-8">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {AVAILABLE_METRICS.map((metric) => (
+                        <SelectItem key={metric.value} value={metric.value}>
+                          {metric.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => handleRemoveStage(index)}
+                disabled={funnelPrefs.stages.length <= 2}
+                className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          ))}
+        </div>
+
+        {funnelPrefs.stages.length <= 2 && (
+          <p className="text-xs text-slate-500 text-center bg-amber-50 border border-amber-200 rounded-xl p-3 mt-3">
+            ⚠️ Mínimo de 2 estágios necessários.
+          </p>
+        )}
+        
+        {funnelPrefs.stages.length >= 8 && (
+          <p className="text-xs text-slate-500 text-center bg-blue-50 border border-blue-200 rounded-xl p-3 mt-3">
+            ℹ️ Máximo de 8 estágios atingido.
+          </p>
+        )}
+      </div>
+    </div>
   );
 }
