@@ -130,19 +130,24 @@ export interface Optimization {
 }
 
 // Lead types for CRM
+export type LeadStage = "Novo" | "Qualificação" | "Proposta" | "Fechado";
+
 export interface Lead {
-  id: string;
+  id: string;                // uuid
+  created_at: string;        // ISO
+  updated_at?: string;       // ISO
   name: string;
-  email: string;
+  email?: string;
   phone?: string;
-  company?: string;
-  source: string;
-  status: 'Novo' | 'Qualificação' | 'Proposta' | 'Fechado' | 'Perdido';
-  potentialValue: number;
-  owner: string;
-  createdAt: string;
-  updatedAt: string;
+  utm_source?: string;
+  utm_medium?: string;
+  utm_campaign?: string;
+  utm_content?: string;
+  value?: number;            // potencial em moeda
+  owner?: string;            // responsável
+  stage: LeadStage;          // coluna do Kanban
   notes?: string;
+  client_id?: string;        // opcional, vínculo com clients
 }
 
 // Calendar event types
