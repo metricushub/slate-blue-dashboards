@@ -135,7 +135,7 @@ export function TrendChart({ clientId, period, platform, granularity, selectedMe
           <Skeleton className="h-6 w-40" />
         </CardHeader>
         <CardContent className="p-5 pt-0">
-          <Skeleton className="h-80 w-full" />
+          <Skeleton className="h-60 w-full" />
         </CardContent>
       </Card>
     );
@@ -150,7 +150,7 @@ export function TrendChart({ clientId, period, platform, granularity, selectedMe
           </CardTitle>
         </CardHeader>
         <CardContent className="p-5 pt-0">
-          <div className="flex items-center justify-center h-80 text-slate-400">
+          <div className="flex items-center justify-center h-60 text-slate-400">
             Nenhum dado encontrado para o período selecionado
           </div>
         </CardContent>
@@ -168,7 +168,7 @@ export function TrendChart({ clientId, period, platform, granularity, selectedMe
         </CardTitle>
       </CardHeader>
       <CardContent className="p-5 pt-0">
-        <ResponsiveContainer width="100%" height={320}>
+        <ResponsiveContainer width="100%" height={260}>
           <AreaChart data={chartData}>
             <defs>
               <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
