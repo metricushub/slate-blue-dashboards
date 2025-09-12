@@ -102,7 +102,7 @@ export function ClientOverview() {
   if (loading) {
     return (
       <div className="min-h-screen bg-dashboard">
-        <div className="mx-auto max-w-[1280px] lg:max-w-[1360px] px-4 sm:px-6 lg:px-8 py-6">
+        <div className="px-4 sm:px-6 lg:px-8 py-6">
           <div className="space-y-6">
             <Skeleton className="h-12 w-64" />
             <Skeleton className="h-16 w-full" />
@@ -140,7 +140,7 @@ export function ClientOverview() {
 
   return (
     <div className="min-h-screen bg-dashboard">
-      <div className="mx-auto max-w-[1280px] lg:max-w-[1360px] px-4 sm:px-6 lg:px-8 py-6">
+      <div className="px-4 sm:px-6 lg:px-8 py-6">
         <div className="space-y-6 md:space-y-8">
           {/* Header */}
           <div className="flex items-center justify-between">

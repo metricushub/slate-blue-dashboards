@@ -130,12 +130,12 @@ export function TrendChart({ clientId, period, platform, granularity, selectedMe
 
   if (loading) {
     return (
-      <Card className="bg-[#11161e] border-[#1f2733]">
+      <Card className="bg-card border border-border rounded-2xl shadow-sm">
         <CardHeader>
-          <Skeleton className="h-6 w-40 bg-[#1f2733]" />
+          <Skeleton className="h-6 w-40" />
         </CardHeader>
         <CardContent>
-          <Skeleton className="h-80 w-full bg-[#1f2733]" />
+          <Skeleton className="h-80 w-full" />
         </CardContent>
       </Card>
     );
@@ -143,15 +143,15 @@ export function TrendChart({ clientId, period, platform, granularity, selectedMe
 
   if (chartData.length === 0) {
     return (
-      <Card className="bg-[#11161e] border-[#1f2733]">
+      <Card className="bg-card border border-border rounded-2xl shadow-sm">
         <CardHeader>
-          <CardTitle className="text-[#e6edf3]">
+          <CardTitle className="text-foreground">
             Tendência - {METRICS[selectedMetric]?.label || 'Métrica'}
           </CardTitle>
         </CardHeader>
         <CardContent className="p-6">
           <div className="flex items-center justify-center h-80">
-            <p className="text-[#9fb0c3]">Nenhum dado encontrado para o período selecionado</p>
+            <p className="text-muted-foreground">Nenhum dados encontrado para o período selecionado</p>
           </div>
         </CardContent>
       </Card>
@@ -161,9 +161,9 @@ export function TrendChart({ clientId, period, platform, granularity, selectedMe
   const metricDef = METRICS[selectedMetric];
 
   return (
-    <Card className="bg-[#11161e] border-[#1f2733]">
+    <Card className="bg-card border border-border rounded-2xl shadow-sm">
       <CardHeader>
-        <CardTitle className="text-[#e6edf3]">
+        <CardTitle className="text-foreground">
           Tendência - {metricDef.label}
         </CardTitle>
       </CardHeader>
@@ -172,14 +172,14 @@ export function TrendChart({ clientId, period, platform, granularity, selectedMe
           <AreaChart data={chartData}>
             <defs>
               <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3}/>
-                <stop offset="95%" stopColor="#22c55e" stopOpacity={0}/>
+                <stop offset="5%" stopColor="#2563eb" stopOpacity={0.2}/>
+                <stop offset="95%" stopColor="#2563eb" stopOpacity={0}/>
               </linearGradient>
             </defs>
             
             <CartesianGrid 
               strokeDasharray="3 3" 
-              stroke="#1f2733" 
+              stroke="#e5e7eb" 
               horizontal={true}
               vertical={false}
             />
@@ -188,27 +188,28 @@ export function TrendChart({ clientId, period, platform, granularity, selectedMe
               dataKey="displayDate"
               axisLine={false}
               tickLine={false}
-              tick={{ fill: '#9fb0c3', fontSize: 12 }}
+              tick={{ fill: '#475569', fontSize: 12 }}
               dy={10}
             />
             
             <YAxis
               axisLine={false}
               tickLine={false}
-              tick={{ fill: '#9fb0c3', fontSize: 12 }}
+              tick={{ fill: '#475569', fontSize: 12 }}
               tickFormatter={(value) => formatMetricValue(value, metricDef.unit)}
               dx={-10}
             />
             
             <Tooltip
               contentStyle={{
-                backgroundColor: '#1f2733',
-                border: '1px solid #374151',
+                backgroundColor: '#ffffff',
+                border: '1px solid #e5e7eb',
                 borderRadius: '8px',
-                color: '#e6edf3',
+                color: '#0f172a',
                 fontSize: '14px',
+                boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
               }}
-              labelStyle={{ color: '#9fb0c3' }}
+              labelStyle={{ color: '#475569' }}
               formatter={(value: number) => [
                 formatMetricValue(value, metricDef.unit),
                 metricDef.label
@@ -218,13 +219,13 @@ export function TrendChart({ clientId, period, platform, granularity, selectedMe
             <Area
               type="monotone"
               dataKey="value"
-              stroke="#22c55e"
+              stroke="#2563eb"
               strokeWidth={2}
               fill="url(#areaGradient)"
               dot={false}
               activeDot={{
                 r: 4,
-                fill: '#22c55e',
+                fill: '#2563eb',
                 strokeWidth: 0,
               }}
             />

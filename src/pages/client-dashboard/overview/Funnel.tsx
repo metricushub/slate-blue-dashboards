@@ -82,13 +82,13 @@ export function Funnel({ clientId, period, platform }: FunnelProps) {
 
   if (loading) {
     return (
-      <Card className="bg-[#11161e] border-[#1f2733]">
+      <Card className="bg-card border border-border rounded-2xl shadow-sm">
         <CardContent className="p-6">
           <div className="animate-pulse">
-            <div className="h-4 bg-[#1f2733] rounded mb-4"></div>
+            <div className="h-4 bg-muted rounded mb-4"></div>
             <div className="space-y-3">
               {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="h-8 bg-[#1f2733] rounded"></div>
+                <div key={i} className="h-8 bg-muted rounded"></div>
               ))}
             </div>
           </div>
@@ -100,10 +100,10 @@ export function Funnel({ clientId, period, platform }: FunnelProps) {
   const maxValue = Math.max(...stages.map(s => s.value));
 
   return (
-    <Card className="bg-[#11161e] border-[#1f2733]">
+    <Card className="bg-card border border-border rounded-2xl shadow-sm">
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle className="text-[#e6edf3]">Funil de Conversão</CardTitle>
+          <CardTitle className="text-foreground">Funil de Conversão</CardTitle>
           <div className="flex gap-2">
             <Button
               variant="ghost"
@@ -111,9 +111,9 @@ export function Funnel({ clientId, period, platform }: FunnelProps) {
               onClick={() => setViewMode('chart')}
               className={`${
                 viewMode === 'chart' 
-                  ? 'bg-[#1f2733] text-[#e6edf3]' 
-                  : 'text-[#9fb0c3] hover:text-[#e6edf3]'
-              } hover:bg-[#1f2733]`}
+                  ? 'bg-muted text-foreground' 
+                  : 'text-muted-foreground hover:text-foreground'
+              } hover:bg-muted`}
             >
               <BarChart3 className="h-4 w-4" />
             </Button>
@@ -123,9 +123,9 @@ export function Funnel({ clientId, period, platform }: FunnelProps) {
               onClick={() => setViewMode('table')}
               className={`${
                 viewMode === 'table' 
-                  ? 'bg-[#1f2733] text-[#e6edf3]' 
-                  : 'text-[#9fb0c3] hover:text-[#e6edf3]'
-              } hover:bg-[#1f2733]`}
+                  ? 'bg-muted text-foreground' 
+                  : 'text-muted-foreground hover:text-foreground'
+              } hover:bg-muted`}
             >
               <List className="h-4 w-4" />
             </Button>
@@ -140,33 +140,33 @@ export function Funnel({ clientId, period, platform }: FunnelProps) {
               <div key={stage.name} className="space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <span className="text-sm font-medium text-[#e6edf3] w-20">
+                    <span className="text-sm font-medium text-foreground w-20">
                       {stage.name}
                     </span>
-                    <span className="text-lg font-bold text-[#e6edf3]">
+                    <span className="text-lg font-bold text-foreground">
                       {new Intl.NumberFormat('pt-BR').format(stage.value)}
                     </span>
                   </div>
                   {stage.rate !== undefined && (
                     <div className="flex items-center gap-2">
                       <span className={`text-sm font-medium ${
-                        stage.rate >= 2 ? 'text-[#22c55e]' : 'text-[#ef4444]'
+                        stage.rate >= 2 ? 'text-green-600' : 'text-red-600'
                       }`}>
                         {stage.rate.toFixed(1)}%
                       </span>
                       {stage.rate >= 2 ? (
-                        <TrendingUp className="h-4 w-4 text-[#22c55e]" />
+                        <TrendingUp className="h-4 w-4 text-green-600" />
                       ) : (
-                        <TrendingDown className="h-4 w-4 text-[#ef4444]" />
+                        <TrendingDown className="h-4 w-4 text-red-600" />
                       )}
                     </div>
                   )}
                 </div>
                 
                 <div className="relative">
-                  <div className="h-6 bg-[#1f2733] rounded-full overflow-hidden">
+                  <div className="h-6 bg-muted rounded-full overflow-hidden">
                     <div 
-                      className="h-full bg-gradient-to-r from-[#22c55e] to-[#16a34a] transition-all duration-700"
+                      className="h-full bg-gradient-to-r from-blue-500 to-blue-600 transition-all duration-700"
                       style={{ 
                         width: `${(stage.value / maxValue) * 100}%` 
                       }}
@@ -175,7 +175,7 @@ export function Funnel({ clientId, period, platform }: FunnelProps) {
                   
                   {index < stages.length - 1 && (
                     <div className="absolute right-0 top-full mt-1">
-                      <div className="text-xs text-[#9fb0c3]">
+                      <div className="text-xs text-muted-foreground">
                         →
                       </div>
                     </div>
@@ -187,23 +187,23 @@ export function Funnel({ clientId, period, platform }: FunnelProps) {
         ) : (
           <Table>
             <TableHeader>
-              <TableRow className="border-[#1f2733] hover:bg-[#1f2733]/50">
-                <TableHead className="text-[#9fb0c3]">Etapa</TableHead>
-                <TableHead className="text-[#9fb0c3]">Volume</TableHead>
-                <TableHead className="text-[#9fb0c3]">Taxa</TableHead>
-                <TableHead className="text-[#9fb0c3]">Status</TableHead>
+              <TableRow className="border-border hover:bg-muted/50">
+                <TableHead className="text-muted-foreground">Etapa</TableHead>
+                <TableHead className="text-muted-foreground">Volume</TableHead>
+                <TableHead className="text-muted-foreground">Taxa</TableHead>
+                <TableHead className="text-muted-foreground">Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {stages.map((stage) => (
-                <TableRow key={stage.name} className="border-[#1f2733] hover:bg-[#1f2733]/50">
-                  <TableCell className="text-[#e6edf3] font-medium">
+                <TableRow key={stage.name} className="border-border hover:bg-muted/50">
+                  <TableCell className="text-foreground font-medium">
                     {stage.name}
                   </TableCell>
-                  <TableCell className="text-[#e6edf3]">
+                  <TableCell className="text-foreground">
                     {new Intl.NumberFormat('pt-BR').format(stage.value)}
                   </TableCell>
-                  <TableCell className="text-[#e6edf3]">
+                  <TableCell className="text-foreground">
                     {stage.rate !== undefined ? `${stage.rate.toFixed(1)}%` : '-'}
                   </TableCell>
                   <TableCell>
@@ -211,18 +211,18 @@ export function Funnel({ clientId, period, platform }: FunnelProps) {
                       <div className="flex items-center gap-2">
                         {stage.rate >= 2 ? (
                           <>
-                            <TrendingUp className="h-4 w-4 text-[#22c55e]" />
-                            <span className="text-[#22c55e] text-sm">Bom</span>
+                            <TrendingUp className="h-4 w-4 text-green-600" />
+                            <span className="text-green-600 text-sm">Bom</span>
                           </>
                         ) : (
                           <>
-                            <TrendingDown className="h-4 w-4 text-[#ef4444]" />
-                            <span className="text-[#ef4444] text-sm">Baixo</span>
+                            <TrendingDown className="h-4 w-4 text-red-600" />
+                            <span className="text-red-600 text-sm">Baixo</span>
                           </>
                         )}
                       </div>
                     ) : (
-                      <span className="text-[#9fb0c3] text-sm">-</span>
+                      <span className="text-muted-foreground text-sm">-</span>
                     )}
                   </TableCell>
                 </TableRow>
