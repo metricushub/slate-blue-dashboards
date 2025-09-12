@@ -8,30 +8,36 @@ import { Label } from "@/components/ui/label";
 import { MetricRow } from "@/types";
 import { METRICS, MetricKey, formatMetricValue } from "@/shared/types/metrics";
 import { useDataSource } from "@/hooks/useDataSource";
-import { useEffect, useState } from "react";
-import { Download, TrendingUp, Plus, X } from "lucide-react";
-import ReactEChartsCore from 'echarts-for-react/lib/core';
-import * as echarts from 'echarts/core';
-import { LineChart, BarChart } from 'echarts/charts';
-import {
-  TitleComponent,
-  TooltipComponent,
-  GridComponent,
-  LegendComponent,
-  DataZoomComponent,
-} from 'echarts/components';
-import { CanvasRenderer } from 'echarts/renderers';
+import { useStableEChart } from "@/shared/hooks/useStableEChart";
+import { useEffect, useState, useCallback, useMemo } from "react";
+import { Download, TrendingUp, X } from "lucide-react";
 
-echarts.use([
-  LineChart,
-  BarChart,
-  TitleComponent,
-  TooltipComponent,
-  GridComponent,
-  LegendComponent,
-  DataZoomComponent,
-  CanvasRenderer,
-]);
+// Metric axis mapping for smart dual-axis handling
+const METRIC_AXIS_MAP = {
+  spend: 'money',
+  revenue: 'money', 
+  cpl: 'money',
+  cpa: 'money',
+  leads: 'count',
+  clicks: 'count',
+  impressions: 'count',
+  roas: 'ratio',
+  convRate: 'ratio'
+} as const;
+
+interface ChartState {
+  selectedMetrics: MetricKey[];
+  comparePrevious: boolean;
+  dateFrom: string;
+  dateTo: string;
+  granularity: 'day' | 'week' | 'month';
+}
+
+interface ChartDataPoint {
+  date: string;
+  displayDate: string;
+  [key: string]: any;
+}
 
 interface EnhancedTrendChartProps {
   clientId: string;
@@ -39,12 +45,6 @@ interface EnhancedTrendChartProps {
   platform: 'all' | 'google' | 'meta';
   granularity: 'day' | 'week' | 'month';
   selectedMetrics: MetricKey[];
-}
-
-interface ChartDataPoint {
-  date: string;
-  displayDate: string;
-  [key: string]: any;
 }
 
 export function EnhancedTrendChart({ 
@@ -55,16 +55,47 @@ export function EnhancedTrendChart({
   selectedMetrics 
 }: EnhancedTrendChartProps) {
   const { dataSource } = useDataSource();
+  const { containerRef, updateChart } = useStableEChart({ height: 400 });
+  
+  // Single source of truth for chart state
+  const [chartState, setChartState] = useState<ChartState>(() => {
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - period);
+    
+    return {
+      selectedMetrics: selectedMetrics.slice(0, 3),
+      comparePrevious: false,
+      dateFrom: startDate.toISOString().split('T')[0],
+      dateTo: endDate.toISOString().split('T')[0],
+      granularity
+    };
+  });
+  
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [activeMetrics, setActiveMetrics] = useState<MetricKey[]>(selectedMetrics.slice(0, 3));
-  const [comparePrevious, setComparePrevious] = useState(false);
-  const [chartType, setChartType] = useState<'line' | 'bar'>('line');
   const [previousPeriodData, setPreviousPeriodData] = useState<ChartDataPoint[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [chartType, setChartType] = useState<'line' | 'bar'>('line');
 
+  // Update chart state when props change
+  useEffect(() => {
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - period);
+    
+    setChartState(prev => ({
+      ...prev,
+      selectedMetrics: selectedMetrics.slice(0, 3),
+      dateFrom: startDate.toISOString().split('T')[0],
+      dateTo: endDate.toISOString().split('T')[0],
+      granularity
+    }));
+  }, [selectedMetrics, period, granularity]);
+
+  // Load chart data
   useEffect(() => {
     const loadChartData = async () => {
-      if (!clientId || activeMetrics.length === 0) {
+      if (!clientId || chartState.selectedMetrics.length === 0) {
         setLoading(false);
         return;
       }
@@ -72,14 +103,10 @@ export function EnhancedTrendChart({
       setLoading(true);
       
       try {
-        const endDate = new Date();
-        const startDate = new Date();
-        startDate.setDate(startDate.getDate() - period);
-
         let metrics = await dataSource.getMetrics(
           clientId,
-          startDate.toISOString(),
-          endDate.toISOString()
+          chartState.dateFrom,
+          chartState.dateTo
         );
 
         // Filter by platform
@@ -88,18 +115,18 @@ export function EnhancedTrendChart({
         }
 
         // Group metrics by date based on granularity
-        const groupedData = groupMetricsByDate(metrics, granularity);
+        const groupedData = groupMetricsByDate(metrics, chartState.granularity);
         
         // Convert to chart format
         const chartPoints: ChartDataPoint[] = Object.entries(groupedData)
           .map(([date, rows]) => {
             const point: ChartDataPoint = {
               date,
-              displayDate: formatDateForDisplay(date, granularity),
+              displayDate: formatDateForDisplay(date, chartState.granularity),
             };
 
-            // Calculate values for each active metric
-            activeMetrics.forEach(metricKey => {
+            // Calculate values for each selected metric
+            chartState.selectedMetrics.forEach(metricKey => {
               const metricDef = METRICS[metricKey];
               
               if (metricDef.compute) {
@@ -118,30 +145,35 @@ export function EnhancedTrendChart({
         setChartData(chartPoints);
 
         // Load previous period data if comparison is enabled
-        if (comparePrevious) {
-          const prevEndDate = new Date(startDate);
-          const prevStartDate = new Date(startDate);
-          prevStartDate.setDate(prevStartDate.getDate() - period);
+        if (chartState.comparePrevious) {
+          const rangeDays = Math.ceil(
+            (new Date(chartState.dateTo).getTime() - new Date(chartState.dateFrom).getTime()) / 
+            (1000 * 60 * 60 * 24)
+          );
+          
+          const prevEndDate = new Date(chartState.dateFrom);
+          const prevStartDate = new Date(prevEndDate);
+          prevStartDate.setDate(prevStartDate.getDate() - rangeDays);
 
           let prevMetrics = await dataSource.getMetrics(
             clientId,
-            prevStartDate.toISOString(),
-            prevEndDate.toISOString()
+            prevStartDate.toISOString().split('T')[0],
+            prevEndDate.toISOString().split('T')[0]
           );
 
           if (platform !== 'all') {
             prevMetrics = prevMetrics.filter(metric => metric.platform === platform);
           }
 
-          const prevGroupedData = groupMetricsByDate(prevMetrics, granularity);
+          const prevGroupedData = groupMetricsByDate(prevMetrics, chartState.granularity);
           const prevChartPoints: ChartDataPoint[] = Object.entries(prevGroupedData)
             .map(([date, rows]) => {
               const point: ChartDataPoint = {
                 date,
-                displayDate: formatDateForDisplay(date, granularity),
+                displayDate: formatDateForDisplay(date, chartState.granularity),
               };
 
-              activeMetrics.forEach(metricKey => {
+              chartState.selectedMetrics.forEach(metricKey => {
                 const metricDef = METRICS[metricKey];
                 
                 if (metricDef.compute) {
@@ -169,9 +201,9 @@ export function EnhancedTrendChart({
     };
 
     // Debounce chart updates
-    const timeoutId = setTimeout(loadChartData, 150);
+    const timeoutId = setTimeout(loadChartData, 120);
     return () => clearTimeout(timeoutId);
-  }, [clientId, period, platform, granularity, activeMetrics, comparePrevious, dataSource]);
+  }, [clientId, platform, chartState, dataSource]);
 
   const groupMetricsByDate = (metrics: MetricRow[], granularity: 'day' | 'week' | 'month') => {
     return metrics.reduce((acc, metric) => {
@@ -211,26 +243,48 @@ export function EnhancedTrendChart({
     }
   };
 
-  const handleMetricToggle = (metric: MetricKey) => {
-    if (activeMetrics.includes(metric)) {
-      setActiveMetrics(prev => prev.filter(m => m !== metric));
-    } else if (activeMetrics.length < 3) {
-      setActiveMetrics(prev => [...prev, metric]);
-    }
-  };
+  const handleMetricToggle = useCallback((metric: MetricKey) => {
+    if (!METRICS[metric]) return; // Guard against invalid metrics
+    
+    setChartState(prev => {
+      const { selectedMetrics } = prev;
+      if (selectedMetrics.includes(metric)) {
+        return { ...prev, selectedMetrics: selectedMetrics.filter(m => m !== metric) };
+      } else if (selectedMetrics.length < 3) {
+        return { ...prev, selectedMetrics: [...selectedMetrics, metric] };
+      }
+      return prev;
+    });
+  }, []);
 
-  const getChartOption = () => {
+  const handleComparePreviousToggle = useCallback((checked: boolean) => {
+    setChartState(prev => ({ ...prev, comparePrevious: checked }));
+  }, []);
+
+  // Build chart option deterministically
+  const chartOption = useMemo(() => {
+    if (chartData.length === 0 || chartState.selectedMetrics.length === 0) {
+      return null;
+    }
+
     const colors = ['#2563eb', '#dc2626', '#16a34a', '#ca8a04'];
     
-    const series = activeMetrics.map((metric, index) => {
+    // Determine if we need dual axis
+    const axisTypes = new Set(chartState.selectedMetrics.map(m => METRIC_AXIS_MAP[m]));
+    const needsDualAxis = axisTypes.size > 1;
+    
+    const series = chartState.selectedMetrics.map((metric, index) => {
       const metricDef = METRICS[metric];
+      const axisType = METRIC_AXIS_MAP[metric];
+      
       return {
         name: metricDef.label,
         type: chartType,
-        data: chartData.map(point => point[metric]),
+        data: chartData.map(point => point[metric] || 0),
         smooth: true,
         lineStyle: { width: 3 },
         itemStyle: { color: colors[index % colors.length] },
+        yAxisIndex: needsDualAxis ? (axisType === 'money' ? 0 : 1) : 0,
         areaStyle: chartType === 'line' ? { 
           opacity: 0.1,
           color: colors[index % colors.length]
@@ -239,13 +293,15 @@ export function EnhancedTrendChart({
     });
 
     // Add previous period series if comparison is enabled
-    if (comparePrevious && previousPeriodData.length > 0) {
-      const prevSeries = activeMetrics.map((metric, index) => {
+    if (chartState.comparePrevious && previousPeriodData.length > 0) {
+      const prevSeries = chartState.selectedMetrics.map((metric, index) => {
         const metricDef = METRICS[metric];
+        const axisType = METRIC_AXIS_MAP[metric];
+        
         return {
-          name: `${metricDef.label} (período anterior)`,
+          name: `${metricDef.label} (anterior)`,
           type: chartType,
-          data: previousPeriodData.map(point => point[metric]),
+          data: previousPeriodData.map(point => point[metric] || 0),
           smooth: true,
           lineStyle: { 
             width: 2, 
@@ -256,7 +312,8 @@ export function EnhancedTrendChart({
             color: colors[index % colors.length],
             opacity: 0.7
           },
-          areaStyle: undefined, // No area for previous period
+          yAxisIndex: needsDualAxis ? (axisType === 'money' ? 0 : 1) : 0,
+          areaStyle: undefined,
         };
       });
       series.push(...prevSeries);
@@ -272,18 +329,34 @@ export function EnhancedTrendChart({
         formatter: (params: any) => {
           if (!params || params.length === 0) return '';
           
-          const date = chartData[params[0].dataIndex]?.displayDate;
+          const dataIndex = params[0].dataIndex;
+          const date = chartData[dataIndex]?.displayDate;
           let tooltip = `<div style="font-weight: 600; margin-bottom: 8px;">${date}</div>`;
           
-          params.forEach((param: any) => {
-            const metricKey = activeMetrics[param.seriesIndex];
-            const metricDef = METRICS[metricKey];
-            const value = formatMetricValue(param.value, metricDef.unit);
+          params.forEach((param: any, idx: number) => {
+            const seriesName = param.seriesName;
+            const value = param.value;
+            
+            // Find metric for formatting
+            let metricDef;
+            if (seriesName.includes('(anterior)')) {
+              const baseMetric = chartState.selectedMetrics.find(m => 
+                seriesName.includes(METRICS[m].label)
+              );
+              metricDef = baseMetric ? METRICS[baseMetric] : null;
+            } else {
+              metricDef = Object.values(METRICS).find(m => m.label === seriesName);
+            }
+            
+            const formattedValue = metricDef 
+              ? formatMetricValue(value, metricDef.unit)
+              : value?.toString() || '0';
+              
             tooltip += `
               <div style="display: flex; align-items: center; margin-bottom: 4px;">
                 <div style="width: 10px; height: 10px; border-radius: 50%; background: ${param.color}; margin-right: 8px;"></div>
-                <span style="font-weight: 500;">${param.seriesName}:</span>
-                <span style="margin-left: 8px; font-weight: 600;">${value}</span>
+                <span style="font-weight: 500;">${seriesName}:</span>
+                <span style="margin-left: 8px; font-weight: 600;">${formattedValue}</span>
               </div>
             `;
           });
@@ -293,15 +366,15 @@ export function EnhancedTrendChart({
       },
       legend: {
         data: [
-          ...activeMetrics.map(m => METRICS[m].label),
-          ...(comparePrevious ? activeMetrics.map(m => `${METRICS[m].label} (período anterior)`) : [])
+          ...chartState.selectedMetrics.map(m => METRICS[m].label),
+          ...(chartState.comparePrevious ? chartState.selectedMetrics.map(m => `${METRICS[m].label} (anterior)`) : [])
         ],
         top: 20,
         textStyle: { color: '#64748b' }
       },
       grid: {
         left: '3%',
-        right: '4%',
+        right: needsDualAxis ? '8%' : '4%',
         bottom: '10%',
         top: '15%',
         containLabel: true
@@ -313,20 +386,9 @@ export function EnhancedTrendChart({
         axisTick: { show: false },
         axisLabel: { color: '#64748b', fontSize: 11 }
       },
-      yAxis: activeMetrics.length === 1 ? {
-        type: 'value',
-        axisLine: { show: false },
-        axisTick: { show: false },
-        axisLabel: { 
-          color: '#64748b', 
-          fontSize: 11,
-          formatter: (value: number) => formatMetricValue(value, METRICS[activeMetrics[0]].unit)
-        },
-        splitLine: { lineStyle: { color: '#f1f5f9' } }
-      } : [
+      yAxis: needsDualAxis ? [
         {
           type: 'value',
-          name: activeMetrics[0] ? METRICS[activeMetrics[0]].label : '',
           position: 'left',
           axisLine: { show: false },
           axisTick: { show: false },
@@ -335,14 +397,26 @@ export function EnhancedTrendChart({
         },
         {
           type: 'value',
-          name: activeMetrics[1] ? METRICS[activeMetrics[1]].label : '',
           position: 'right',
           axisLine: { show: false },
           axisTick: { show: false },
           axisLabel: { color: '#64748b', fontSize: 11 },
           splitLine: { show: false }
         }
-      ],
+      ] : {
+        type: 'value',
+        axisLine: { show: false },
+        axisTick: { show: false },
+        axisLabel: { 
+          color: '#64748b', 
+          fontSize: 11,
+          formatter: (value: number) => {
+            const firstMetric = chartState.selectedMetrics[0];
+            return firstMetric ? formatMetricValue(value, METRICS[firstMetric].unit) : value.toString();
+          }
+        },
+        splitLine: { lineStyle: { color: '#f1f5f9' } }
+      },
       dataZoom: [
         {
           type: 'inside',
@@ -352,7 +426,14 @@ export function EnhancedTrendChart({
       ],
       series
     };
-  };
+  }, [chartData, previousPeriodData, chartState, chartType]);
+
+  // Update chart when option changes
+  useEffect(() => {
+    if (chartOption && !loading) {
+      updateChart(chartOption);
+    }
+  }, [chartOption, loading, updateChart, updateChart]);
 
   const exportChart = () => {
     // Implementation for chart export would go here
@@ -401,23 +482,23 @@ export function EnhancedTrendChart({
           {selectedMetrics.slice(0, 6).map(metric => (
             <Badge
               key={metric}
-              variant={activeMetrics.includes(metric) ? "default" : "outline"}
+              variant={chartState.selectedMetrics.includes(metric) ? "default" : "outline"}
               className={`cursor-pointer text-xs ${
-                activeMetrics.includes(metric) 
+                chartState.selectedMetrics.includes(metric) 
                   ? "bg-blue-100 text-blue-700 border-blue-200" 
                   : "hover:bg-slate-50"
               }`}
               onClick={() => handleMetricToggle(metric)}
             >
               {METRICS[metric].label}
-              {activeMetrics.includes(metric) && (
+              {chartState.selectedMetrics.includes(metric) && (
                 <X className="h-3 w-3 ml-1" />
               )}
             </Badge>
           ))}
-          {activeMetrics.length < 3 && (
+          {chartState.selectedMetrics.length < 3 && (
             <Badge variant="outline" className="text-xs text-slate-500">
-              +{3 - activeMetrics.length} métricas
+              +{3 - chartState.selectedMetrics.length} métricas
             </Badge>
           )}
         </div>
@@ -426,8 +507,8 @@ export function EnhancedTrendChart({
         <div className="flex items-center space-x-2">
           <Switch
             id="compare-previous"
-            checked={comparePrevious}
-            onCheckedChange={setComparePrevious}
+            checked={chartState.comparePrevious}
+            onCheckedChange={handleComparePreviousToggle}
           />
           <Label htmlFor="compare-previous" className="text-sm text-slate-600">
             Comparar com período anterior
@@ -444,14 +525,10 @@ export function EnhancedTrendChart({
             </div>
           </div>
         ) : (
-          <div style={{ width: '100%', height: '400px' }}>
-            <ReactEChartsCore
-              echarts={echarts}
-              option={getChartOption()}
-              style={{ height: '100%', width: '100%' }}
-              opts={{ renderer: 'canvas' }}
-            />
-          </div>
+          <div 
+            ref={containerRef}
+            style={{ width: '100%', height: '400px' }}
+          />
         )}
       </CardContent>
     </Card>

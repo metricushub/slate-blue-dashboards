@@ -6,6 +6,18 @@ import { useDataSource } from "@/hooks/useDataSource";
 import { useEffect, useState } from "react";
 import { BarChart3, List, TrendingDown, TrendingUp } from "lucide-react";
 
+type FunnelPrefs = {
+  mode: 'Detalhado' | 'Compacto';
+  showRates: boolean;
+  comparePrevious: boolean;
+};
+
+const defaultFunnelPrefs: FunnelPrefs = {
+  mode: 'Detalhado',
+  showRates: true,
+  comparePrevious: false
+};
+
 interface FunnelProps {
   clientId: string;
   period: number;
@@ -22,8 +34,18 @@ interface FunnelStage {
 export function Funnel({ clientId, period, platform }: FunnelProps) {
   const { dataSource } = useDataSource();
   const [stages, setStages] = useState<FunnelStage[]>([]);
+  const [previousStages, setPreviousStages] = useState<FunnelStage[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'chart' | 'table'>('chart');
+  const [funnelPrefs, setFunnelPrefs] = useState<FunnelPrefs>(() => {
+    const stored = localStorage.getItem(`client:${clientId}:funnel_prefs`);
+    return stored ? JSON.parse(stored) : defaultFunnelPrefs;
+  });
+
+  // Update localStorage when prefs change  
+  useEffect(() => {
+    localStorage.setItem(`client:${clientId}:funnel_prefs`, JSON.stringify(funnelPrefs));
+  }, [clientId, funnelPrefs]);
 
   useEffect(() => {
     const loadFunnelData = async () => {
@@ -91,6 +113,43 @@ export function Funnel({ clientId, period, platform }: FunnelProps) {
 
         setStages(funnelStages);
 
+        // Load previous period data if comparison is enabled
+        if (funnelPrefs.comparePrevious) {
+          const prevEndDate = new Date(startDate);
+          const prevStartDate = new Date(prevEndDate);
+          prevStartDate.setDate(prevStartDate.getDate() - period);
+
+          const prevMetrics = await dataSource.getMetrics(
+            clientId,
+            prevStartDate.toISOString().split('T')[0],
+            prevEndDate.toISOString().split('T')[0]
+          );
+
+          const prevFilteredMetrics = platform === 'all' 
+            ? prevMetrics 
+            : prevMetrics.filter(metric => metric.platform === platform);
+
+          const prevTotalImpressions = prevFilteredMetrics.reduce((sum, row) => sum + row.impressions, 0);
+          const prevTotalClicks = prevFilteredMetrics.reduce((sum, row) => sum + row.clicks, 0);
+          const prevTotalLeads = prevFilteredMetrics.reduce((sum, row) => sum + row.leads, 0);
+          const prevTotalSales = Math.round(prevTotalLeads * 0.15);
+
+          const prevClickRate = prevTotalImpressions > 0 ? (prevTotalClicks / prevTotalImpressions) * 100 : 0;
+          const prevConversionRate = prevTotalClicks > 0 ? (prevTotalLeads / prevTotalClicks) * 100 : 0;
+          const prevSalesRate = prevTotalLeads > 0 ? (prevTotalSales / prevTotalLeads) * 100 : 0;
+
+          const prevFunnelStages: FunnelStage[] = [
+            { name: 'Impressões', value: prevTotalImpressions, percentage: 100 },
+            { name: 'Cliques', value: prevTotalClicks, rate: prevClickRate, percentage: prevTotalImpressions > 0 ? (prevTotalClicks / prevTotalImpressions) * 100 : 0 },
+            { name: 'Leads', value: prevTotalLeads, rate: prevConversionRate, percentage: prevTotalImpressions > 0 ? (prevTotalLeads / prevTotalImpressions) * 100 : 0 },
+            { name: 'Vendas', value: prevTotalSales, rate: prevSalesRate, percentage: prevTotalImpressions > 0 ? (prevTotalSales / prevTotalImpressions) * 100 : 0 },
+          ];
+
+          setPreviousStages(prevFunnelStages);
+        } else {
+          setPreviousStages([]);
+        }
+
         // Analytics track
         console.log('telemetry:funnel_data_loaded', { 
           clientId, 
@@ -109,7 +168,7 @@ export function Funnel({ clientId, period, platform }: FunnelProps) {
     };
 
     loadFunnelData();
-  }, [clientId, period, platform, dataSource]);
+  }, [clientId, period, platform, dataSource, funnelPrefs.comparePrevious]);
 
   const handleToggleView = (mode: 'chart' | 'table') => {
     setViewMode(mode);
@@ -134,10 +193,16 @@ export function Funnel({ clientId, period, platform }: FunnelProps) {
   }
 
   return (
-    <Card className="rounded-2xl border border-slate-200 bg-white shadow-sm flex-1 flex flex-col">
-      <CardHeader className="p-5 pb-3">
+    <Card className={`rounded-2xl border border-slate-200 bg-white shadow-sm flex-1 flex flex-col ${
+      funnelPrefs.mode === 'Compacto' ? 'max-h-60' : ''
+    }`}>
+      <CardHeader className={`p-5 pb-3 ${funnelPrefs.mode === 'Compacto' ? 'pb-2' : ''}`}>
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg font-semibold text-slate-900">Funil de Conversão</CardTitle>
+          <CardTitle className={`text-lg font-semibold text-slate-900 ${
+            funnelPrefs.mode === 'Compacto' ? 'text-base' : ''
+          }`}>
+            Funil de Conversão
+          </CardTitle>
           <div className="flex gap-1 bg-slate-100 rounded-lg p-1">
             <Button
               variant="ghost"
@@ -167,58 +232,83 @@ export function Funnel({ clientId, period, platform }: FunnelProps) {
         </div>
       </CardHeader>
       
-      <CardContent className="p-5 pt-0 flex-1">
+      <CardContent className={`p-5 pt-0 flex-1 ${
+        funnelPrefs.mode === 'Compacto' ? 'p-3 pt-0' : ''
+      }`}>
         {viewMode === 'chart' ? (
-          <div className="space-y-4">
+          <div className={`space-y-4 ${funnelPrefs.mode === 'Compacto' ? 'space-y-2' : ''}`}>
             {stages.map((stage, index) => {
-              // Calculate clip-path for funnel effect
-              const topWidth = 100 - (index * 6); // Start at 100%, decrease by 6% each stage
-              const bottomWidth = 100 - ((index + 1) * 6);
-              const clipPath = `polygon(${(100 - topWidth) / 2}% 0%, ${50 + topWidth / 2}% 0%, ${50 + bottomWidth / 2}% 100%, ${(100 - bottomWidth) / 2}% 100%)`;
+              const prevStage = funnelPrefs.comparePrevious ? previousStages[index] : null;
               
               return (
                 <div key={stage.name} className="relative">
-                  <div className="flex items-center justify-between mb-2">
+                  <div className={`flex items-center justify-between mb-2 ${
+                    funnelPrefs.mode === 'Compacto' ? 'mb-1' : ''
+                  }`}>
                     <div className="flex items-center gap-3">
-                      <span className="text-xs font-medium text-slate-600 uppercase tracking-wide w-16">
+                      <span className={`text-xs font-medium text-slate-600 uppercase tracking-wide w-16 ${
+                        funnelPrefs.mode === 'Compacto' ? 'text-[10px] w-12' : ''
+                      }`}>
                         {stage.name}
                       </span>
-                      <span className="text-lg font-semibold text-slate-900">
+                      <span className={`text-lg font-semibold text-slate-900 ${
+                        funnelPrefs.mode === 'Compacto' ? 'text-sm' : ''
+                      }`}>
                         {new Intl.NumberFormat('pt-BR').format(stage.value)}
                       </span>
                     </div>
-                    {stage.rate !== undefined && (
+                    {funnelPrefs.showRates && stage.rate !== undefined && (
                       <div className="flex items-center gap-2">
                         <span className={`text-xs font-medium ${
                           stage.rate >= 2 ? 'text-green-600' : 'text-red-500'
-                        }`}>
+                        } ${funnelPrefs.mode === 'Compacto' ? 'text-[10px]' : ''}`}>
                           {stage.rate.toFixed(1)}%
                         </span>
                         {stage.rate >= 2 ? (
-                          <TrendingUp className="h-3 w-3 text-green-600" />
+                          <TrendingUp className={`h-3 w-3 text-green-600 ${
+                            funnelPrefs.mode === 'Compacto' ? 'h-2 w-2' : ''
+                          }`} />
                         ) : (
-                          <TrendingDown className="h-3 w-3 text-red-500" />
+                          <TrendingDown className={`h-3 w-3 text-red-500 ${
+                            funnelPrefs.mode === 'Compacto' ? 'h-2 w-2' : ''
+                          }`} />
                         )}
                       </div>
                     )}
                   </div>
                   
                   <div className="relative flex justify-center">
+                    {/* Previous period shadow (dashed) */}
+                    {funnelPrefs.comparePrevious && prevStage && (
+                      <div 
+                        className={`absolute ${funnelPrefs.mode === 'Compacto' ? 'h-4' : 'h-12'} border-2 border-dashed border-slate-300 transition-all duration-700 rounded-md z-0`}
+                        style={{ 
+                          width: `${100 - (index * 20)}%`,
+                          top: '50%',
+                          transform: 'translateY(-50%)'
+                        }}
+                      />
+                    )}
+                    
+                    {/* Current period bar */}
                     <div 
-                      className="h-12 bg-gradient-to-r from-blue-500 to-blue-600 transition-all duration-700 relative rounded-md"
+                      className={`${funnelPrefs.mode === 'Compacto' ? 'h-6' : 'h-12'} bg-gradient-to-r from-blue-500 to-blue-600 transition-all duration-700 relative rounded-md z-10`}
                       style={{ 
-                        width: `${100 - (index * 20)}%` // Decrease by 20% each stage (100%, 80%, 60%, 40%)
+                        width: `${100 - (index * 20)}%`
                       }}
                     >
-                      {/* Funnel shape overlay for visual effect */}
                       <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent rounded-md" />
                     </div>
                   </div>
                   
                   {/* Connection arrow */}
                   {index < stages.length - 1 && (
-                    <div className="flex justify-center mt-2 mb-1">
-                      <div className="text-slate-400 text-xs">↓</div>
+                    <div className={`flex justify-center mt-2 mb-1 ${
+                      funnelPrefs.mode === 'Compacto' ? 'mt-1 mb-0' : ''
+                    }`}>
+                      <div className={`text-slate-400 text-xs ${
+                        funnelPrefs.mode === 'Compacto' ? 'text-[10px]' : ''
+                      }`}>↓</div>
                     </div>
                   )}
                 </div>
@@ -246,10 +336,10 @@ export function Funnel({ clientId, period, platform }: FunnelProps) {
                       {new Intl.NumberFormat('pt-BR').format(stage.value)}
                     </TableCell>
                     <TableCell className="text-slate-900 font-mono">
-                      {stage.rate !== undefined ? `${stage.rate.toFixed(1)}%` : '-'}
+                      {funnelPrefs.showRates && stage.rate !== undefined ? `${stage.rate.toFixed(1)}%` : '-'}
                     </TableCell>
                     <TableCell>
-                      {stage.rate !== undefined ? (
+                      {funnelPrefs.showRates && stage.rate !== undefined ? (
                         <div className="flex items-center gap-2">
                           {stage.rate >= 2 ? (
                             <>

@@ -13,6 +13,18 @@ import { METRICS, MetricKey, DEFAULT_SELECTED_METRICS } from "@/shared/types/met
 import { STORAGE_KEYS_EXTENDED } from "@/shared/data-source";
 import { useToast } from "@/hooks/use-toast";
 
+type FunnelPrefs = {
+  mode: 'Detalhado' | 'Compacto';
+  showRates: boolean;
+  comparePrevious: boolean;
+};
+
+const defaultFunnelPrefs: FunnelPrefs = {
+  mode: 'Detalhado',
+  showRates: true,
+  comparePrevious: false
+};
+
 interface CustomizeModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -34,6 +46,10 @@ export function CustomizeModal({
   const [activePreset, setActivePreset] = useState<string>("");
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState("metrics");
+  const [funnelPrefs, setFunnelPrefs] = useState<FunnelPrefs>(() => {
+    const stored = localStorage.getItem(`client:${clientId}:funnel_prefs`);
+    return stored ? JSON.parse(stored) : defaultFunnelPrefs;
+  });
   const MAX_METRICS = 9;
 
   // Metric presets
@@ -310,44 +326,55 @@ export function CustomizeModal({
         </TabsContent>
         
         <TabsContent value="funnel" className="mt-6 space-y-6">
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-slate-900">Configuração do Funil</h3>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="funnel-mode">Modo de Exibição</Label>
-                <Select defaultValue="detailed">
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecionar modo..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="detailed">Detalhado</SelectItem>
-                    <SelectItem value="compact">Compacto</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="funnel-rates">Mostrar Taxas (%)</Label>
-                <div className="flex items-center space-x-2">
-                  <Switch id="funnel-rates" defaultChecked />
-                  <Label htmlFor="funnel-rates" className="text-sm text-slate-600">
-                    Exibir % vs etapa anterior
-                  </Label>
+            <div className="space-y-6">
+              <div>
+                <label className="text-sm font-medium text-slate-700 mb-3 block">
+                  Modo de Exibição
+                </label>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant={funnelPrefs.mode === 'Detalhado' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setFunnelPrefs(prev => ({ ...prev, mode: 'Detalhado' }))}
+                  >
+                    Detalhado
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={funnelPrefs.mode === 'Compacto' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setFunnelPrefs(prev => ({ ...prev, mode: 'Compacto' }))}
+                  >
+                    Compacto
+                  </Button>
                 </div>
               </div>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="funnel-compare">Comparar Período</Label>
-              <div className="flex items-center space-x-2">
-                <Switch id="funnel-compare" />
-                <Label htmlFor="funnel-compare" className="text-sm text-slate-600">
-                  Desenhar sombra tracejada do período anterior
-                </Label>
+
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium text-slate-700">
+                  Mostrar taxas (%)
+                </label>
+                <Switch
+                  checked={funnelPrefs.showRates}
+                  onCheckedChange={(checked) => 
+                    setFunnelPrefs(prev => ({ ...prev, showRates: checked }))
+                  }
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium text-slate-700">
+                  Comparar com período anterior
+                </label>
+                <Switch
+                  checked={funnelPrefs.comparePrevious}
+                  onCheckedChange={(checked) => 
+                    setFunnelPrefs(prev => ({ ...prev, comparePrevious: checked }))
+                  }
+                />
               </div>
             </div>
-          </div>
         </TabsContent>
         
         <TabsContent value="layout" className="mt-6 space-y-6">
