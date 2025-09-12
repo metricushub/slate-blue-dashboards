@@ -15,6 +15,7 @@ import { taskOperations, alertOperations } from "@/shared/db/dashboardStore";
 import { Plus, Edit, Trash2, Calendar, User, AlertTriangle, Info, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { ModalFrameV2 } from "./ModalFrameV2";
 
 interface TasksAlertsModalProps {
   isOpen: boolean;
@@ -260,13 +261,15 @@ export function TasksAlertsModal({ isOpen, onClose, clientId }: TasksAlertsModal
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
-        <DialogHeader>
-          <DialogTitle>Tarefas & Alertas</DialogTitle>
-        </DialogHeader>
+    <>
+    <ModalFrameV2
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Tarefas & Alertas"
+      maxWidth="4xl"
+    >
 
-        <Tabs defaultValue="tasks" className="h-[calc(90vh-100px)]">
+        <Tabs defaultValue="tasks" className="h-full">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="tasks" className="gap-2">
               <Calendar className="h-4 w-4" />
@@ -287,7 +290,7 @@ export function TasksAlertsModal({ isOpen, onClose, clientId }: TasksAlertsModal
               </Button>
             </div>
 
-            <ScrollArea className="h-[calc(100%-80px)]">
+            <ScrollArea className="h-full">
               <div className="space-y-4">
                 {tasks.map((task) => (
                   <Card key={task.id}>
@@ -362,7 +365,7 @@ export function TasksAlertsModal({ isOpen, onClose, clientId }: TasksAlertsModal
               </Button>  
             </div>
 
-            <ScrollArea className="h-[calc(100%-80px)]">
+            <ScrollArea className="h-full">
               <div className="space-y-4">
                 {alerts.map((alert) => {
                   const IconComponent = ALERT_SEVERITY_ICONS[alert.severity];
@@ -566,8 +569,8 @@ export function TasksAlertsModal({ isOpen, onClose, clientId }: TasksAlertsModal
             </div>
           </DialogContent>
         </Dialog>
-      </DialogContent>
-    </Dialog>
+    </ModalFrameV2>
+    </>
   );
 }
 

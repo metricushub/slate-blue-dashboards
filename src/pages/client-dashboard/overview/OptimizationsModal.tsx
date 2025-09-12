@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ModalFrame } from "./ModalFrame";
+import { ModalFrameV2 } from "./ModalFrameV2";
 import { METRICS, MetricKey } from "@/shared/types/metrics";
 import { Optimization } from "@/shared/types/optimizations";
 import { optimizationOperations } from "@/shared/db/dashboardStore";
@@ -99,10 +99,19 @@ export function OptimizationsModal({ isOpen, onClose, clientId, clientName, onOp
     }
   };
 
-  const footer = null; // Footer will be rendered as sticky
+  const footer = (
+    <>
+      <Button variant="outline" onClick={onClose} disabled={submitting}>
+        Cancelar
+      </Button>
+      <Button onClick={handleSubmit} disabled={submitting}>
+        {submitting ? 'Salvando...' : 'Salvar Otimização'}
+      </Button>
+    </>
+  );
 
   return (
-    <ModalFrame
+    <ModalFrameV2
       isOpen={isOpen}
       onClose={onClose}
       title="Registrar Otimização"
@@ -229,16 +238,6 @@ export function OptimizationsModal({ isOpen, onClose, clientId, clientName, onOp
           />
         </div>
       </div>
-      
-      {/* Sticky Footer */}
-      <div className="sticky bottom-0 inset-x-0 border-t bg-white/80 backdrop-blur px-4 py-3 flex justify-end gap-2 z-10">
-        <Button variant="outline" onClick={onClose} disabled={submitting}>
-          Cancelar
-        </Button>
-        <Button onClick={handleSubmit} disabled={submitting}>
-          {submitting ? 'Salvando...' : 'Salvar Otimização'}
-        </Button>
-      </div>
-    </ModalFrame>
+    </ModalFrameV2>
   );
 }

@@ -18,6 +18,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { ModalFrameV2 } from "./ModalFrameV2";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
 import { useDataSource } from "@/hooks/useDataSource";
@@ -657,32 +658,12 @@ export function EnhancedCampaignTable({ clientId, period, platform }: EnhancedCa
       </CardContent>
 
       {/* Column Selector Dialog */}
-      <Dialog open={showColumnSelector} onOpenChange={setShowColumnSelector}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Selecionar Colunas</DialogTitle>
-          </DialogHeader>
-          <ScrollArea className="max-h-96">
-            <div className="space-y-3">
-              {columnConfig.map((col, index) => (
-                <div key={col.key} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={col.key}
-                    checked={col.visible}
-                    onCheckedChange={(checked) => {
-                      const newConfig = [...columnConfig];
-                      newConfig[index].visible = checked as boolean;
-                      saveColumnConfig(newConfig);
-                    }}
-                  />
-                  <Label htmlFor={col.key} className="text-sm font-normal">
-                    {col.label}
-                  </Label>
-                </div>
-              ))}
-            </div>
-          </ScrollArea>
-          <div className="flex justify-end gap-2">
+      <ModalFrameV2
+        isOpen={showColumnSelector}
+        onClose={() => setShowColumnSelector(false)}
+        title="Selecionar Colunas"
+        footer={
+          <>
             <Button
               variant="outline"
               onClick={() => {
@@ -695,9 +676,28 @@ export function EnhancedCampaignTable({ clientId, period, platform }: EnhancedCa
             <Button onClick={() => setShowColumnSelector(false)}>
               Fechar
             </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          {columnConfig.map((col, index) => (
+            <div key={col.key} className="flex items-center space-x-2">
+              <Checkbox
+                id={col.key}
+                checked={col.visible}
+                onCheckedChange={(checked) => {
+                  const newConfig = [...columnConfig];
+                  newConfig[index].visible = checked as boolean;
+                  saveColumnConfig(newConfig);
+                }}
+              />
+              <Label htmlFor={col.key} className="text-sm font-normal">
+                {col.label}
+              </Label>
+            </div>
+          ))}
+        </div>
+      </ModalFrameV2>
     </Card>
   );
 }
