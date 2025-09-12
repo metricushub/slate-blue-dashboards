@@ -12,6 +12,11 @@ const REFRESH_INTERVAL = parseInt(import.meta.env.VITE_SHEETS_REFRESH_SEC || '90
 export class SheetsAdapter implements DataSource {
   private cache = new Map<string, { data: any; timestamp: number; etag?: string }>();
 
+  // Legacy method for compatibility
+  async getMetrics(clientId: string, from: string, to: string): Promise<MetricRow[]> {
+    return this.getDailyMetrics({ clientId, from, to });
+  }
+
   private async fetchSheetData(sheetName: string): Promise<any[]> {
     if (!SPREADSHEET_ID) {
       throw new Error('VITE_SHEETS_SPREADSHEET_ID não configurado no .env');
@@ -331,8 +336,8 @@ export class SheetsAdapter implements DataSource {
       return {
         id: String(row.id),
         name: String(row.name),
-        status: String(row.status),
-        stage: String(row.stage),
+        status: String(row.status) as Client['status'],
+        stage: String(row.stage) as Client['stage'],
         owner: String(row.owner || ''),
         lastUpdate: row.last_update || new Date().toISOString().split('T')[0],
         logoUrl: String(row.logo_url || ''),
@@ -355,9 +360,9 @@ export class SheetsAdapter implements DataSource {
       return {
         id: String(row.id),
         clientId: String(row.client_id),
-        platform: String(row.platform),
+        platform: String(row.platform) as Campaign['platform'],
         name: String(row.name),
-        status: String(row.status),
+        status: String(row.status) as Campaign['status'],
         objective: String(row.objective || ''),
         lastSync: row.last_sync || new Date().toISOString()
       };
@@ -391,7 +396,7 @@ export class SheetsAdapter implements DataSource {
       return {
         date: String(row.date),
         clientId: String(row.client_id),
-        platform: String(row.platform),
+        platform: String(row.platform) as MetricRow['platform'],
         campaignId: String(row.campaign_id || ''),
         impressions,
         clicks,

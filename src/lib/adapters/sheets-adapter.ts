@@ -66,28 +66,32 @@ export class SheetsAdapter implements DataSource {
 
       // Budget alerts
       const budgetUsed = (client.budgetSpentMonth / client.monthlyBudget) * 100;
-      if (budgetUsed > 80) {
-        alerts.push({
-          id: `budget-${clientId}`,
-          clientId,
-          type: budgetUsed > 95 ? 'error' : 'warning',
-          title: 'Saldo baixo',
-          message: `${Math.round(100 - budgetUsed)}% do orçamento restante`,
-          createdAt: new Date().toISOString(),
-        });
-      }
+    if (budgetUsed > 80) {
+      alerts.push({
+        id: `budget-${clientId}`,
+        clientId,
+        type: budgetUsed > 95 ? 'error' : 'warning',
+        level: budgetUsed > 95 ? 'high' : 'medium',
+        title: 'Saldo baixo',
+        message: `${Math.round(100 - budgetUsed)}% do orçamento restante`,
+        createdAt: new Date().toISOString(),
+        isRead: false
+      });
+    }
 
       // CPA alerts
       if (client.goalsCPA && client.latestCPA && client.latestCPA > client.goalsCPA) {
         const diff = ((client.latestCPA - client.goalsCPA) / client.goalsCPA * 100).toFixed(0);
-        alerts.push({
-          id: `cpa-${clientId}`,
-          clientId,
-          type: 'warning',
-          title: 'CPA acima da meta',
-          message: `CPA atual R$ ${client.latestCPA.toFixed(2)} (+${diff}% da meta)`,
-          createdAt: new Date().toISOString(),
-        });
+      alerts.push({
+        id: `cpa-${clientId}`,
+        clientId,
+        type: 'warning',
+        level: 'medium',
+        title: 'CPA acima da meta',
+        message: `CPA atual R$ ${client.latestCPA.toFixed(2)} (+${diff}% da meta)`,
+        createdAt: new Date().toISOString(),
+        isRead: false
+      });
       }
 
       // GA4 events alert
@@ -95,14 +99,16 @@ export class SheetsAdapter implements DataSource {
         const lastEvent = new Date(client.ga4LastEventAt);
         const hoursSince = (Date.now() - lastEvent.getTime()) / (1000 * 60 * 60);
         if (hoursSince > 24) {
-          alerts.push({
-            id: `ga4-${clientId}`,
-            clientId,
-            type: 'error',
-            title: 'Sem eventos GA4',
-            message: `Nenhum evento registrado há ${Math.round(hoursSince)}h`,
-            createdAt: new Date().toISOString(),
-          });
+        alerts.push({
+          id: `ga4-${clientId}`,
+          clientId,
+          type: 'error',
+          level: 'high',
+          title: 'Sem eventos GA4',
+          message: `Nenhum evento registrado há ${Math.round(hoursSince)}h`,
+          createdAt: new Date().toISOString(),
+          isRead: false
+        });
         }
       }
 

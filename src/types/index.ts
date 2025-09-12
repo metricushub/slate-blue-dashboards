@@ -3,7 +3,7 @@ export interface Client {
   id: string;
   name: string;
   status: 'Ativo' | 'Pausado' | 'Risco' | 'Prospect' | 'Arquivado' | 'active' | 'paused' | 'onboarding' | 'at_risk' | 'churned';
-  stage: 'Prospecção' | 'Onboarding: Docs' | 'Onboarding: Setup' | 'Rodando' | 'Revisão' | 'Encerrado';
+  stage: 'Prospecção' | 'Onboarding: Docs' | 'Onboarding: Setup' | 'Rodando' | 'Revisão' | 'Encerrado' | 'Setup inicial';
   owner: string;
   lastUpdate: string; // YYYY-MM-DD
   logoUrl?: string;
@@ -21,7 +21,43 @@ export interface Client {
   latestCPA?: number;
   latestROAS?: number;
   ga4LastEventAt?: string;
-  contacts?: any[];
+  contacts?: ClientContact[];
+  onboarding?: OnboardingItem[];
+  access?: ClientAccess;
+}
+
+// Client-related types
+export interface ClientContact {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  role: string;
+  isPrimary: boolean;
+}
+
+export interface ClientAccess {
+  gaPropertyId?: string;
+  ga4PropertyId?: string;
+  googleAdsCustomerId?: string;
+  metaAdAccountId?: string;
+  businessManager?: string;
+  gtmContainerId?: string;
+  searchConsoleUrl?: string;
+  notes?: string;
+  hasGA4Access: boolean;
+  hasGoogleAdsAccess: boolean;
+  hasMetaAccess: boolean;
+}
+
+export interface OnboardingItem {
+  id: string;
+  title: string;
+  description: string;
+  task?: string;
+  completed: boolean;
+  completedAt?: string;
+  required: boolean;
 }
 
 // Campaign types
@@ -71,6 +107,7 @@ export interface Alert {
   message: string;
   createdAt: string;
   isRead: boolean;
+  dismissed?: boolean;
   actionUrl?: string;
 }
 
