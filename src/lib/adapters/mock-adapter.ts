@@ -1,5 +1,5 @@
-import { DataSource } from '../data-source';
-import { Client, Campaign, MetricRow, Alert } from '@/types';
+import { DataSource, MetricsQuery, CampaignQuery, OptimizationInput } from '@/shared/data-source/types';
+import { Client, Campaign, MetricRow, Alert, Optimization } from '@/types';
 
 export class MockAdapter implements DataSource {
   private clients: Client[] = [];
@@ -14,66 +14,114 @@ export class MockAdapter implements DataSource {
     return [...this.clients];
   }
 
-  async getCampaigns(clientId: string): Promise<Campaign[]> {
-    return this.campaigns.filter(c => c.clientId === clientId);
+  async getClient(id: string): Promise<Client | null> {
+    return this.clients.find(client => client.id === id) || null;
   }
 
-  async getMetrics(clientId: string, from: string, to: string): Promise<MetricRow[]> {
-    const fromDate = new Date(from);
-    const toDate = new Date(to);
-    
-    return this.metrics.filter(m => {
-      const metricDate = new Date(m.date);
-      return m.clientId === clientId && 
-             metricDate >= fromDate && 
-             metricDate <= toDate;
-    });
+  async getDailyMetrics(query: MetricsQuery): Promise<MetricRow[]> {
+    let filteredMetrics = [...this.metrics];
+
+    if (query.clientId) {
+      filteredMetrics = filteredMetrics.filter(m => m.clientId === query.clientId);
+    }
+
+    if (query.from) {
+      const fromDate = new Date(query.from);
+      filteredMetrics = filteredMetrics.filter(m => new Date(m.date) >= fromDate);
+    }
+
+    if (query.to) {
+      const toDate = new Date(query.to);
+      filteredMetrics = filteredMetrics.filter(m => new Date(m.date) <= toDate);
+    }
+
+    if (query.platform && query.platform !== 'all') {
+      filteredMetrics = filteredMetrics.filter(m => m.platform === query.platform);
+    }
+
+    return filteredMetrics;
+  }
+
+  async getCampaigns(clientId: string, query?: CampaignQuery): Promise<Campaign[]> {
+    let campaigns = this.campaigns.filter(c => c.clientId === clientId);
+
+    if (query?.platform && query.platform !== 'all') {
+      campaigns = campaigns.filter(c => c.platform === query.platform);
+    }
+
+    if (query?.status) {
+      campaigns = campaigns.filter(c => c.status === query.status);
+    }
+
+    return campaigns;
   }
 
   async getAlerts(clientId: string): Promise<Alert[]> {
-    const client = this.clients.find(c => c.id === clientId);
+    const client = await this.getClient(clientId);
     if (!client) return [];
 
     const alerts: Alert[] = [];
 
-    // Budget alerts
-    const budgetUsed = (client.budgetSpentMonth / client.monthlyBudget) * 100;
-    if (budgetUsed > 80) {
+    // Budget alerts based on budgetMonth
+    const endDate = new Date().toISOString().split('T')[0];
+    const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    
+    const monthlyMetrics = await this.getDailyMetrics({
+      clientId,
+      from: startDate,
+      to: endDate
+    });
+
+    const totalSpend = monthlyMetrics.reduce((sum, m) => sum + m.spend, 0);
+    const budgetPercentage = client.budgetMonth > 0 ? (totalSpend / client.budgetMonth) * 100 : 0;
+
+    if (budgetPercentage > 90) {
       alerts.push({
-        id: `budget-${clientId}`,
+        id: `budget_high_${clientId}`,
         clientId,
-        type: budgetUsed > 95 ? 'error' : 'warning',
-        title: 'Saldo baixo',
-        message: `${Math.round(100 - budgetUsed)}% do orçamento restante`,
+        type: 'budget',
+        level: 'high',
+        title: 'Orçamento quase esgotado',
+        message: `${budgetPercentage.toFixed(1)}% do orçamento mensal utilizado`,
         createdAt: new Date().toISOString(),
+        isRead: false
+      });
+    } else if (budgetPercentage > 75) {
+      alerts.push({
+        id: `budget_medium_${clientId}`,
+        clientId,
+        type: 'budget',
+        level: 'medium',
+        title: 'Atenção ao orçamento',
+        message: `${budgetPercentage.toFixed(1)}% do orçamento mensal utilizado`,
+        createdAt: new Date().toISOString(),
+        isRead: false
       });
     }
 
-    // CPA alerts
-    if (client.goalsCPA && client.latestCPA && client.latestCPA > client.goalsCPA) {
-      const diff = ((client.latestCPA - client.goalsCPA) / client.goalsCPA * 100).toFixed(0);
-      alerts.push({
-        id: `cpa-${clientId}`,
-        clientId,
-        type: 'warning',
-        title: 'CPA acima da meta',
-        message: `CPA atual R$ ${client.latestCPA.toFixed(2)} (+${diff}% da meta)`,
-        createdAt: new Date().toISOString(),
-      });
-    }
+    // Performance alerts
+    const weeklyMetrics = await this.getDailyMetrics({
+      clientId,
+      from: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      to: endDate
+    });
 
-    // GA4 events alert
-    if (client.ga4LastEventAt) {
-      const lastEvent = new Date(client.ga4LastEventAt);
-      const hoursSince = (Date.now() - lastEvent.getTime()) / (1000 * 60 * 60);
-      if (hoursSince > 24) {
+    if (weeklyMetrics.length > 0) {
+      const avgCPA = weeklyMetrics.reduce((sum, m) => {
+        const cpa = m.leads > 0 ? m.spend / m.leads : 0;
+        return sum + cpa;
+      }, 0) / weeklyMetrics.length;
+
+      if (avgCPA > 100) {
         alerts.push({
-          id: `ga4-${clientId}`,
+          id: `cpa_high_${clientId}`,
           clientId,
-          type: 'error',
-          title: 'Sem eventos GA4',
-          message: `Nenhum evento registrado há ${Math.round(hoursSince)}h`,
+          type: 'performance',
+          level: 'medium',
+          title: 'CPA elevado',
+          message: `CPA médio de R$ ${avgCPA.toFixed(2)} nos últimos 7 dias`,
           createdAt: new Date().toISOString(),
+          isRead: false
         });
       }
     }
@@ -81,96 +129,98 @@ export class MockAdapter implements DataSource {
     return alerts;
   }
 
-  async addClient(client: Client): Promise<void> {
-    this.clients.push(client);
+  async listOptimizations(clientId: string): Promise<Optimization[]> {
+    const stored = localStorage.getItem(`optimizations_${clientId}`);
+    return stored ? JSON.parse(stored) : [];
+  }
+
+  async upsertOptimization(input: OptimizationInput): Promise<Optimization> {
+    const optimizations = await this.listOptimizations(input.clientId);
     
-    // Generate some sample campaigns for the new client
-    const campaignCount = Math.floor(Math.random() * 3) + 6; // 6-8 campaigns
-    for (let i = 0; i < campaignCount; i++) {
-      const campaign: Campaign = {
-        id: `camp-${client.id}-${i + 1}`,
-        clientId: client.id,
-        name: `Campanha ${i + 1}`,
-        platform: ['google', 'meta', 'linkedin'][Math.floor(Math.random() * 3)] as Campaign['platform'],
-        status: ['active', 'paused', 'active', 'active'][Math.floor(Math.random() * 4)] as Campaign['status'],
-        spend: Math.random() * 5000 + 1000,
-        leads: Math.floor(Math.random() * 50) + 10,
-        cpa: Math.random() * 200 + 50,
-        roas: Math.random() * 5 + 2,
-        clicks: Math.floor(Math.random() * 1000) + 200,
-        impressions: Math.floor(Math.random() * 10000) + 5000,
-        revenue: 0,
-      };
-      campaign.revenue = campaign.spend * campaign.roas;
-      this.campaigns.push(campaign);
+    const optimization: Optimization = {
+      id: input.id || `opt_${Date.now()}`,
+      clientId: input.clientId,
+      title: input.title,
+      type: input.type,
+      objective: input.objective,
+      targetMetric: input.targetMetric,
+      expectedImpact: input.expectedImpact,
+      campaigns: input.campaigns || [],
+      notes: input.notes || '',
+      status: input.status || 'planned',
+      createdAt: input.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    const index = optimizations.findIndex(o => o.id === optimization.id);
+    if (index >= 0) {
+      optimizations[index] = optimization;
+    } else {
+      optimizations.push(optimization);
     }
 
-    // Generate 90 days of metrics
+    localStorage.setItem(`optimizations_${input.clientId}`, JSON.stringify(optimizations));
+    return optimization;
+  }
+
+  // Legacy methods for compatibility
+  async getMetrics(clientId: string, from: string, to: string): Promise<MetricRow[]> {
+    return this.getDailyMetrics({ clientId, from, to });
+  }
+
+  async addClient(client: Client): Promise<void> {
+    this.clients.push(client);
+    this.generateCampaignsForClient(client.id);
     this.generateMetricsForClient(client.id);
   }
 
   private initializeData() {
-    // Generate 10 clients
-    const owners = ['Ana Silva', 'Carlos Santos', 'Mariana Costa', 'Pedro Oliveira', 'Juliana Lima'];
-    const segments = ['E-commerce', 'SaaS', 'Educação', 'Saúde', 'Imobiliário', 'Serviços', 'Fintech'];
-    const stages = ['Setup inicial', 'Otimização', 'Crescimento', 'Manutenção', 'Expansão'];
-
-    for (let i = 1; i <= 10; i++) {
-      const budgetSpent = Math.random() * 0.9; // 0-90% spent
+    // Generate sample clients
+    const owners = ['Ana Silva', 'Carlos Santos', 'Marina Costa', 'Pedro Oliveira', 'Juliana Lima'];
+    
+    for (let i = 1; i <= 5; i++) {
       const client: Client = {
         id: `client-${i}`,
         name: `Cliente ${i}`,
-        website: `https://cliente${i}.com.br`,
-        segment: segments[Math.floor(Math.random() * segments.length)],
-        monthlyBudget: Math.floor(Math.random() * 20000) + 5000,
-        budgetSpentMonth: 0,
-        status: ['active', 'onboarding', 'at_risk'][Math.floor(Math.random() * 3)] as Client['status'],
-        stage: stages[Math.floor(Math.random() * stages.length)],
+        status: ['Ativo', 'Pausado', 'Risco', 'Prospect'][Math.floor(Math.random() * 4)] as Client['status'],
+        stage: ['Prospecção', 'Onboarding: Setup', 'Rodando', 'Revisão'][Math.floor(Math.random() * 4)] as Client['stage'],
         owner: owners[Math.floor(Math.random() * owners.length)],
-        lastUpdate: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString(),
+        lastUpdate: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         logoUrl: `https://ui-avatars.com/api/?name=Cliente+${i}&background=0D8ABC&color=fff`,
-        tags: ['Google Ads', 'Meta Ads'].slice(0, Math.floor(Math.random() * 2) + 1),
-        goalsLeads: Math.floor(Math.random() * 100) + 50,
-        goalsCPA: Math.random() * 150 + 50,
-        goalsROAS: Math.random() * 3 + 3,
-        latestLeads: Math.floor(Math.random() * 80) + 20,
-        latestCPA: Math.random() * 200 + 30,
-        latestROAS: Math.random() * 4 + 2,
-        ga4LastEventAt: new Date(Date.now() - Math.random() * 48 * 60 * 60 * 1000).toISOString(),
-        contacts: [{
-          id: `contact-${i}-1`,
-          name: `Contato ${i}`,
-          email: `contato@cliente${i}.com.br`,
-          role: 'Marketing Manager',
-          isPrimary: true,
-        }],
+        budgetMonth: Math.floor(Math.random() * 20000) + 5000,
+        // Legacy compatibility fields
+        monthlyBudget: Math.floor(Math.random() * 20000) + 5000,
+        budgetSpentMonth: Math.floor(Math.random() * 15000),
+        tags: ['Google Ads', 'Meta Ads'].slice(0, Math.floor(Math.random() * 2) + 1)
       };
-      client.budgetSpentMonth = client.monthlyBudget * budgetSpent;
+      
       this.clients.push(client);
-
-      // Generate campaigns for each client
-      const campaignCount = Math.floor(Math.random() * 3) + 6; // 6-8 campaigns
-      for (let j = 0; j < campaignCount; j++) {
-        const campaign: Campaign = {
-          id: `camp-${i}-${j + 1}`,
-          clientId: client.id,
-          name: `Campanha ${j + 1}`,
-          platform: ['google', 'meta', 'linkedin'][Math.floor(Math.random() * 3)] as Campaign['platform'],
-          status: ['active', 'paused', 'active', 'active'][Math.floor(Math.random() * 4)] as Campaign['status'],
-          spend: Math.random() * 5000 + 1000,
-          leads: Math.floor(Math.random() * 50) + 10,
-          cpa: Math.random() * 200 + 50,
-          roas: Math.random() * 5 + 2,
-          clicks: Math.floor(Math.random() * 1000) + 200,
-          impressions: Math.floor(Math.random() * 10000) + 5000,
-          revenue: 0,
-        };
-        campaign.revenue = campaign.spend * campaign.roas;
-        this.campaigns.push(campaign);
-      }
-
-      // Generate 90 days of metrics for each client
+      this.generateCampaignsForClient(client.id);
       this.generateMetricsForClient(client.id);
+    }
+  }
+
+  private generateCampaignsForClient(clientId: string) {
+    const campaignCount = Math.floor(Math.random() * 4) + 3; // 3-6 campaigns
+    
+    for (let j = 0; j < campaignCount; j++) {
+      const platform = ['google_ads', 'meta_ads'][Math.floor(Math.random() * 2)] as Campaign['platform'];
+      const campaign: Campaign = {
+        id: `camp-${clientId}-${j + 1}`,
+        clientId,
+        platform,
+        name: `Campanha ${platform === 'google_ads' ? 'Google' : 'Meta'} ${j + 1}`,
+        status: ['ENABLED', 'PAUSED', 'ENABLED', 'ENABLED'][Math.floor(Math.random() * 4)] as Campaign['status'],
+        objective: platform === 'google_ads' ? 'Conversões' : 'Geração de leads',
+        lastSync: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString(),
+        // Legacy compatibility fields
+        spend: Math.random() * 5000 + 1000,
+        leads: Math.floor(Math.random() * 50) + 10,
+        cpa: Math.random() * 200 + 50,
+        roas: Math.random() * 5 + 2
+      };
+      
+      this.campaigns.push(campaign);
     }
   }
 
@@ -183,25 +233,37 @@ export class MockAdapter implements DataSource {
       date.setDate(date.getDate() - day);
       
       for (const platform of platforms) {
-        // Base values with some trend and seasonality
-        const trend = 1 + (day / 90) * 0.2; // Slight upward trend
-        const seasonality = 1 + Math.sin(day / 7) * 0.1; // Weekly pattern
-        const randomFactor = 0.8 + Math.random() * 0.4; // Random variation
+        const trend = 1 + (day / 90) * 0.2;
+        const seasonality = 1 + Math.sin(day / 7) * 0.1;
+        const randomFactor = 0.8 + Math.random() * 0.4;
         
         const baseSpend = 200 * trend * seasonality * randomFactor;
         const baseImpressions = baseSpend * (50 + Math.random() * 30);
-        const ctr = 0.02 + Math.random() * 0.03; // 2-5% CTR
-        const conversionRate = 0.05 + Math.random() * 0.05; // 5-10% conversion
+        const ctr = 0.02 + Math.random() * 0.03;
+        const conversionRate = 0.05 + Math.random() * 0.05;
+        
+        const impressions = Math.floor(baseImpressions);
+        const clicks = Math.floor(baseImpressions * ctr);
+        const spend = Math.floor(baseSpend);
+        const leads = Math.floor(clicks * conversionRate);
+        const revenue = Math.floor(spend * (2 + Math.random() * 3));
+        const conversions = Math.floor(leads * 0.8); // 80% of leads convert
         
         const metric: MetricRow = {
           date: date.toISOString().split('T')[0],
           clientId,
           platform,
-          impressions: Math.floor(baseImpressions),
-          clicks: Math.floor(baseImpressions * ctr),
-          spend: Math.floor(baseSpend),
-          leads: Math.floor(baseImpressions * ctr * conversionRate),
-          revenue: Math.floor(baseSpend * (2 + Math.random() * 3)), // 2-5x ROAS
+          campaignId: `camp-${clientId}-1`,
+          impressions,
+          clicks,
+          spend,
+          leads,
+          revenue,
+          conversions,
+          cpa: leads > 0 ? spend / leads : 0,
+          roas: spend > 0 ? revenue / spend : 0,
+          ctr: impressions > 0 ? (clicks / impressions) * 100 : 0,
+          convRate: clicks > 0 ? (leads / clicks) * 100 : 0
         };
         
         this.metrics.push(metric);

@@ -1,121 +1,158 @@
+// Client types
 export interface Client {
   id: string;
   name: string;
+  status: 'Ativo' | 'Pausado' | 'Risco' | 'Prospect' | 'Arquivado' | 'active' | 'paused' | 'onboarding' | 'at_risk' | 'churned';
+  stage: 'Prospecção' | 'Onboarding: Docs' | 'Onboarding: Setup' | 'Rodando' | 'Revisão' | 'Encerrado';
+  owner: string;
+  lastUpdate: string; // YYYY-MM-DD
+  logoUrl?: string;
+  budgetMonth: number; // in reais
+  // Legacy fields for compatibility
+  monthlyBudget?: number;
+  budgetSpentMonth?: number;
+  tags?: string[];
   website?: string;
   segment?: string;
-  monthlyBudget: number;
-  budgetSpentMonth: number;
-  status: 'active' | 'onboarding' | 'at_risk' | 'paused' | 'churned';
-  stage: string;
-  owner: string;
-  lastUpdate: string;
-  logoUrl?: string;
-  tags: string[];
-  
-  // Goals/KPIs
   goalsLeads?: number;
   goalsCPA?: number;
   goalsROAS?: number;
-  
-  // Latest metrics for health score
   latestLeads?: number;
   latestCPA?: number;
   latestROAS?: number;
-  
-  // GA4 monitoring
   ga4LastEventAt?: string;
-  
-  // Contact info
-  contacts?: ClientContact[];
-  
-  // Access credentials
-  access?: ClientAccess;
-  
-  // Onboarding checklist
-  onboarding?: OnboardingItem[];
+  contacts?: any[];
 }
 
-export interface ClientContact {
-  id: string;
-  name: string;
-  email: string;
-  phone?: string;
-  role?: string;
-  isPrimary?: boolean;
-}
-
-export interface ClientAccess {
-  businessManager?: string;
-  ga4PropertyId?: string;
-  gtmContainerId?: string;
-  searchConsoleUrl?: string;
-  notes?: string;
-}
-
-export interface OnboardingItem {
-  id: string;
-  task: string;
-  completed: boolean;
-  completedAt?: string;
-  assignedTo?: string;
-}
-
+// Campaign types
 export interface Campaign {
   id: string;
   clientId: string;
+  platform: 'google_ads' | 'meta_ads' | 'google' | 'meta' | 'linkedin' | 'tiktok';
   name: string;
-  platform: 'google' | 'meta' | 'linkedin' | 'tiktok';
-  status: 'active' | 'paused' | 'draft' | 'ended';
-  spend: number;
-  leads: number;
-  cpa: number;
-  roas: number;
+  status: 'ENABLED' | 'PAUSED' | 'REMOVED' | 'active' | 'paused' | 'draft' | 'ended';
+  objective?: string;
+  lastSync: string; // ISO date
+  // Legacy fields for compatibility
+  spend?: number;
+  leads?: number;
+  cpa?: number;
+  roas?: number;
   clicks?: number;
   impressions?: number;
   revenue?: number;
 }
 
+// Metric types
 export interface MetricRow {
-  date: string;
+  date: string; // YYYY-MM-DD
   clientId: string;
-  platform: 'google' | 'meta' | 'all';
+  platform: 'all' | 'google' | 'meta' | 'google_ads' | 'meta_ads' | 'linkedin' | 'tiktok';
   campaignId?: string;
   impressions: number;
   clicks: number;
   spend: number;
   leads: number;
   revenue: number;
+  conversions?: number;
+  cpa?: number; // cost per acquisition
+  roas?: number; // return on ad spend
+  ctr?: number; // click-through rate (%)
+  convRate?: number; // conversion rate (%)
 }
 
+// Alert types
 export interface Alert {
   id: string;
   clientId: string;
-  type: 'info' | 'warning' | 'error';
+  type: 'budget' | 'performance' | 'campaign' | 'system' | 'error' | 'info' | 'warning';
+  level: 'low' | 'medium' | 'high';
   title: string;
   message: string;
   createdAt: string;
-  dismissed?: boolean;
+  isRead: boolean;
+  actionUrl?: string;
 }
 
-export interface KPIData {
-  value: number;
-  change: number;
-  isPositive: boolean;
-  label: string;
+// Optimization types
+export interface Optimization {
+  id: string;
+  clientId: string;
+  title: string;
+  type: 'campaign' | 'keyword' | 'creative' | 'budget' | 'targeting' | 'landing';
+  objective: string;
+  targetMetric: string;
+  expectedImpact: string;
+  campaigns: string[];
+  notes: string;
+  status: 'planned' | 'in_progress' | 'completed' | 'cancelled';
+  createdAt: string;
+  updatedAt: string;
+  executedAt?: string;
+  actualImpact?: string;
 }
 
-export interface PeriodFilter {
-  days: number;
-  label: string;
-  custom?: boolean;
+// Lead types for CRM
+export interface Lead {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  company?: string;
+  source: string;
+  status: 'Novo' | 'Qualificação' | 'Proposta' | 'Fechado' | 'Perdido';
+  potentialValue: number;
+  owner: string;
+  createdAt: string;
+  updatedAt: string;
+  notes?: string;
 }
 
-export interface MetricType {
+// Calendar event types
+export interface CalendarEvent {
+  id: string;
+  title: string;
+  description?: string;
+  start: string;
+  end: string;
+  type: 'optimization' | 'meeting' | 'deadline' | 'review';
+  clientId?: string;
+  optimizationId?: string;
+  attendees?: string[];
+}
+
+// Team member types
+export interface TeamMember {
+  id: string;
+  name: string;
+  email: string;
+  role: 'Admin' | 'Gestor' | 'Leitor';
+  avatar?: string;
+  joinedAt: string;
+  lastActive: string;
+  status: 'active' | 'pending' | 'inactive';
+}
+
+// KPI types
+export interface KPI {
   key: string;
   label: string;
-  format: 'number' | 'currency' | 'percentage';
+  value: number;
+  previousValue?: number;
+  change?: number;
+  changePercent?: number;
+  format: 'currency' | 'int' | 'percent' | 'decimal';
+  trend: 'up' | 'down' | 'neutral';
+  color: 'positive' | 'negative' | 'neutral';
 }
 
-export type ClientStatus = Client['status'];
-export type Platform = Campaign['platform'];
-export type AlertType = Alert['type'];
+// Filter types
+export interface ClientFilters {
+  period: number;
+  platform: 'all' | 'google_ads' | 'meta_ads';
+  granularity: 'day' | 'week' | 'month';
+  dateRange?: {
+    from: string;
+    to: string;
+  };
+}
