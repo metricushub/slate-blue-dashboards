@@ -8,6 +8,7 @@ import { ChevronUp, ChevronDown, X, Search, GripVertical } from "lucide-react";
 import { ModalFrame } from "./ModalFrame";
 import { METRICS, MetricKey, DEFAULT_SELECTED_METRICS } from "@/shared/types/metrics";
 import { STORAGE_KEYS_EXTENDED } from "@/shared/data-source";
+import { useToast } from "@/hooks/use-toast";
 
 interface CustomizeModalProps {
   isOpen: boolean;
@@ -24,20 +25,23 @@ export function CustomizeModal({
   selectedMetrics,
   onMetricsChange
 }: CustomizeModalProps) {
+  const { toast } = useToast();
   const [localSelectedMetrics, setLocalSelectedMetrics] = useState<MetricKey[]>(selectedMetrics);
   const [searchQuery, setSearchQuery] = useState("");
   const [activePreset, setActivePreset] = useState<string>("");
   const [dragIndex, setDragIndex] = useState<number | null>(null);
-  const MAX_METRICS = 6;
+  const [activeTab, setActiveTab] = useState("metrics");
+  const MAX_METRICS = 9;
 
   // Metric presets
   const PRESETS = {
+    default: ['spend', 'leads', 'cpl', 'roas', 'clicks', 'impressions'] as MetricKey[],
     performance: ['spend', 'leads', 'cpl', 'roas'] as MetricKey[],
     acquisition: ['impressions', 'clicks', 'convRate', 'cpl'] as MetricKey[],
     revenue: ['revenue', 'roas', 'spend', 'cpa'] as MetricKey[],
     traffic: ['impressions', 'clicks', 'convRate', 'spend'] as MetricKey[],
     engagement: ['clicks', 'convRate', 'leads', 'cpl'] as MetricKey[],
-    complete: ['spend', 'leads', 'cpl', 'roas', 'clicks', 'revenue'] as MetricKey[]
+    complete: ['spend', 'leads', 'cpl', 'roas', 'clicks', 'revenue', 'impressions', 'convRate', 'cpa'] as MetricKey[]
   };
 
   // Reset local state when modal opens
@@ -106,12 +110,25 @@ export function CustomizeModal({
       metrics: localSelectedMetrics
     });
     
+    toast({
+      title: "Métricas personalizadas salvas",
+      description: "Suas preferências foram salvas com sucesso.",
+    });
+    
     onClose();
   };
 
   const handleReset = () => {
-    setLocalSelectedMetrics(DEFAULT_SELECTED_METRICS);
-    setActivePreset("");
+    const defaultPreset = PRESETS.default;
+    setLocalSelectedMetrics(defaultPreset);
+    setActivePreset("default");
+    
+    // Persist immediately
+    localStorage.setItem(
+      `${STORAGE_KEYS_EXTENDED.SELECTED_METRICS}:${clientId}`,
+      JSON.stringify(defaultPreset)
+    );
+    onMetricsChange(defaultPreset);
   };
 
   const availableMetrics = Object.values(METRICS);
@@ -120,19 +137,7 @@ export function CustomizeModal({
     m.label.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const footer = (
-    <>
-      <Button variant="outline" onClick={onClose} className="border-slate-200 text-slate-600">
-        Cancelar
-      </Button>
-      <Button variant="outline" onClick={handleReset} className="border-slate-200 text-slate-600">
-        Restaurar Padrão
-      </Button>
-      <Button onClick={handleSave} className="bg-blue-600 hover:bg-blue-700 text-white">
-        Salvar Alterações
-      </Button>
-    </>
-  );
+  const footer = null; // Footer will be rendered as sticky
 
   return (
     <ModalFrame
@@ -142,18 +147,18 @@ export function CustomizeModal({
       footer={footer}
       maxWidth="4xl"
     >
-      <Tabs defaultValue="metrics" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-4 bg-slate-100 rounded-2xl p-1">
           <TabsTrigger value="metrics" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm">
             Métricas
           </TabsTrigger>
-          <TabsTrigger value="funnel" disabled className="rounded-xl opacity-50">
+          <TabsTrigger value="funnel" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm">
             Funil
           </TabsTrigger>
-          <TabsTrigger value="layout" disabled className="rounded-xl opacity-50">
+          <TabsTrigger value="layout" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm">
             Layout
           </TabsTrigger>
-          <TabsTrigger value="advanced" disabled className="rounded-xl opacity-50">
+          <TabsTrigger value="advanced" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm">
             Avançado
           </TabsTrigger>
         </TabsList>
@@ -184,6 +189,7 @@ export function CustomizeModal({
                       : 'text-slate-600 hover:bg-slate-50'
                   }`}
                 >
+                   {key === 'default' && '📊 Padrão'}
                   {key === 'performance' && '⚡ Performance'}
                   {key === 'acquisition' && '🎯 Aquisição'}
                   {key === 'revenue' && '💰 Receita'}
@@ -321,6 +327,19 @@ export function CustomizeModal({
           </div>
         </TabsContent>
       </Tabs>
+      
+      {/* Sticky Footer */}
+      <div className="sticky bottom-0 inset-x-0 border-t bg-white/80 backdrop-blur px-4 py-3 flex justify-end gap-2 z-10">
+        <Button variant="outline" onClick={onClose} className="border-slate-200 text-slate-600">
+          Cancelar
+        </Button>
+        <Button variant="outline" onClick={handleReset} className="border-slate-200 text-slate-600">
+          Restaurar Padrão
+        </Button>
+        <Button onClick={handleSave} className="bg-blue-600 hover:bg-blue-700 text-white">
+          Salvar Alterações
+        </Button>
+      </div>
     </ModalFrame>
   );
 }

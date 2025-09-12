@@ -60,6 +60,7 @@ export function EnhancedTrendChart({
   const [activeMetrics, setActiveMetrics] = useState<MetricKey[]>(selectedMetrics.slice(0, 3));
   const [comparePrevious, setComparePrevious] = useState(false);
   const [chartType, setChartType] = useState<'line' | 'bar'>('line');
+  const [previousPeriodData, setPreviousPeriodData] = useState<ChartDataPoint[]>([]);
 
   useEffect(() => {
     const loadChartData = async () => {
@@ -115,6 +116,51 @@ export function EnhancedTrendChart({
           .sort((a, b) => a.date.localeCompare(b.date));
 
         setChartData(chartPoints);
+
+        // Load previous period data if comparison is enabled
+        if (comparePrevious) {
+          const prevEndDate = new Date(startDate);
+          const prevStartDate = new Date(startDate);
+          prevStartDate.setDate(prevStartDate.getDate() - period);
+
+          let prevMetrics = await dataSource.getMetrics(
+            clientId,
+            prevStartDate.toISOString(),
+            prevEndDate.toISOString()
+          );
+
+          if (platform !== 'all') {
+            prevMetrics = prevMetrics.filter(metric => metric.platform === platform);
+          }
+
+          const prevGroupedData = groupMetricsByDate(prevMetrics, granularity);
+          const prevChartPoints: ChartDataPoint[] = Object.entries(prevGroupedData)
+            .map(([date, rows]) => {
+              const point: ChartDataPoint = {
+                date,
+                displayDate: formatDateForDisplay(date, granularity),
+              };
+
+              activeMetrics.forEach(metricKey => {
+                const metricDef = METRICS[metricKey];
+                
+                if (metricDef.compute) {
+                  point[metricKey] = metricDef.compute(rows);
+                } else {
+                  point[metricKey] = rows.reduce((sum, row) => 
+                    sum + (row[metricKey as keyof MetricRow] as number || 0), 0
+                  );
+                }
+              });
+
+              return point;
+            })
+            .sort((a, b) => a.date.localeCompare(b.date));
+
+          setPreviousPeriodData(prevChartPoints);
+        } else {
+          setPreviousPeriodData([]);
+        }
       } catch (error) {
         console.error('Failed to load chart data:', error);
       } finally {
@@ -123,7 +169,7 @@ export function EnhancedTrendChart({
     };
 
     loadChartData();
-  }, [clientId, period, platform, granularity, activeMetrics, dataSource]);
+  }, [clientId, period, platform, granularity, activeMetrics, comparePrevious, dataSource]);
 
   const groupMetricsByDate = (metrics: MetricRow[], granularity: 'day' | 'week' | 'month') => {
     return metrics.reduce((acc, metric) => {
@@ -190,6 +236,30 @@ export function EnhancedTrendChart({
       };
     });
 
+    // Add previous period series if comparison is enabled
+    if (comparePrevious && previousPeriodData.length > 0) {
+      const prevSeries = activeMetrics.map((metric, index) => {
+        const metricDef = METRICS[metric];
+        return {
+          name: `${metricDef.label} (período anterior)`,
+          type: chartType,
+          data: previousPeriodData.map(point => point[metric]),
+          smooth: true,
+          lineStyle: { 
+            width: 2, 
+            type: 'dashed',
+            color: colors[index % colors.length]
+          },
+          itemStyle: { 
+            color: colors[index % colors.length],
+            opacity: 0.7
+          },
+          areaStyle: undefined, // No area for previous period
+        };
+      });
+      series.push(...prevSeries);
+    }
+
     return {
       tooltip: {
         trigger: 'axis',
@@ -220,7 +290,10 @@ export function EnhancedTrendChart({
         }
       },
       legend: {
-        data: activeMetrics.map(m => METRICS[m].label),
+        data: [
+          ...activeMetrics.map(m => METRICS[m].label),
+          ...(comparePrevious ? activeMetrics.map(m => `${METRICS[m].label} (período anterior)`) : [])
+        ],
         top: 20,
         textStyle: { color: '#64748b' }
       },
@@ -353,7 +426,6 @@ export function EnhancedTrendChart({
             id="compare-previous"
             checked={comparePrevious}
             onCheckedChange={setComparePrevious}
-            disabled // Will be enabled when comparison is implemented
           />
           <Label htmlFor="compare-previous" className="text-sm text-slate-600">
             Comparar com período anterior

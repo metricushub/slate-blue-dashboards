@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ModalFrame } from "./ModalFrame";
 import { METRICS, MetricKey } from "@/shared/types/metrics";
 import { Optimization } from "@/shared/types/optimizations";
-import { STORAGE_KEYS_EXTENDED } from "@/shared/data-source";
+import { optimizationOperations } from "@/shared/db/dashboardStore";
 import { useToast } from "@/hooks/use-toast";
 
 interface OptimizationsModalProps {
@@ -20,58 +20,74 @@ interface OptimizationsModalProps {
 export function OptimizationsModal({ isOpen, onClose, clientId, clientName }: OptimizationsModalProps) {
   const { toast } = useToast();
   const [formData, setFormData] = useState({
-    clientId,
-    date: new Date().toISOString().split('T')[0],
+    client_id: clientId,
+    title: '',
+    type: '',
     objective: '',
-    action: '',
-    targetMetric: '' as MetricKey,
-    baseline: null as number | null,
-    expected: null as number | null,
-    notes: '',
-    status: 'executed' as 'planned' | 'executed'
+    target_metric: '' as MetricKey,
+    hypothesis: '',
+    campaigns: [] as string[],
+    start_date: new Date().toISOString().split('T')[0],
+    review_date: '',
+    expected_impact: '',
+    status: 'Planejada' as 'Planejada' | 'Em teste' | 'Concluída' | 'Abortada'
   });
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const handleSubmit = () => {
-    if (!formData.objective || !formData.targetMetric) {
+  const handleSubmit = async () => {
+    const newErrors: Record<string, string> = {};
+    
+    if (!formData.title) {
+      newErrors.title = "Título é obrigatório";
+    }
+    if (!formData.start_date) {
+      newErrors.start_date = "Data de início é obrigatória";
+    }
+
+    setErrors(newErrors);
+
+    if (Object.keys(newErrors).length > 0) {
       toast({
         title: "Campos obrigatórios",
-        description: "Preencha o objetivo e a métrica-alvo.",
+        description: "Preencha todos os campos obrigatórios.",
         variant: "destructive",
       });
       return;
     }
 
-    const optimization: Optimization = {
-      id: `opt_${Date.now()}`,
-      ...formData,
-      date: formData.date,
-    };
+    try {
+      await optimizationOperations.create(formData);
 
-    // Save to localStorage
-    const key = `${STORAGE_KEYS_EXTENDED.OPTIMIZATIONS}:${clientId}`;
-    const existing = JSON.parse(localStorage.getItem(key) || '[]') as Optimization[];
-    existing.push(optimization);
-    localStorage.setItem(key, JSON.stringify(existing));
+      toast({
+        title: "Otimização registrada",
+        description: "A otimização foi salva com sucesso.",
+      });
 
-    toast({
-      title: "Otimização registrada",
-      description: "A otimização foi salva com sucesso.",
-    });
-
-    // Reset form and close
-    setFormData({
-      clientId,
-      date: new Date().toISOString().split('T')[0],
-      objective: '',
-      action: '',
-      targetMetric: '' as MetricKey,
-      baseline: null,
-      expected: null,
-      notes: '',
-      status: 'executed'
-    });
-    
-    onClose();
+      // Reset form and close
+      setFormData({
+        client_id: clientId,
+        title: '',
+        type: '',
+        objective: '',
+        target_metric: '' as MetricKey,
+        hypothesis: '',
+        campaigns: [],
+        start_date: new Date().toISOString().split('T')[0],
+        review_date: '',
+        expected_impact: '',
+        status: 'Planejada'
+      });
+      setErrors({});
+      
+      onClose();
+    } catch (error) {
+      console.error('Failed to save optimization:', error);
+      toast({
+        title: "Erro ao salvar",
+        description: "Ocorreu um erro ao salvar a otimização.",
+        variant: "destructive",
+      });
+    }
   };
 
   const footer = (
@@ -79,7 +95,7 @@ export function OptimizationsModal({ isOpen, onClose, clientId, clientName }: Op
       <Button variant="outline" onClick={onClose}>
         Cancelar
       </Button>
-      <Button onClick={handleSubmit} disabled={!formData.objective || !formData.targetMetric}>
+      <Button onClick={handleSubmit}>
         Salvar Otimização
       </Button>
     </>
@@ -98,46 +114,59 @@ export function OptimizationsModal({ isOpen, onClose, clientId, clientName }: Op
           <Input id="client" value={clientName} disabled className="mt-1" />
         </div>
         <div>
-          <Label htmlFor="date">Data</Label>
+          <Label htmlFor="start_date">Data de Início *</Label>
           <Input
-            id="date"
+            id="start_date"
             type="date"
-            value={formData.date}
-            onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
-            className="mt-1"
+            value={formData.start_date}
+            onChange={(e) => setFormData(prev => ({ ...prev, start_date: e.target.value }))}
+            className={`mt-1 ${errors.start_date ? 'border-red-500' : ''}`}
           />
+          {errors.start_date && (
+            <p className="text-red-500 text-xs mt-1">{errors.start_date}</p>
+          )}
         </div>
       </div>
 
       <div>
-        <Label htmlFor="objective">Objetivo *</Label>
+        <Label htmlFor="title">Título *</Label>
         <Input
-          id="objective"
-          placeholder="Ex: Reduzir CPA em campanhas de Google Ads"
-          value={formData.objective}
-          onChange={(e) => setFormData(prev => ({ ...prev, objective: e.target.value }))}
-          className="mt-1"
+          id="title"
+          placeholder="Ex: Otimização de CPA - Campanhas Google Search"
+          value={formData.title}
+          onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+          className={`mt-1 ${errors.title ? 'border-red-500' : ''}`}
         />
+        {errors.title && (
+          <p className="text-red-500 text-xs mt-1">{errors.title}</p>
+        )}
       </div>
 
-      <div>
-        <Label htmlFor="action">Ação Executada</Label>
-        <Textarea
-          id="action"
-          placeholder="Descreva as ações realizadas..."
-          value={formData.action}
-          onChange={(e) => setFormData(prev => ({ ...prev, action: e.target.value }))}
-          rows={3}
-          className="mt-1"
-        />
-      </div>
-
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 gap-4">
         <div>
-          <Label htmlFor="metric">Métrica-alvo *</Label>
+          <Label htmlFor="type">Tipo</Label>
           <Select 
-            value={formData.targetMetric} 
-            onValueChange={(value) => setFormData(prev => ({ ...prev, targetMetric: value as MetricKey }))}
+            value={formData.type} 
+            onValueChange={(value) => setFormData(prev => ({ ...prev, type: value }))}
+          >
+            <SelectTrigger className="mt-1">
+              <SelectValue placeholder="Selecione o tipo..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Teste A/B">Teste A/B</SelectItem>
+              <SelectItem value="Estrutural">Estrutural</SelectItem>
+              <SelectItem value="Criativo">Criativo</SelectItem>
+              <SelectItem value="Bidding">Bidding</SelectItem>
+              <SelectItem value="Segmentação">Segmentação</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        
+        <div>
+          <Label htmlFor="metric">Métrica-alvo</Label>
+          <Select 
+            value={formData.target_metric} 
+            onValueChange={(value) => setFormData(prev => ({ ...prev, target_metric: value as MetricKey }))}
           >
             <SelectTrigger className="mt-1">
               <SelectValue placeholder="Selecione..." />
@@ -151,44 +180,54 @@ export function OptimizationsModal({ isOpen, onClose, clientId, clientName }: Op
             </SelectContent>
           </Select>
         </div>
-        
-        <div>
-          <Label htmlFor="baseline">Baseline</Label>
-          <Input
-            id="baseline"
-            type="number"
-            step="0.01"
-            placeholder="Valor atual"
-            value={formData.baseline || ''}
-            onChange={(e) => setFormData(prev => ({ ...prev, baseline: e.target.value ? parseFloat(e.target.value) : null }))}
-            className="mt-1"
-          />
-        </div>
-        
-        <div>
-          <Label htmlFor="expected">Meta</Label>
-          <Input
-            id="expected"
-            type="number"
-            step="0.01"
-            placeholder="Valor esperado"
-            value={formData.expected || ''}
-            onChange={(e) => setFormData(prev => ({ ...prev, expected: e.target.value ? parseFloat(e.target.value) : null }))}
-            className="mt-1"
-          />
-        </div>
       </div>
 
       <div>
-        <Label htmlFor="notes">Observações</Label>
+        <Label htmlFor="objective">Objetivo</Label>
         <Textarea
-          id="notes"
-          placeholder="Observações adicionais..."
-          value={formData.notes}
-          onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+          id="objective"
+          placeholder="Ex: Reduzir CPL em 20% nas campanhas de Google Ads..."
+          value={formData.objective}
+          onChange={(e) => setFormData(prev => ({ ...prev, objective: e.target.value }))}
           rows={2}
           className="mt-1"
         />
+      </div>
+
+      <div>
+        <Label htmlFor="hypothesis">Teses/Hipóteses</Label>
+        <Textarea
+          id="hypothesis"
+          placeholder="Ex: Ajustar lances por dispositivo deve melhorar a performance..."
+          value={formData.hypothesis}
+          onChange={(e) => setFormData(prev => ({ ...prev, hypothesis: e.target.value }))}
+          rows={2}
+          className="mt-1"
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="review_date">Data de Revisão</Label>
+          <Input
+            id="review_date"
+            type="date"
+            value={formData.review_date}
+            onChange={(e) => setFormData(prev => ({ ...prev, review_date: e.target.value }))}
+            className="mt-1"
+          />
+        </div>
+        
+        <div>
+          <Label htmlFor="expected_impact">Impacto Esperado</Label>
+          <Input
+            id="expected_impact"
+            placeholder="Ex: Redução de 20% no CPL"
+            value={formData.expected_impact}
+            onChange={(e) => setFormData(prev => ({ ...prev, expected_impact: e.target.value }))}
+            className="mt-1"
+          />
+        </div>
       </div>
     </ModalFrame>
   );

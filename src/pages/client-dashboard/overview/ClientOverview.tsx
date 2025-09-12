@@ -156,6 +156,16 @@ export function ClientOverview() {
                 <CheckSquare className="h-4 w-4" />
                 Tarefas & Alertas
               </Button>
+              
+              {/* Floating Chat IA Button */}
+              <Button
+                onClick={() => setShowChatPanel(true)}
+                className="animate-pulse bg-blue-600 hover:bg-blue-700 text-white gap-2 shadow-lg"
+                title="Converse com os dados"
+              >
+                <Brain className="h-4 w-4" />
+                Chat IA
+              </Button>
             </div>
           </div>
 
@@ -257,15 +267,6 @@ export function ClientOverview() {
         </div>
       </div>
 
-      {/* Floating Chat IA Button */}
-      <Button
-        onClick={() => setShowChatPanel(true)}
-        className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg"
-        size="sm"
-      >
-        <MessageSquare className="h-6 w-6" />
-        <Brain className="h-3 w-3 absolute -top-1 -right-1" />
-      </Button>
 
       {/* Modals and Panels */}
       <CustomizeModal
