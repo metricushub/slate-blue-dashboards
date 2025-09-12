@@ -30,7 +30,7 @@ export function ModalFrame({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className={`${widthClasses[maxWidth]} w-full p-0 bg-white border border-border transition-none`}>
+      <DialogContent className={`${widthClasses[maxWidth]} w-full p-0 bg-white border border-border transition-none [&>div]:transition-none [&>div]:!duration-0`}>
         {/* Sticky Header */}
         <DialogHeader className="sticky top-0 bg-white border-b border-border px-6 py-4 md:px-8">
           <div className="flex items-center justify-between">
@@ -56,7 +56,7 @@ export function ModalFrame({
         {/* Footer */}
         {footer && (
           <div className="sticky bottom-0 bg-white border-t border-border px-6 py-4 md:px-8">
-            <div className="flex justify-end gap-3">
+            <div className="flex justify-between items-center">
               {footer}
             </div>
           </div>

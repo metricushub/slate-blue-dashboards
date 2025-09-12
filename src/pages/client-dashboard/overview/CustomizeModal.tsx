@@ -170,7 +170,24 @@ export function CustomizeModal({
     m.label.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const footer = null; // Footer will be rendered as sticky
+  const footer = (
+    <>
+      <div className="flex gap-2">
+        <Button variant="outline" size="sm" onClick={handleReset}>
+          Restaurar Padrão
+        </Button>
+      </div>
+      
+      <div className="flex gap-2">
+        <Button variant="outline" onClick={onClose}>
+          Cancelar
+        </Button>
+        <Button onClick={handleSave}>
+          Salvar
+        </Button>
+      </div>
+    </>
+  );
 
   return (
     <ModalFrame
@@ -339,7 +356,7 @@ export function CustomizeModal({
           </div>
         </TabsContent>
         
-        <TabsContent value="funnel" className="mt-6 space-y-6 min-h-[24rem] max-h-[36rem] overflow-y-auto pr-1">
+        <TabsContent value="funnel" className="mt-6 space-y-6">
           <FunnelStageManager clientId={clientId} />
         </TabsContent>
         
@@ -359,23 +376,6 @@ export function CustomizeModal({
           </div>
         </TabsContent>
       </Tabs>
-
-      <div className="sticky bottom-0 bg-white border-t border-slate-200 p-6 flex items-center justify-between">
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={handleReset}>
-            Restaurar Padrão
-          </Button>
-        </div>
-        
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={onClose}>
-            Cancelar
-          </Button>
-          <Button onClick={handleSave}>
-            Salvar
-          </Button>
-        </div>
-      </div>
     </ModalFrame>
   );
 }
