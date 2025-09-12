@@ -20,14 +20,16 @@ type FunnelPrefsV2 = {
   showRates: boolean;
   comparePrevious: boolean;
   stages: FunnelStage[]; // 2..8 stages
+  colorByStage: boolean; // ON/OFF for stage colors
 };
 
 const defaultFunnelPrefsV2: FunnelPrefsV2 = {
   mode: 'Detalhado',
   showRates: true,
   comparePrevious: false,
+  colorByStage: false, // Default to neutral colors
   stages: [
-    { id: 'stage1', label: 'Impressões', metric: 'impressions', color: '#3b82f6' },
+    { id: 'stage1', label: 'Impressões', metric: 'impressions', color: '#64748b' },
     { id: 'stage2', label: 'Cliques', metric: 'clicks', color: '#10b981' },
     { id: 'stage3', label: 'Leads', metric: 'leads', color: '#f59e0b' },
     { id: 'stage4', label: 'Receita', metric: 'revenue', color: '#ef4444' },
@@ -100,6 +102,7 @@ export function FunnelV2({ clientId, period, platform }: FunnelV2Props) {
           mode: parsedV1.mode || 'Detalhado',
           showRates: parsedV1.showRates !== false,
           comparePrevious: parsedV1.comparePrevious === true,
+          colorByStage: false, // Default to neutral
           stages: migratedStages.length > 0 ? migratedStages : defaultFunnelPrefsV2.stages
         };
 
@@ -359,7 +362,11 @@ export function FunnelV2({ clientId, period, platform }: FunnelV2Props) {
           <div className={`space-y-4 ${funnelPrefs.mode === 'Compacto' ? 'space-y-2' : ''}`}>
             {stages.map((stage, index) => {
               const prevStage = funnelPrefs.comparePrevious ? previousStages[index] : null;
-              const stageColor = funnelPrefs.stages[index]?.color || '#3b82f6';
+              
+              // Color logic: neutral vs. stage-specific
+              const stageColor = funnelPrefs.colorByStage 
+                ? funnelPrefs.stages[index]?.color || '#3b82f6'
+                : `hsl(215, ${15 + (index * 3)}%, ${50 + (index * 5)}%)`; // Neutral tones with slight opacity variation
               
               return (
                 <div key={stage.id} className="relative">

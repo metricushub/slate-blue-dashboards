@@ -25,6 +25,7 @@ type FunnelPrefsV2 = {
   mode: 'Detalhado' | 'Compacto';
   showRates: boolean;
   comparePrevious: boolean;
+  colorByStage: boolean;
   stages: FunnelStage[]; // 2..8 stages
 };
 
@@ -32,6 +33,7 @@ const defaultFunnelPrefsV2: FunnelPrefsV2 = {
   mode: 'Detalhado',
   showRates: true,
   comparePrevious: false,
+  colorByStage: false,
   stages: [
     { id: 'stage1', label: 'Impressões', metric: 'impressions', color: '#3b82f6' },
     { id: 'stage2', label: 'Cliques', metric: 'clicks', color: '#10b981' },
@@ -426,6 +428,7 @@ function FunnelStageManager({ clientId }: { clientId: string }) {
           mode: parsedV1.mode || 'Detalhado',
           showRates: parsedV1.showRates !== false,
           comparePrevious: parsedV1.comparePrevious === true,
+          colorByStage: false,
           stages: migratedStages.length > 0 ? migratedStages : defaultFunnelPrefsV2.stages
         };
 
@@ -563,6 +566,16 @@ function FunnelStageManager({ clientId }: { clientId: string }) {
           <Switch
             checked={funnelPrefs.comparePrevious}
             onCheckedChange={(checked) => handleUpdateFunnelPrefs({ comparePrevious: checked })}
+          />
+        </div>
+
+        <div className="flex items-center justify-between">
+          <label className="text-sm font-medium text-slate-700">
+            Cores por estágio
+          </label>
+          <Switch
+            checked={funnelPrefs.colorByStage}
+            onCheckedChange={(checked) => handleUpdateFunnelPrefs({ colorByStage: checked })}
           />
         </div>
       </div>
