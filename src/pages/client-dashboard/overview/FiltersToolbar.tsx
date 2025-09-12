@@ -1,4 +1,4 @@
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar, Globe, Clock } from "lucide-react";
 
@@ -40,22 +40,18 @@ export function FiltersToolbar({
   onGranularityChange 
 }: FiltersToolbarProps) {
   return (
-    <Card className="bg-[#11161e] border-[#1f2733]">
-      <CardContent className="p-4">
-        <div className="flex flex-wrap gap-4">
-          <div className="flex items-center gap-2 min-w-[200px]">
-            <Calendar className="h-4 w-4 text-[#9fb0c3]" />
+    <Card className="rounded-2xl border border-border bg-card shadow-sm">
+      <div className="p-4">
+        <div className="flex flex-wrap gap-3">
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-muted-foreground" />
             <Select value={period.toString()} onValueChange={(value) => onPeriodChange(Number(value))}>
-              <SelectTrigger className="bg-[#0b0f14] border-[#374151] text-[#e6edf3]">
+              <SelectTrigger className="w-32 h-9">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="bg-[#11161e] border-[#374151]">
+              <SelectContent>
                 {periodOptions.map((option) => (
-                  <SelectItem 
-                    key={option.value} 
-                    value={option.value.toString()}
-                    className="text-[#e6edf3] focus:bg-[#1f2733] focus:text-[#e6edf3]"
-                  >
+                  <SelectItem key={option.value} value={option.value.toString()}>
                     {option.label}
                   </SelectItem>
                 ))}
@@ -63,19 +59,15 @@ export function FiltersToolbar({
             </Select>
           </div>
 
-          <div className="flex items-center gap-2 min-w-[180px]">
-            <Globe className="h-4 w-4 text-[#9fb0c3]" />
+          <div className="flex items-center gap-2">
+            <Globe className="h-4 w-4 text-muted-foreground" />
             <Select value={platform} onValueChange={onPlatformChange}>
-              <SelectTrigger className="bg-[#0b0f14] border-[#374151] text-[#e6edf3]">
+              <SelectTrigger className="w-36 h-9">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="bg-[#11161e] border-[#374151]">
+              <SelectContent>
                 {platformOptions.map((option) => (
-                  <SelectItem 
-                    key={option.value} 
-                    value={option.value}
-                    className="text-[#e6edf3] focus:bg-[#1f2733] focus:text-[#e6edf3]"
-                  >
+                  <SelectItem key={option.value} value={option.value}>
                     {option.label}
                   </SelectItem>
                 ))}
@@ -83,19 +75,15 @@ export function FiltersToolbar({
             </Select>
           </div>
 
-          <div className="flex items-center gap-2 min-w-[140px]">
-            <Clock className="h-4 w-4 text-[#9fb0c3]" />
+          <div className="flex items-center gap-2">
+            <Clock className="h-4 w-4 text-muted-foreground" />
             <Select value={granularity} onValueChange={onGranularityChange}>
-              <SelectTrigger className="bg-[#0b0f14] border-[#374151] text-[#e6edf3]">
+              <SelectTrigger className="w-24 h-9">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="bg-[#11161e] border-[#374151]">
+              <SelectContent>
                 {granularityOptions.map((option) => (
-                  <SelectItem 
-                    key={option.value} 
-                    value={option.value}
-                    className="text-[#e6edf3] focus:bg-[#1f2733] focus:text-[#e6edf3]"
-                  >
+                  <SelectItem key={option.value} value={option.value}>
                     {option.label}
                   </SelectItem>
                 ))}
@@ -103,7 +91,7 @@ export function FiltersToolbar({
             </Select>
           </div>
         </div>
-      </CardContent>
+      </div>
     </Card>
   );
 }

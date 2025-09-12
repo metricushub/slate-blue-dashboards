@@ -1,11 +1,13 @@
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { TrendingUp, TrendingDown, Minus, HelpCircle } from "lucide-react";
+import { useDataSource } from "@/hooks/useDataSource";
 import { METRICS, MetricKey, formatMetricValue } from "@/shared/types/metrics";
 import { MetricRow } from "@/types";
-import { TrendingUp, TrendingDown, Minus, Info } from "lucide-react";
-import { useDataSource } from "@/hooks/useDataSource";
-import { useEffect, useState } from "react";
+import { startOfDay, subDays } from "date-fns";
 
 interface KPIBoardProps {
   selectedMetrics: MetricKey[];
@@ -19,8 +21,9 @@ interface KPIData {
   label: string;
   value: number;
   change: number;
-  isPositive: boolean;
+  isPositive: boolean | null;
   unit: string;
+  description: string;
 }
 
 export function KpiBoard({ selectedMetrics, clientId, period, platform }: KPIBoardProps) {
@@ -29,70 +32,77 @@ export function KpiBoard({ selectedMetrics, clientId, period, platform }: KPIBoa
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const loadKPIData = async () => {
-      if (!clientId || selectedMetrics.length === 0) {
+    const loadKpiData = async () => {
+      if (!selectedMetrics.length) {
+        setKpiData([]);
         setLoading(false);
         return;
       }
 
       setLoading(true);
-      
       try {
         const endDate = new Date();
-        const startDate = new Date();
-        startDate.setDate(startDate.getDate() - period);
+        const startDate = subDays(endDate, period);
+        const prevStartDate = subDays(startDate, period);
         
-        const prevEndDate = new Date(startDate);
-        const prevStartDate = new Date(prevEndDate);
-        prevStartDate.setDate(prevStartDate.getDate() - period);
-
+        // Get current and previous period data
         const [currentMetrics, previousMetrics] = await Promise.all([
-          dataSource.getMetrics(
-            clientId,
-            startDate.toISOString().split('T')[0],
-            endDate.toISOString().split('T')[0]
-          ),
-          dataSource.getMetrics(
-            clientId,
-            prevStartDate.toISOString().split('T')[0],
-            prevEndDate.toISOString().split('T')[0]
-          ),
+          dataSource.getMetrics(clientId, startDate.toISOString(), endDate.toISOString()),
+          dataSource.getMetrics(clientId, prevStartDate.toISOString(), startDate.toISOString())
         ]);
 
         // Filter by platform
         const filterByPlatform = (metrics: MetricRow[]) => {
-          if (platform === 'all') return metrics;
-          return metrics.filter(metric => metric.platform === platform);
+          return platform === 'all' ? metrics : metrics.filter(m => m.platform === platform);
         };
 
         const currentFiltered = filterByPlatform(currentMetrics);
         const previousFiltered = filterByPlatform(previousMetrics);
 
-        // Calculate KPI values
+        // Calculate KPIs
         const kpis: KPIData[] = selectedMetrics.map(metricKey => {
-          const metricDef = METRICS[metricKey];
+          const metric = METRICS[metricKey];
           
           let currentValue: number;
           let previousValue: number;
 
-          if (metricDef.compute) {
-            currentValue = metricDef.compute(currentFiltered);
-            previousValue = metricDef.compute(previousFiltered);
+          if (metric.compute) {
+            // For computed metrics (like CPL, conversion rate)
+            currentValue = metric.compute(currentFiltered);
+            previousValue = metric.compute(previousFiltered);
           } else {
-            currentValue = currentFiltered.reduce((sum, row) => sum + (row[metricKey as keyof MetricRow] as number || 0), 0);
-            previousValue = previousFiltered.reduce((sum, row) => sum + (row[metricKey as keyof MetricRow] as number || 0), 0);
+            // For direct metrics
+            currentValue = currentFiltered.reduce((sum, row) => {
+              const value = (row as any)[metricKey] || 0;
+              return sum + value;
+            }, 0);
+            
+            previousValue = previousFiltered.reduce((sum, row) => {
+              const value = (row as any)[metricKey] || 0;
+              return sum + value;
+            }, 0);
           }
 
-          const change = previousValue > 0 ? ((currentValue - previousValue) / previousValue) * 100 : 0;
-          const isPositive = metricDef.higherIsBetter ? change >= 0 : change <= 0;
+          // Calculate change percentage
+          let change = 0;
+          let isPositive: boolean | null = null;
+          
+          if (previousValue > 0) {
+            change = ((currentValue - previousValue) / previousValue) * 100;
+            isPositive = metric.higherIsBetter ? change >= 0 : change <= 0;
+          } else if (currentValue > 0) {
+            change = 100;
+            isPositive = metric.higherIsBetter;
+          }
 
           return {
             key: metricKey,
-            label: metricDef.label,
+            label: metric.label,
             value: currentValue,
-            change,
+            change: Math.abs(change),
             isPositive,
-            unit: metricDef.unit,
+            unit: metric.unit,
+            description: getMetricDescription(metricKey)
           };
         });
 
@@ -104,18 +114,40 @@ export function KpiBoard({ selectedMetrics, clientId, period, platform }: KPIBoa
       }
     };
 
-    loadKPIData();
-  }, [clientId, selectedMetrics, period, platform, dataSource]);
+    loadKpiData();
+  }, [selectedMetrics, clientId, period, platform, dataSource]);
+
+  const getMetricDescription = (key: MetricKey): string => {
+    const descriptions: Record<MetricKey, string> = {
+      spend: 'Total investido em anúncios',
+      leads: 'Número total de leads capturados',
+      cpl: 'Custo por lead (Investimento ÷ Leads)',
+      cpa: 'Custo por aquisição',
+      roas: 'Retorno sobre o investimento em anúncios',
+      clicks: 'Total de cliques nos anúncios',
+      impressions: 'Total de visualizações dos anúncios',
+      revenue: 'Receita total gerada',
+      convRate: 'Taxa de conversão (Leads ÷ Cliques)'
+    };
+    return descriptions[key] || '';
+  };
+
+  const getTrendIcon = (isPositive: boolean | null, change: number) => {
+    if (isPositive === null || change === 0) {
+      return <Minus className="h-3 w-3" />;
+    }
+    return isPositive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />;
+  };
 
   if (loading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {Array.from({ length: selectedMetrics.length || 4 }).map((_, index) => (
-          <Card key={index} className="bg-[#11161e] border-[#1f2733]">
-            <CardContent className="p-6">
-              <Skeleton className="h-4 w-16 mb-2 bg-[#1f2733]" />
-              <Skeleton className="h-8 w-24 mb-2 bg-[#1f2733]" />
-              <Skeleton className="h-4 w-20 bg-[#1f2733]" />
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        {Array.from({ length: selectedMetrics.length || 6 }).map((_, i) => (
+          <Card key={i} className="rounded-2xl border border-border bg-card shadow-sm">
+            <CardContent className="p-5">
+              <Skeleton className="h-4 w-20 mb-3" />
+              <Skeleton className="h-8 w-24 mb-2" />
+              <Skeleton className="h-5 w-16" />
             </CardContent>
           </Card>
         ))}
@@ -123,74 +155,63 @@ export function KpiBoard({ selectedMetrics, clientId, period, platform }: KPIBoa
     );
   }
 
-  if (kpiData.length === 0) {
+  if (selectedMetrics.length === 0) {
     return (
-      <Card className="bg-[#11161e] border-[#1f2733]">
-        <CardContent className="p-6 text-center">
-          <p className="text-[#9fb0c3]">Nenhuma métrica selecionada</p>
+      <Card className="rounded-2xl border border-border bg-card shadow-sm">
+        <CardContent className="p-8 text-center">
+          <p className="text-muted-foreground">
+            Selecione métricas para visualizar os KPIs
+          </p>
         </CardContent>
       </Card>
     );
   }
 
-  const getTrendIcon = (change: number, isPositive: boolean) => {
-    if (Math.abs(change) < 0.1) {
-      return <Minus className="h-4 w-4 text-[#9fb0c3]" />;
-    }
-    
-    return isPositive ? (
-      <TrendingUp className="h-4 w-4 text-[#22c55e]" />
-    ) : (
-      <TrendingDown className="h-4 w-4 text-[#ef4444]" />
-    );
-  };
-
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {kpiData.map((kpi) => (
-        <Card 
-          key={kpi.key} 
-          className="bg-[#11161e] border-[#1f2733] relative overflow-hidden group hover:border-[#374151] transition-colors"
-        >
-          {/* Gradient background */}
-          <div className="absolute inset-0 bg-gradient-to-br from-[#1f2733]/20 to-transparent" />
-          
-          <CardContent className="p-6 relative">
-            <div className="flex items-start justify-between mb-4">
-              <div>
+    <TooltipProvider>
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        {kpiData.map((kpi) => (
+          <Card key={kpi.key} className="rounded-2xl border border-border bg-card shadow-sm hover:shadow-md transition-shadow">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-medium text-[#9fb0c3]">{kpi.label}</h3>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger>
-                        <Info className="h-3 w-3 text-[#6b7280] opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </TooltipTrigger>
-                      <TooltipContent className="bg-[#1f2733] border-[#374151] text-[#e6edf3]">
-                        <p>{METRICS[kpi.key].higherIsBetter ? 'Maior é melhor' : 'Menor é melhor'}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+                  <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    {kpi.label}
+                  </h3>
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <HelpCircle className="h-3 w-3 text-muted-foreground" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="text-xs max-w-48">{kpi.description}</p>
+                    </TooltipContent>
+                  </Tooltip>
                 </div>
-                <p className="text-2xl font-bold text-[#e6edf3] mt-1">
-                  {formatMetricValue(kpi.value, METRICS[kpi.key].unit)}
-                </p>
               </div>
-              {getTrendIcon(kpi.change, kpi.isPositive)}
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <span 
-                className={`text-sm font-medium ${
-                  kpi.isPositive ? 'text-[#22c55e]' : 'text-[#ef4444]'
-                }`}
-              >
-                {kpi.change > 0 ? '+' : ''}{kpi.change.toFixed(1)}%
-              </span>
-              <span className="text-xs text-[#9fb0c3]">vs período anterior</span>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
-    </div>
+
+              <div className="space-y-2">
+                <div className="text-2xl font-semibold text-foreground">
+                  {formatMetricValue(kpi.value, kpi.unit as any)}
+                </div>
+                
+                {kpi.change > 0 && (
+                  <Badge 
+                    variant={kpi.isPositive ? "default" : "destructive"}
+                    className={`text-xs flex items-center gap-1 w-fit ${
+                      kpi.isPositive 
+                        ? "bg-success/10 text-success hover:bg-success/20 border-success/20" 
+                        : "bg-destructive/10 text-destructive hover:bg-destructive/20 border-destructive/20"
+                    }`}
+                  >
+                    {getTrendIcon(kpi.isPositive, kpi.change)}
+                    {kpi.change.toFixed(1)}%
+                  </Badge>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </TooltipProvider>
   );
 }
