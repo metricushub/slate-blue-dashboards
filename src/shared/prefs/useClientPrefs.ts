@@ -116,6 +116,18 @@ export function useClientPrefs(clientId: string) {
       }
       
       setIsDirty(true);
+
+      // Broadcast update so other hook instances react immediately (same tab)
+      try {
+        window.dispatchEvent(
+          new CustomEvent('clientPrefs:update', {
+            detail: { clientId: newPrefs.clientId, prefs: newPrefs }
+          })
+        );
+      } catch (e) {
+        // noop
+      }
+
       return newPrefs;
     });
   }, []);
@@ -139,6 +151,36 @@ export function useClientPrefs(clientId: string) {
       return () => clearTimeout(timeoutId);
     }
   }, [isDirty, isLoading, save]);
+
+  // Cross-component sync: listen for broadcasted updates and storage changes
+  useEffect(() => {
+    const onPrefsUpdate = (e: Event) => {
+      const ce = e as CustomEvent<any>;
+      const detail = (ce as any).detail;
+      if (detail?.clientId === clientId) {
+        setPrefs(detail.prefs);
+        setIsDirty(false);
+      }
+    };
+
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === `clientPrefs:${clientId}` && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          setPrefs(parsed);
+          setIsDirty(false);
+        } catch {}
+      }
+    };
+
+    window.addEventListener('clientPrefs:update', onPrefsUpdate as EventListener);
+    window.addEventListener('storage', onStorage);
+
+    return () => {
+      window.removeEventListener('clientPrefs:update', onPrefsUpdate as EventListener);
+      window.removeEventListener('storage', onStorage);
+    };
+  }, [clientId]);
 
   return {
     prefs,
