@@ -123,7 +123,7 @@ export function ClientOverview() {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-2xl font-semibold mb-2">Cliente não encontrado</h2>
-          <Button onClick={() => navigate("/")}>Voltar ao Dashboard</Button>
+          <Button onClick={() => navigate("/")}>Voltar para Home</Button>
         </div>
       </div>
     );
@@ -137,10 +137,6 @@ export function ClientOverview() {
           <div className="flex items-start justify-between">
             <DashboardHeader client={client} onRegisterOptimization={() => setShowOptimizationsModal(true)} />
             <div className="flex items-center gap-3">
-              <Button variant="outline" onClick={() => setShowCustomizeModal(true)} className="gap-2">
-                <Settings className="h-4 w-4" />
-                Personalizar Métricas
-              </Button>
               <Button variant="outline" onClick={() => setShowOptimizationsModal(true)} className="gap-2">
                 <Target className="h-4 w-4" />
                 Otimizações
