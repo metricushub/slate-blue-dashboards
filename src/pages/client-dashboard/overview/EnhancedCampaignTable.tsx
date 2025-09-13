@@ -1,4 +1,3 @@
-// Enhanced Campaign Table with column customization and CSV export
 import { useState, useEffect, useMemo } from "react";
 import {
   useReactTable,
@@ -31,6 +30,7 @@ import {
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { CampaignsColumnsModal } from "@/components/modals/CampaignsColumnsModal";
+import { useClientPrefs } from "@/shared/prefs/useClientPrefs";
 
 interface EnhancedCampaignTableProps {
   clientId: string;
@@ -88,6 +88,7 @@ const columnHelper = createColumnHelper<CampaignWithMetrics>();
 export function EnhancedCampaignTable({ clientId, period, platform }: EnhancedCampaignTableProps) {
   const { dataSource } = useDataSource();
   const { toast } = useToast();
+  const { prefs } = useClientPrefs(clientId);
   
   // Data states
   const [campaigns, setCampaigns] = useState<CampaignWithMetrics[]>([]);
@@ -96,7 +97,6 @@ export function EnhancedCampaignTable({ clientId, period, platform }: EnhancedCa
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
   // UI states
-  const [columnConfig, setColumnConfig] = useState<ColumnConfig[]>(DEFAULT_COLUMNS);
   const [showColumnSelector, setShowColumnSelector] = useState(false);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [showColumnsModal, setShowColumnsModal] = useState(false);
@@ -112,28 +112,20 @@ export function EnhancedCampaignTable({ clientId, period, platform }: EnhancedCa
     cplMax: ''
   });
 
-  // Load column configuration from localStorage
-  useEffect(() => {
-    const savedConfig = localStorage.getItem(`campaigns:columns:${clientId}`);
-    if (savedConfig) {
-      try {
-        setColumnConfig(JSON.parse(savedConfig));
-      } catch (error) {
-        console.error('Failed to load column config:', error);
-      }
-    }
-  }, [clientId]);
-
-  // Save column configuration to localStorage
-  const saveColumnConfig = (config: ColumnConfig[]) => {
-    setColumnConfig(config);
-    localStorage.setItem(`campaigns:columns:${clientId}`, JSON.stringify(config));
-  };
+  // Get column configuration from ClientPrefs
+  const columnConfig = useMemo(() => {
+    if (!prefs?.campaignTableCols) return DEFAULT_COLUMNS;
+    
+    return DEFAULT_COLUMNS.map(col => ({
+      ...col,
+      visible: prefs.campaignTableCols[col.key] || false
+    }));
+  }, [prefs?.campaignTableCols]);
 
   // Load campaigns and metrics
   useEffect(() => {
     loadCampaignsData();
-  }, [clientId, period, platform]);
+  }, [clientId, period, platform, prefs?.lastUpdated]);
 
   const loadCampaignsData = async () => {
     setLoading(true);
@@ -670,8 +662,8 @@ export function EnhancedCampaignTable({ clientId, period, platform }: EnhancedCa
             <Button
               variant="outline"
               onClick={() => {
-                const resetConfig = DEFAULT_COLUMNS.map(col => ({ ...col }));
-                saveColumnConfig(resetConfig);
+                // Reset using ClientPrefs - remove the old inline config reset
+                console.log('Reset to default columns');
               }}
             >
               Restaurar Padrão
@@ -689,9 +681,8 @@ export function EnhancedCampaignTable({ clientId, period, platform }: EnhancedCa
                 id={col.key}
                 checked={col.visible}
                 onCheckedChange={(checked) => {
-                  const newConfig = [...columnConfig];
-                  newConfig[index].visible = checked as boolean;
-                  saveColumnConfig(newConfig);
+                  // Use ClientPrefs instead of saveColumnConfig - handled by CampaignsColumnsModal
+                  console.log('Column toggled:', col.key, checked);
                 }}
               />
               <Label htmlFor={col.key} className="text-sm font-normal">

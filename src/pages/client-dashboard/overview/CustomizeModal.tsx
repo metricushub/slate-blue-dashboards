@@ -22,16 +22,12 @@ interface CustomizeModalProps {
   isOpen: boolean;
   onClose: () => void;
   clientId: string;
-  selectedMetrics: MetricKey[];
-  onMetricsChange: (metrics: MetricKey[]) => void;
 }
 
 export function CustomizeModal({ 
   isOpen, 
   onClose, 
-  clientId, 
-  selectedMetrics,
-  onMetricsChange 
+  clientId
 }: CustomizeModalProps) {
   const [activeTab, setActiveTab] = useState<string>("funnel");
   const [searchQuery, setSearchQuery] = useState("");
@@ -100,13 +96,11 @@ export function CustomizeModal({
     }
     
     patch({ selectedMetrics: newMetrics });
-    onMetricsChange?.(newMetrics);
   };
 
   const handleRemoveMetric = (metricKey: MetricKey) => {
     const newMetrics = localSelectedMetrics.filter(key => key !== metricKey);
     patch({ selectedMetrics: newMetrics });
-    onMetricsChange?.(newMetrics);
   };
 
   const handleSave = () => {
@@ -217,7 +211,7 @@ export function CustomizeModal({
                 <TabsContent value="layout" forceMount className={activeTab === 'layout' ? '' : 'hidden'}>
                   <div className="flex flex-col gap-6">
                     {/* Chart Metrics Quick Edit */}
-                    <ChartMetricsManager clientId={clientId} onMetricsChange={onMetricsChange} />
+                    <ChartMetricsManager clientId={clientId} />
                     
                     {/* Other layout settings placeholder */}
                     <div className="text-center py-12 text-slate-400">
@@ -454,11 +448,9 @@ function FunnelStageManager({ clientId }: { clientId: string }) {
 
 // Chart Metrics Manager Component
 function ChartMetricsManager({ 
-  clientId, 
-  onMetricsChange 
+  clientId
 }: { 
   clientId: string;
-  onMetricsChange: (metrics: MetricKey[]) => void;
 }) {
   const { prefs, patch } = useClientPrefs(clientId);
   const { toast } = useToast();
@@ -476,11 +468,10 @@ function ChartMetricsManager({
       });
       return;
     }
-
+    
     if (!selectedMetrics.includes(metricKey)) {
       const newMetrics = [...selectedMetrics, metricKey];
       patch({ selectedMetrics: newMetrics });
-      onMetricsChange(newMetrics);
     }
     setAddMetricOpen(false);
   };
@@ -488,7 +479,6 @@ function ChartMetricsManager({
   const handleRemoveMetric = (metricKey: MetricKey) => {
     const newMetrics = selectedMetrics.filter(key => key !== metricKey);
     patch({ selectedMetrics: newMetrics });
-    onMetricsChange(newMetrics);
   };
 
   // All available metrics

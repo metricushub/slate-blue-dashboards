@@ -9,14 +9,14 @@ import { useDataSource } from "@/hooks/useDataSource";
 import { METRICS, MetricKey, formatMetricValue } from "@/shared/types/metrics";
 import { MetricRow } from "@/types";
 import { subDays } from "date-fns";
+import { useClientPrefs } from "@/shared/prefs/useClientPrefs";
+import { KpiMetricsModal } from "@/components/modals/KpiMetricsModal";
 
 interface EnhancedKpiBoardProps {
-  selectedMetrics: MetricKey[];
   clientId: string;
   period: number;
   platform: 'all' | 'google' | 'meta';
   layout?: 'grid' | 'rows';
-  onCustomize?: () => void;
 }
 
 interface KPIData {
@@ -31,16 +31,19 @@ interface KPIData {
 }
 
 export function EnhancedKpiBoard({ 
-  selectedMetrics, 
   clientId, 
   period, 
   platform,
-  layout = 'grid',
-  onCustomize 
+  layout = 'grid'
 }: EnhancedKpiBoardProps) {
   const { dataSource } = useDataSource();
+  const { prefs } = useClientPrefs(clientId);
   const [kpiData, setKpiData] = useState<KPIData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showMetricsModal, setShowMetricsModal] = useState(false);
+
+  // Get metrics from ClientPrefs
+  const selectedMetrics = prefs?.selectedMetrics || [];
 
   useEffect(() => {
     const loadKpiData = async () => {
@@ -127,7 +130,7 @@ export function EnhancedKpiBoard({
     };
 
     loadKpiData();
-  }, [selectedMetrics, clientId, period, platform, dataSource]);
+  }, [selectedMetrics, clientId, period, platform, dataSource, prefs?.lastUpdated]);
 
   const getMetricDescription = (key: MetricKey): string => {
     const descriptions: Record<MetricKey, string> = {
@@ -209,6 +212,15 @@ export function EnhancedKpiBoard({
               {selectedMetrics.length}/9 métricas
             </Badge>
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowMetricsModal(true)}
+            className="h-8 gap-1"
+          >
+            <Settings className="h-3 w-3" />
+            Métricas
+          </Button>
         </div>
 
         {/* KPI Grid */}
@@ -260,6 +272,12 @@ export function EnhancedKpiBoard({
             </Card>
           ))}
         </div>
+
+        <KpiMetricsModal
+          isOpen={showMetricsModal}
+          onClose={() => setShowMetricsModal(false)}
+          clientId={clientId}
+        />
       </div>
     </TooltipProvider>
   );

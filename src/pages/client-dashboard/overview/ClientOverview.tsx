@@ -27,6 +27,7 @@ import { CustomizeModal } from "./CustomizeModal";
 import { EnhancedCampaignTable } from "./EnhancedCampaignTable";
 import { RecentOptimizations } from "./RecentOptimizations";
 import { TasksAlertsModal, useNextTasks } from "./TasksAlertsModal";
+import { useClientPrefs } from "@/shared/prefs/useClientPrefs";
 
 export function ClientOverview() {
   const { clientId } = useParams<{ clientId: string }>();
@@ -46,8 +47,7 @@ export function ClientOverview() {
   const [selectedCampaigns, setSelectedCampaigns] = useState<string[]>([]);
   const [customDateRange, setCustomDateRange] = useState<{ from: Date | null; to: Date | null }>({ from: null, to: null });
   
-  // Metrics (up to 9)
-  const [selectedMetrics, setSelectedMetrics] = useState<MetricKey[]>(DEFAULT_SELECTED_METRICS);
+  const { prefs, patch } = useClientPrefs(clientId!);
   
   // Modals and panels
   const [showOptimizationsModal, setShowOptimizationsModal] = useState(false);
@@ -83,16 +83,8 @@ export function ClientOverview() {
         
         setClient(foundClient);
 
-        // Load persisted metrics
-        const savedMetrics = localStorage.getItem(`${STORAGE_KEYS.SELECTED_METRICS}:${clientId}`);
-        if (savedMetrics) {
-          try {
-            const parsed = JSON.parse(savedMetrics) as MetricKey[];
-            setSelectedMetrics(parsed.length > 0 ? parsed.slice(0, 9) : DEFAULT_SELECTED_METRICS);
-          } catch {
-            setSelectedMetrics(DEFAULT_SELECTED_METRICS);
-          }
-        }
+        // Client preferences will handle metrics now
+        console.log('Client loaded:', client.name);
       } catch (error) {
         console.error('Failed to load client:', error);
         toast({
@@ -185,12 +177,11 @@ export function ClientOverview() {
           />
 
           {/* Enhanced KPI Board (up to 9 metrics) */}
-          <EnhancedKpiBoard
-            selectedMetrics={selectedMetrics}
-            clientId={clientId!}
-            period={period}
-            platform={platform}
-          />
+            <EnhancedKpiBoard
+              clientId={clientId!}
+              period={period}
+              platform={platform}
+            />
 
           {/* Enhanced Chart & Funnel */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
@@ -272,8 +263,6 @@ export function ClientOverview() {
         isOpen={showCustomizeModal}
         onClose={() => setShowCustomizeModal(false)}
         clientId={clientId!}
-        selectedMetrics={selectedMetrics}
-        onMetricsChange={setSelectedMetrics}
       />
 
       <OptimizationsModal
