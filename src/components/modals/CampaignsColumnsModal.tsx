@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { ModalFrameV2 } from "../../pages/client-dashboard/overview/ModalFrameV2";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Settings, X, Eye, EyeOff } from "lucide-react";
+import { Settings, Eye, EyeOff } from "lucide-react";
 import { useClientPrefs } from "@/shared/prefs/useClientPrefs";
 import { useToast } from "@/hooks/use-toast";
 
@@ -42,6 +42,8 @@ export function CampaignsColumnsModal({ isOpen, onClose, clientId }: CampaignsCo
   const { toast } = useToast();
   
   const [visibleColumns, setVisibleColumns] = useState<Record<string, boolean>>({});
+  const [isDirty, setIsDirty] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Convert array to visibility map
   const toVisibilityFromList = (columnsList: string[]) => {
@@ -59,25 +61,29 @@ export function CampaignsColumnsModal({ isOpen, onClose, clientId }: CampaignsCo
       .map(([key]) => key);
   };
 
-  // Initialize state from prefs
+  // Initialize state from prefs when modal opens
   useEffect(() => {
-    if (prefs.campaignTableCols) {
-      // Convert from object format to visibility map
-      const columnsList = Object.entries(prefs.campaignTableCols)
-        .filter(([_, visible]) => visible)
-        .map(([key]) => key);
-      setVisibleColumns(toVisibilityFromList(columnsList));
-    } else {
-      // Use default columns
-      setVisibleColumns(toVisibilityFromList(DEFAULT_VISIBLE_COLUMNS));
+    if (isOpen) {
+      if (prefs.campaignTableCols) {
+        // Convert from object format to visibility map
+        const columnsList = Object.entries(prefs.campaignTableCols)
+          .filter(([_, visible]) => visible)
+          .map(([key]) => key);
+        setVisibleColumns(toVisibilityFromList(columnsList));
+      } else {
+        // Use default columns
+        setVisibleColumns(toVisibilityFromList(DEFAULT_VISIBLE_COLUMNS));
+      }
+      setIsDirty(false);
     }
-  }, [prefs.campaignTableCols]);
+  }, [isOpen, prefs.campaignTableCols]);
 
   const handleColumnToggle = (columnKey: string, checked: boolean) => {
     setVisibleColumns(prev => ({
       ...prev,
       [columnKey]: checked
     }));
+    setIsDirty(true);
   };
 
   const handleSelectAll = () => {
@@ -86,22 +92,32 @@ export function CampaignsColumnsModal({ isOpen, onClose, clientId }: CampaignsCo
       allVisible[col.key] = true;
     });
     setVisibleColumns(allVisible);
+    setIsDirty(true);
   };
 
   const handleSelectDefault = () => {
     setVisibleColumns(toVisibilityFromList(DEFAULT_VISIBLE_COLUMNS));
+    setIsDirty(true);
   };
 
-  const handleSave = () => {
-    const columnsList = toListFromVisibility(visibleColumns);
-    const columnVisibility: Record<string, boolean> = {};
-    COLUMN_OPTIONS.forEach(col => {
-      columnVisibility[col.key] = columnsList.includes(col.key);
-    });
-    
-    patch({ campaignTableCols: columnVisibility });
-    toast({ title: "Colunas salvas", description: "A configuração da tabela foi atualizada." });
-    onClose();
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      const columnsList = toListFromVisibility(visibleColumns);
+      const columnVisibility: Record<string, boolean> = {};
+      COLUMN_OPTIONS.forEach(col => {
+        columnVisibility[col.key] = columnsList.includes(col.key);
+      });
+      
+      await patch({ campaignTableCols: columnVisibility });
+      toast({ title: "Colunas salvas", description: "A configuração da tabela foi atualizada." });
+      setIsDirty(false);
+      onClose();
+    } catch (error) {
+      toast({ title: "Erro ao salvar", description: "Não foi possível salvar as alterações.", variant: "destructive" });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleCancel = () => {
@@ -112,10 +128,9 @@ export function CampaignsColumnsModal({ isOpen, onClose, clientId }: CampaignsCo
         .map(([key]) => key);
       setVisibleColumns(toVisibilityFromList(columnsList));
     }
+    setIsDirty(false);
     onClose();
   };
-
-  const visibleCount = Object.values(visibleColumns).filter(Boolean).length;
 
   // Group columns by category
   const groupedColumns = COLUMN_OPTIONS.reduce((acc, col) => {
@@ -126,80 +141,79 @@ export function CampaignsColumnsModal({ isOpen, onClose, clientId }: CampaignsCo
     return acc;
   }, {} as Record<string, typeof COLUMN_OPTIONS>);
 
-  return (
-    <Dialog open={isOpen} onOpenChange={handleCancel}>
-      <DialogContent className="mx-auto w-[92vw] max-w-md md:max-w-lg h-auto max-h-[72svh] overflow-hidden rounded-2xl bg-white shadow-xl [contain:size_layout_paint] p-0">
-        <div className="flex flex-col h-full">
-          {/* Header */}
-          <div className="shrink-0 sticky top-0 z-10 border-b bg-white px-5 py-4 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Settings className="h-5 w-5 text-slate-600" />
-              <div className="text-base font-medium">Colunas da Tabela</div>
-            </div>
-            <Button variant="ghost" size="sm" onClick={handleCancel} className="h-8 w-8 p-0">
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
+  const visibleCount = Object.values(visibleColumns).filter(Boolean).length;
 
-          {/* Body */}
-          <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 py-4 [overflow-anchor:none] no-height-anim">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-slate-600">
-                  {visibleCount} de {COLUMN_OPTIONS.length} colunas selecionadas
-                </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={handleSelectAll}>
-                    <Eye className="h-3 w-3 mr-1" />
-                    Todas
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={handleSelectDefault}>
-                    <EyeOff className="h-3 w-3 mr-1" />
-                    Padrão
-                  </Button>
-                </div>
-              </div>
+  // Footer buttons
+  const footerButtons = (
+    <>
+      <Button variant="ghost" onClick={handleCancel}>Cancelar</Button>
+      <Button variant="secondary" onClick={handleSelectDefault}>Restaurar padrão</Button>
+      <Button onClick={handleSave} disabled={!isDirty || isSaving}>
+        {isSaving ? "Salvando…" : "Salvar"}
+      </Button>
+    </>
+  );
 
-              <ScrollArea className="space-y-4">
-                {Object.entries(groupedColumns).map(([category, columns]) => (
-                  <div key={category} className="space-y-3">
-                    <h4 className="text-sm font-medium text-slate-900 border-b border-slate-200 pb-1">
-                      {category}
-                    </h4>
-                    <div className="grid grid-cols-1 gap-2">
-                      {columns.map((column) => (
-                        <div key={column.key} className="flex items-center space-x-2 p-2 rounded hover:bg-slate-50">
-                          <Checkbox
-                            id={`column-${column.key}`}
-                            checked={visibleColumns[column.key] || false}
-                            onCheckedChange={(checked) => handleColumnToggle(column.key, Boolean(checked))}
-                          />
-                          <label
-                            htmlFor={`column-${column.key}`}
-                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex-1"
-                          >
-                            {column.label}
-                          </label>
-                          {visibleColumns[column.key] && (
-                            <Eye className="h-3 w-3 text-green-600" />
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </ScrollArea>
-            </div>
-          </div>
-
-          {/* Footer */}
-          <div className="shrink-0 sticky bottom-0 z-10 border-t bg-white px-4 py-3 flex justify-end gap-2">
-            <Button variant="ghost" onClick={handleCancel}>Cancelar</Button>
-            <Button variant="secondary" onClick={handleSelectDefault}>Restaurar padrão</Button>
-            <Button onClick={handleSave}>Salvar alterações</Button>
-          </div>
+  // Modal content
+  const modalContent = (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="text-sm text-slate-600">
+          {visibleCount} de {COLUMN_OPTIONS.length} colunas selecionadas
         </div>
-      </DialogContent>
-    </Dialog>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={handleSelectAll}>
+            <Eye className="h-3 w-3 mr-1" />
+            Todas
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleSelectDefault}>
+            <EyeOff className="h-3 w-3 mr-1" />
+            Padrão
+          </Button>
+        </div>
+      </div>
+
+      <ScrollArea className="space-y-4">
+        {Object.entries(groupedColumns).map(([category, columns]) => (
+          <div key={category} className="space-y-3">
+            <h4 className="text-sm font-medium text-slate-900 border-b border-slate-200 pb-1">
+              {category}
+            </h4>
+            <div className="grid grid-cols-1 gap-2">
+              {columns.map((column) => (
+                <div key={column.key} className="flex items-center space-x-2 p-2 rounded hover:bg-slate-50">
+                  <Checkbox
+                    id={`column-${column.key}`}
+                    checked={visibleColumns[column.key] || false}
+                    onCheckedChange={(checked) => handleColumnToggle(column.key, Boolean(checked))}
+                  />
+                  <label
+                    htmlFor={`column-${column.key}`}
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex-1"
+                  >
+                    {column.label}
+                  </label>
+                  {visibleColumns[column.key] && (
+                    <Eye className="h-3 w-3 text-green-600" />
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </ScrollArea>
+    </div>
+  );
+
+  return (
+    <ModalFrameV2 
+      isOpen={isOpen} 
+      onClose={handleCancel} 
+      title="Configurar Colunas da Tabela"
+      maxWidth="lg"
+      footer={footerButtons}
+    >
+      {modalContent}
+    </ModalFrameV2>
   );
 }
