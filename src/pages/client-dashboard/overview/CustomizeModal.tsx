@@ -13,6 +13,8 @@ import { ModalFrameV2 } from "./ModalFrameV2";
 import { METRICS, MetricKey, DEFAULT_SELECTED_METRICS } from "@/shared/types/metrics";
 import { STORAGE_KEYS_EXTENDED } from "@/shared/data-source";
 import { useToast } from "@/hooks/use-toast";
+import { useStableModalHeight } from "@/hooks/useStableModalHeight";
+import "@/styles/modal-guards.css";
 
 // New V2 structure for dynamic funnel
 type FunnelStage = { 
@@ -65,8 +67,12 @@ export function CustomizeModal({
   const [activePreset, setActivePreset] = useState<string>("");
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState("metrics");
-  // Remove old funnel prefs since we're using V2 now
   const MAX_METRICS = 9;
+  
+  // Height stability monitoring for funnel modal
+  const { containerRef, deltaPixels, startMeasuring } = useStableModalHeight({
+    enabled: isOpen && activeTab === 'funnel'
+  });
 
   // Metric presets
   const PRESETS = {
@@ -84,8 +90,13 @@ export function CustomizeModal({
     if (isOpen) {
       setLocalSelectedMetrics(selectedMetrics);
       setSearchQuery("");
+      
+      // Start height monitoring for funnel tab with delay
+      if (activeTab === 'funnel') {
+        setTimeout(() => startMeasuring(), 100);
+      }
     }
-  }, [isOpen, selectedMetrics]);
+  }, [isOpen, selectedMetrics, activeTab, startMeasuring]);
 
   const handleMetricToggle = (metricKey: MetricKey, checked: boolean) => {
     if (checked && localSelectedMetrics.length >= MAX_METRICS) {
@@ -191,99 +202,109 @@ export function CustomizeModal({
     </>
   );
 
-  // Use fixed height structure for funnel tab
+  // Use fixed height structure for funnel tab - STABLE MODAL IMPLEMENTATION
   if (activeTab === 'funnel') {
     return (
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent 
-          className="mx-auto w-full max-w-3xl p-0 bg-white border border-border rounded-2xl shadow-xl"
+          className="mx-auto w-full max-w-4xl p-0 bg-white border border-border rounded-2xl shadow-xl no-height-anim motion-reduce:transition-none"
           aria-describedby={undefined}
         >
-          {/* ALTURA FIXA DO MODAL - Wrap entire content with Tabs */}
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex h-[72vh] min-h-[560px] max-h-[85vh] flex-col bg-white rounded-2xl">
-            {/* Header fixo */}
-            <div className="shrink-0 sticky top-0 z-10 border-b bg-white px-5 py-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-foreground">Personalizar Dashboard</h2>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={onClose}
-                  className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-                  aria-label="Fechar modal"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
+          {/* ALTURA FIXA DO MODAL - Container com altura previsível */}
+          <div 
+            ref={containerRef as React.RefObject<HTMLDivElement>}
+            className="flex flex-col h-[72vh] min-h-[560px] max-h-[85vh] w-full bg-white rounded-2xl overflow-hidden no-height-anim"
+          >
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col h-full">
+              {/* Header fixo */}
+              <div className="shrink-0 sticky top-0 z-10 bg-white/95 backdrop-blur px-6 py-4 border-b">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-semibold text-foreground">Personalizar Dashboard</h2>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={onClose}
+                    className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                    aria-label="Fechar modal"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+                
+                {/* Tabs Header */}
+                <div className="mt-4">
+                  <TabsList className="grid w-full grid-cols-4 bg-slate-100 rounded-2xl p-1">
+                    <TabsTrigger value="metrics" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                      Métricas
+                    </TabsTrigger>
+                    <TabsTrigger value="funnel" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                      Funil
+                    </TabsTrigger>
+                    <TabsTrigger value="layout" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                      Layout
+                    </TabsTrigger>
+                    <TabsTrigger value="advanced" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                      Avançado
+                    </TabsTrigger>
+                  </TabsList>
+                </div>
               </div>
-              
-              {/* Tabs Header - Now properly inside Tabs */}
-              <div className="mt-4">
-                <TabsList className="grid w-full grid-cols-4 bg-slate-100 rounded-2xl p-1">
-                  <TabsTrigger value="metrics" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm">
-                    Métricas
-                  </TabsTrigger>
-                  <TabsTrigger value="funnel" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm">
-                    Funil
-                  </TabsTrigger>
-                  <TabsTrigger value="layout" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm">
-                    Layout
-                  </TabsTrigger>
-                  <TabsTrigger value="advanced" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm">
-                    Avançado
-                  </TabsTrigger>
-                </TabsList>
-              </div>
-            </div>
 
-            {/* Body rolável — o ponto crítico: flex-1 + min-h-0 */}
-            <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4 [overflow-anchor:none]">
-              <TabsContent value="funnel" className="mt-0 space-y-6">
-                <FunnelStageManager clientId={clientId} />
-              </TabsContent>
-              
-              {/* Include other tab contents for navigation */}
-              <TabsContent value="metrics" className="mt-0 space-y-6">
-                {/* Metrics content would go here */}
-                <div className="text-center py-12 text-slate-400">
-                  <div className="text-sm">Navegue para a aba Métricas</div>
-                </div>
-              </TabsContent>
-              
-              <TabsContent value="layout" className="mt-0 space-y-6">
-                <div className="text-center py-12 text-slate-400">
-                  <div className="text-lg mb-2">🎨</div>
-                  <div className="text-sm">Configurações de layout</div>
-                  <div className="text-xs mt-1">Em breve...</div>
-                </div>
-              </TabsContent>
-              
-              <TabsContent value="advanced" className="mt-0 space-y-6">
-                <div className="text-center py-12 text-slate-400">
-                  <div className="text-lg mb-2">⚙️</div>
-                  <div className="text-sm">Configurações avançadas</div>
-                  <div className="text-xs mt-1">Em breve...</div>
-                </div>
-              </TabsContent>
-            </div>
+              {/* Body rolável — flex-1 + min-h-0 crítico para estabilidade */}
+              <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4 stable-modal-body">
+                <TabsContent value="funnel" className="mt-0 space-y-6">
+                  <FunnelStageManager clientId={clientId} />
+                </TabsContent>
+                
+                <TabsContent value="metrics" className="mt-0 space-y-6">
+                  <div className="text-center py-12 text-slate-400">
+                    <div className="text-sm">Navegue para a aba Métricas</div>
+                  </div>
+                </TabsContent>
+                
+                <TabsContent value="layout" className="mt-0 space-y-6">
+                  <div className="text-center py-12 text-slate-400">
+                    <div className="text-lg mb-2">🎨</div>
+                    <div className="text-sm">Configurações de layout</div>
+                    <div className="text-xs mt-1">Em breve...</div>
+                  </div>
+                </TabsContent>
+                
+                <TabsContent value="advanced" className="mt-0 space-y-6">
+                  <div className="text-center py-12 text-slate-400">
+                    <div className="text-lg mb-2">⚙️</div>
+                    <div className="text-sm">Configurações avançadas</div>
+                    <div className="text-xs mt-1">Em breve...</div>
+                  </div>
+                </TabsContent>
+              </div>
 
-            {/* Footer fixo */}
-            <div className="shrink-0 sticky bottom-0 z-10 border-t bg-white px-5 py-3 flex justify-end gap-2">
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={handleReset}>
-                  Restaurar Padrão
-                </Button>
+              {/* Footer fixo */}
+              <div className="shrink-0 sticky bottom-0 z-10 bg-white/95 backdrop-blur px-6 py-3 border-t">
+                <div className="flex justify-between items-center">
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={handleReset}>
+                      Restaurar Padrão
+                    </Button>
+                    {deltaPixels > 0 && (
+                      <Badge variant="outline" className="text-xs">
+                        Δ: {deltaPixels.toFixed(1)}px
+                      </Badge>
+                    )}
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <Button variant="outline" onClick={onClose}>
+                      Cancelar
+                    </Button>
+                    <Button onClick={handleSave}>
+                      Salvar
+                    </Button>
+                  </div>
+                </div>
               </div>
-              
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={onClose}>
-                  Cancelar
-                </Button>
-                <Button onClick={handleSave}>
-                  Salvar
-                </Button>
-              </div>
-            </div>
-          </Tabs>
+            </Tabs>
+          </div>
         </DialogContent>
       </Dialog>
     );
@@ -481,7 +502,7 @@ export function CustomizeModal({
   );
 }
 
-// Funnel Stage Manager Component
+// Funnel Stage Manager Component - Height stable implementation
 function FunnelStageManager({ clientId }: { clientId: string }) {
   const { toast } = useToast();
   const [funnelPrefs, setFunnelPrefs] = useState<FunnelPrefsV2>(() => {

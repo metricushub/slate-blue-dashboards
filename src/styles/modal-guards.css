@@ -1,0 +1,58 @@
+/* Modal Height Animation Guards */
+/* Prevents any height-related animations/transitions that could cause modal "jumps" */
+
+.no-height-anim,
+.no-height-anim * {
+  transition-property: none !important;
+  transition-duration: 0s !important;
+}
+
+.no-height-anim {
+  animation: none !important;
+  animation-duration: 0s !important;
+}
+
+/* Specific overrides for common animation sources */
+.no-height-anim .animate-accordion-down,
+.no-height-anim .animate-accordion-up,
+.no-height-anim .transition-all,
+.no-height-anim .transition-height,
+.no-height-anim .transition-transform {
+  transition: none !important;
+  animation: none !important;
+}
+
+/* Ensure height-related CSS doesn't animate */
+.no-height-anim {
+  height: initial !important;
+  max-height: initial !important;
+  min-height: initial !important;
+}
+
+/* Force immediate layout for flex children */
+.no-height-anim .flex-1,
+.no-height-anim .grow {
+  transition: none !important;
+  flex-grow: 1;
+}
+
+/* Disable smooth scrolling during height changes */
+.no-height-anim {
+  scroll-behavior: auto !important;
+}
+
+/* Prevent content jump during resize */
+.stable-modal-body {
+  overflow-anchor: none !important;
+  scroll-behavior: smooth;
+}
+
+/* Apply motion-reduce preferences */
+@media (prefers-reduced-motion: reduce) {
+  .no-height-anim,
+  .no-height-anim * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
