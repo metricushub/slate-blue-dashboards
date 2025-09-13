@@ -1,3 +1,4 @@
+// Enhanced Campaign Table with column customization and CSV export
 import { useState, useEffect, useMemo } from "react";
 import {
   useReactTable,
