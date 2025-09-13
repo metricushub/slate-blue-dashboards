@@ -190,12 +190,9 @@ export function EnhancedKpiBoard({
           <p className="text-slate-500 mb-4">
             Selecione métricas para visualizar os KPIs do cliente
           </p>
-          {onCustomize && (
-            <Button onClick={onCustomize} variant="outline" className="gap-2">
-              <Settings className="h-4 w-4" />
-              Personalizar Métricas
-            </Button>
-          )}
+          <p className="text-sm text-slate-600">
+            Use o botão "Personalizar Métricas" no cabeçalho para configurar suas métricas.
+          </p>
         </CardContent>
       </Card>
     );

@@ -7,6 +7,8 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
 import { ChevronUp, ChevronDown, X, Search, GripVertical, Plus, Trash2 } from "lucide-react";
 import { METRICS, MetricKey, DEFAULT_SELECTED_METRICS } from "@/shared/types/metrics";
 import { STORAGE_KEYS_EXTENDED } from "@/shared/data-source";
@@ -187,7 +189,7 @@ export function CustomizeModal({
                 <div className="text-base font-medium">Personalizar</div>
                 <TabsList>
                   <TabsTrigger value="funnel">Funil</TabsTrigger>
-                  <TabsTrigger value="layout">Layout</TabsTrigger>
+                  <TabsTrigger value="layout">Métricas</TabsTrigger>
                   <TabsTrigger value="advanced">Avançado</TabsTrigger>
                 </TabsList>
               </div>
@@ -213,10 +215,16 @@ export function CustomizeModal({
                 </TabsContent>
                 
                 <TabsContent value="layout" forceMount className={activeTab === 'layout' ? '' : 'hidden'}>
-                  <div className="text-center py-12 text-slate-400">
-                    <div className="text-lg mb-2">🎨</div>
-                    <div className="text-sm">Configurações de layout</div>
-                    <div className="text-xs mt-1">Em breve...</div>
+                  <div className="flex flex-col gap-6">
+                    {/* Chart Metrics Quick Edit */}
+                    <ChartMetricsManager clientId={clientId} onMetricsChange={onMetricsChange} />
+                    
+                    {/* Other layout settings placeholder */}
+                    <div className="text-center py-12 text-slate-400">
+                      <div className="text-lg mb-2">🎨</div>
+                      <div className="text-sm">Outras configurações de layout</div>
+                      <div className="text-xs mt-1">Em breve...</div>
+                    </div>
                   </div>
                 </TabsContent>
                 
@@ -438,6 +446,162 @@ function FunnelStageManager({ clientId }: { clientId: string }) {
           <div>Modo: <span className="font-medium">{funnelPrefs.mode}</span></div>
           <div>Estágios: <span className="font-medium">{funnelPrefs.stages.length}</span></div>
           <div>Taxas de conversão: <span className="font-medium">{funnelPrefs.showRates ? 'Sim' : 'Não'}</span></div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Chart Metrics Manager Component
+function ChartMetricsManager({ 
+  clientId, 
+  onMetricsChange 
+}: { 
+  clientId: string;
+  onMetricsChange: (metrics: MetricKey[]) => void;
+}) {
+  const { prefs, patch } = useClientPrefs(clientId);
+  const { toast } = useToast();
+  const [addMetricOpen, setAddMetricOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const selectedMetrics = prefs.selectedMetrics;
+
+  const handleAddMetric = (metricKey: MetricKey) => {
+    if (selectedMetrics.length >= 3) {
+      toast({
+        title: "Máximo de métricas atingido",
+        description: "Máx. 3 métricas no gráfico. Remova uma métrica antes de adicionar outra.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!selectedMetrics.includes(metricKey)) {
+      const newMetrics = [...selectedMetrics, metricKey];
+      patch({ selectedMetrics: newMetrics });
+      onMetricsChange(newMetrics);
+    }
+    setAddMetricOpen(false);
+  };
+
+  const handleRemoveMetric = (metricKey: MetricKey) => {
+    const newMetrics = selectedMetrics.filter(key => key !== metricKey);
+    patch({ selectedMetrics: newMetrics });
+    onMetricsChange(newMetrics);
+  };
+
+  // All available metrics
+  const allMetrics = Object.entries(METRICS).map(([key, metric]) => ({
+    key: key as MetricKey,
+    ...metric
+  }));
+
+  // Filter out already selected metrics and apply search
+  const availableMetrics = allMetrics.filter(metric => 
+    !selectedMetrics.includes(metric.key) &&
+    (metric.label.toLowerCase().includes(searchQuery.toLowerCase()) || 
+     metric.key.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
+  return (
+    <div className="space-y-6 no-height-anim">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-semibold text-slate-900">Métricas do Gráfico</h3>
+          <p className="text-sm text-slate-600 mt-1">
+            Configure quais métricas são exibidas no gráfico de tendência (máx. 3)
+          </p>
+        </div>
+      </div>
+
+      {/* Current Metrics */}
+      <div className="space-y-3">
+        <Label className="text-sm font-medium">
+          Métricas Selecionadas ({selectedMetrics.length}/3)
+        </Label>
+        
+        <div className="flex flex-wrap gap-2">
+          {selectedMetrics.map(metricKey => {
+            const metric = METRICS[metricKey];
+            return (
+              <Badge 
+                key={metricKey}
+                variant="secondary" 
+                className="px-3 py-1 bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 group no-zoom"
+              >
+                <span className="text-sm">{metric.label}</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="ml-2 h-4 w-4 p-0 text-blue-600 hover:text-red-600 no-zoom"
+                  onClick={() => handleRemoveMetric(metricKey)}
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </Badge>
+            );
+          })}
+          
+          {selectedMetrics.length < 3 && (
+            <Popover open={addMetricOpen} onOpenChange={setAddMetricOpen}>
+              <PopoverTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  className="h-8 px-3 border-dashed border-slate-300 hover:border-blue-400 text-slate-600 hover:text-blue-700 no-zoom"
+                >
+                  <Plus className="h-3 w-3 mr-1" />
+                  Adicionar Métrica
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80 p-0">
+                <Command>
+                  <div className="px-3 py-2 border-b">
+                    <Input
+                      placeholder="Buscar métricas..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="text-sm border-0 focus-visible:ring-0"
+                    />
+                  </div>
+                  <CommandEmpty>Nenhuma métrica encontrada.</CommandEmpty>
+                  <CommandGroup className="max-h-60 overflow-y-auto">
+                    {availableMetrics.map((metric) => (
+                      <div
+                        key={metric.key}
+                        className="flex items-center justify-between px-3 py-2 hover:bg-slate-50 cursor-pointer"
+                        onClick={() => handleAddMetric(metric.key)}
+                      >
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium">{metric.label}</span>
+                          <span className="text-xs text-slate-500">{metric.unit}</span>
+                        </div>
+                        <Plus className="h-4 w-4 text-slate-400" />
+                      </div>
+                    ))}
+                  </CommandGroup>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          )}
+        </div>
+      </div>
+
+      {/* Preview */}
+      <div className="bg-slate-50 rounded-xl p-4 border">
+        <h4 className="text-sm font-medium text-slate-900 mb-2">Prévia das Métricas</h4>
+        <div className="text-xs text-slate-600 space-y-1">
+          <div>Métricas ativas: <span className="font-medium">{selectedMetrics.length}</span></div>
+          <div>Limite máximo: <span className="font-medium">3 métricas</span></div>
+          {selectedMetrics.length > 0 && (
+            <div className="mt-2">
+              <div className="text-xs font-medium text-slate-700 mb-1">Métricas selecionadas:</div>
+              {selectedMetrics.map(key => (
+                <div key={key} className="text-xs text-slate-600">• {METRICS[key].label}</div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

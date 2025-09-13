@@ -2,6 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Modal and animation utilities */
+.no-height-anim { transition-property: none !important; }
+.no-zoom { transform: none !important; }
+
 /* Dashboard Marketing Digital - Design System 
 Paleta: Slate (neutro) + Azul (acentos)
 */
