@@ -326,16 +326,12 @@ export function FunnelV2({ clientId, period, platform }: FunnelV2Props) {
   }
 
   return (
-    <Card className={`rounded-2xl border border-slate-200 bg-white shadow-sm flex-1 flex flex-col ${
-      funnelPrefs.mode === 'Compacto' ? 'h-[240px]' : ''
-    }`}>
-      <CardHeader className={`p-5 pb-3 ${funnelPrefs.mode === 'Compacto' ? 'pb-2' : ''}`}>
+    <Card className="rounded-2xl border border-slate-200 bg-white shadow-sm flex flex-col h-[72vh] min-h-[560px] max-h-[85vh] overflow-hidden">
+      <CardHeader className="shrink-0 sticky top-0 z-10 bg-white/95 backdrop-blur px-5 py-4 border-b">
         <div className="flex items-center justify-between">
-          <CardTitle className={`text-lg font-semibold text-slate-900 ${
-            funnelPrefs.mode === 'Compacto' ? 'text-base' : ''
-          }`}>
+          <CardTitle className="text-lg font-semibold text-slate-900 flex items-center gap-2">
             Funil de Conversão {funnelPrefs.stages.length > 4 && (
-              <Badge variant="secondary" className="ml-2 text-xs">
+              <Badge variant="secondary" className="text-xs">
                 {funnelPrefs.stages.length} etapas
               </Badge>
             )}
@@ -369,11 +365,9 @@ export function FunnelV2({ clientId, period, platform }: FunnelV2Props) {
         </div>
       </CardHeader>
       
-      <CardContent className={`p-5 pt-0 flex-1 ${
-        funnelPrefs.mode === 'Compacto' ? 'p-3 pt-0' : ''
-      }`}>
+      <CardContent className="flex-1 min-h-0 overflow-y-auto px-5 py-4">
         {viewMode === 'chart' ? (
-          <div className={`space-y-4 ${funnelPrefs.mode === 'Compacto' ? 'space-y-2' : ''}`}>
+          <div className="space-y-4">
             {stages.map((stage, index) => {
               const prevStage = funnelPrefs.comparePrevious ? previousStages[index] : null;
               
@@ -382,18 +376,12 @@ export function FunnelV2({ clientId, period, platform }: FunnelV2Props) {
               
               return (
                 <div key={stage.id} className="relative">
-                  <div className={`flex items-center justify-between mb-2 ${
-                    funnelPrefs.mode === 'Compacto' ? 'mb-1' : ''
-                  }`}>
+                  <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-3">
-                      <span className={`text-xs font-medium text-slate-600 uppercase tracking-wide min-w-fit ${
-                        funnelPrefs.mode === 'Compacto' ? 'text-[10px]' : ''
-                      }`}>
+                      <span className="text-xs font-medium text-slate-600 uppercase tracking-wide min-w-fit">
                         {stage.name}
                       </span>
-                      <span className={`text-lg font-semibold text-slate-900 ${
-                        funnelPrefs.mode === 'Compacto' ? 'text-sm' : ''
-                      }`}>
+                      <span className="text-lg font-semibold text-slate-900">
                         {new Intl.NumberFormat('pt-BR').format(stage.value)}
                       </span>
                       {!stage.hasData && (
@@ -407,17 +395,13 @@ export function FunnelV2({ clientId, period, platform }: FunnelV2Props) {
                       <div className="flex items-center gap-2">
                         <span className={`text-xs font-medium ${
                           stage.rate >= 2 ? 'text-green-600' : 'text-red-500'
-                        } ${funnelPrefs.mode === 'Compacto' ? 'text-[10px]' : ''}`}>
+                        }`}>
                           {stage.rate.toFixed(1)}%
                         </span>
                         {stage.rate >= 2 ? (
-                          <TrendingUp className={`h-3 w-3 text-green-600 ${
-                            funnelPrefs.mode === 'Compacto' ? 'h-2 w-2' : ''
-                          }`} />
+                          <TrendingUp className="h-3 w-3 text-green-600" />
                         ) : (
-                          <TrendingDown className={`h-3 w-3 text-red-500 ${
-                            funnelPrefs.mode === 'Compacto' ? 'h-2 w-2' : ''
-                          }`} />
+                          <TrendingDown className="h-3 w-3 text-red-500" />
                         )}
                       </div>
                     )}
@@ -427,7 +411,7 @@ export function FunnelV2({ clientId, period, platform }: FunnelV2Props) {
                     {/* Previous period shadow (dashed) */}
                     {funnelPrefs.comparePrevious && prevStage && (
                       <div 
-                        className={`absolute ${funnelPrefs.mode === 'Compacto' ? 'h-4' : 'h-12'} border-2 border-dashed border-slate-300 transition-all duration-700 rounded-md z-0`}
+                        className="absolute h-12 border-2 border-dashed border-slate-300 transition-all duration-700 rounded-md z-0"
                         style={{ 
                           width: `${Math.max(20, 100 - (index * 15))}%`,
                           top: '50%',
@@ -438,7 +422,7 @@ export function FunnelV2({ clientId, period, platform }: FunnelV2Props) {
                     
                     {/* Current period bar with blue gradient */}
                     <div 
-                      className={`${funnelPrefs.mode === 'Compacto' ? 'h-6' : 'h-12'} transition-all duration-700 relative rounded-md z-10`}
+                      className="h-12 transition-all duration-700 relative rounded-md z-10"
                       style={{ 
                         width: `${Math.max(20, 100 - (index * 15))}%`,
                         background: stageColor,
@@ -515,17 +499,17 @@ export function FunnelV2({ clientId, period, platform }: FunnelV2Props) {
               </TableBody>
             </Table>
           </div>
-        )}
-        
-        {/* Debug info if ?debug=1 */}
-        {new URLSearchParams(window.location.search).get('debug') === '1' && (
-          <div className="mt-2 p-2 bg-slate-100 rounded text-xs text-slate-600">
-            Funnel: {funnelPrefs.stages.length} stages, mode={funnelPrefs.mode}, 
-            showRates={funnelPrefs.showRates ? 'on' : 'off'}, 
-            compare={funnelPrefs.comparePrevious ? 'on' : 'off'}
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
+         )}
+         
+         {/* Debug info if ?debug=1 */}
+         {new URLSearchParams(window.location.search).get('debug') === '1' && (
+           <div className="mt-2 p-2 bg-slate-100 rounded text-xs text-slate-600">
+             Funnel: {funnelPrefs.stages.length} stages, mode={funnelPrefs.mode}, 
+             showRates={funnelPrefs.showRates ? 'on' : 'off'}, 
+             compare={funnelPrefs.comparePrevious ? 'on' : 'off'}
+           </div>
+         )}
+       </CardContent>
+     </Card>
+   );
+ }
