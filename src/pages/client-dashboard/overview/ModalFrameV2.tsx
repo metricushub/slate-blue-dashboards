@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
+import "@/styles/modal-guards.css";
 
 interface ModalFrameV2Props {
   isOpen: boolean;
@@ -72,7 +73,8 @@ export function ModalFrameV2({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent 
         className={`
-          ${isMobile ? 'w-full h-full max-w-full max-h-full' : widthClasses[maxWidth]} 
+          no-height-anim
+          ${isMobile ? 'w-full h-full max-w-full max-h-full' : `${widthClasses[maxWidth]} h-[72vh]`} 
           p-0 bg-white border border-border 
           ${isMobile ? 'rounded-none' : 'rounded-lg'}
           min-h-[560px] max-h-[85vh]
@@ -99,7 +101,7 @@ export function ModalFrameV2({
         </DialogHeader>
 
         {/* Scrollable Body */}
-        <div className="flex-1 overflow-y-auto px-6 py-4 min-h-0">
+        <div className="flex-1 overflow-y-auto px-6 py-4 min-h-0 stable-modal-body [overflow-anchor:none]">
           {children}
         </div>
 

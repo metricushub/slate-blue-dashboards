@@ -123,7 +123,8 @@ export function CustomizeModal({
       onClose={onClose}
       title="Personalizar Dashboard"
     >
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <div ref={containerRef} className="h-full no-height-anim">
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="metrics">Métricas</TabsTrigger>
           <TabsTrigger value="funnel">Funil</TabsTrigger>
@@ -285,7 +286,8 @@ export function CustomizeModal({
             <div className="text-xs mt-1">Em breve...</div>
           </div>
         </TabsContent>
-      </Tabs>
+        </Tabs>
+        </div>
     </ModalFrameV2>
   );
 }
