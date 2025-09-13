@@ -199,8 +199,8 @@ export function CustomizeModal({
           className="mx-auto w-full max-w-3xl p-0 bg-white border border-border rounded-2xl shadow-xl"
           aria-describedby={undefined}
         >
-          {/* ALTURA FIXA DO MODAL */}
-          <div className="flex h-[72vh] min-h-[560px] max-h-[85vh] flex-col bg-white rounded-2xl">
+          {/* ALTURA FIXA DO MODAL - Wrap entire content with Tabs */}
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex h-[72vh] min-h-[560px] max-h-[85vh] flex-col bg-white rounded-2xl">
             {/* Header fixo */}
             <div className="shrink-0 sticky top-0 z-10 border-b bg-white px-5 py-4">
               <div className="flex items-center justify-between">
@@ -216,7 +216,7 @@ export function CustomizeModal({
                 </Button>
               </div>
               
-              {/* Tabs Header */}
+              {/* Tabs Header - Now properly inside Tabs */}
               <div className="mt-4">
                 <TabsList className="grid w-full grid-cols-4 bg-slate-100 rounded-2xl p-1">
                   <TabsTrigger value="metrics" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm">
@@ -237,11 +237,33 @@ export function CustomizeModal({
 
             {/* Body rolável — o ponto crítico: flex-1 + min-h-0 */}
             <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4 [overflow-anchor:none]">
-              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsContent value="funnel" className="mt-0 space-y-6">
-                  <FunnelStageManager clientId={clientId} />
-                </TabsContent>
-              </Tabs>
+              <TabsContent value="funnel" className="mt-0 space-y-6">
+                <FunnelStageManager clientId={clientId} />
+              </TabsContent>
+              
+              {/* Include other tab contents for navigation */}
+              <TabsContent value="metrics" className="mt-0 space-y-6">
+                {/* Metrics content would go here */}
+                <div className="text-center py-12 text-slate-400">
+                  <div className="text-sm">Navegue para a aba Métricas</div>
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="layout" className="mt-0 space-y-6">
+                <div className="text-center py-12 text-slate-400">
+                  <div className="text-lg mb-2">🎨</div>
+                  <div className="text-sm">Configurações de layout</div>
+                  <div className="text-xs mt-1">Em breve...</div>
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="advanced" className="mt-0 space-y-6">
+                <div className="text-center py-12 text-slate-400">
+                  <div className="text-lg mb-2">⚙️</div>
+                  <div className="text-sm">Configurações avançadas</div>
+                  <div className="text-xs mt-1">Em breve...</div>
+                </div>
+              </TabsContent>
             </div>
 
             {/* Footer fixo */}
@@ -261,7 +283,7 @@ export function CustomizeModal({
                 </Button>
               </div>
             </div>
-          </div>
+          </Tabs>
         </DialogContent>
       </Dialog>
     );
