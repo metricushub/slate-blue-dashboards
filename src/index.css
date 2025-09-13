@@ -3,7 +3,9 @@
 @tailwind utilities;
 
 /* Modal and animation utilities */
-.no-height-anim { transition-property: none !important; }
+.no-height-anim { 
+  transition-property: none !important; 
+}
 .no-zoom { transform: none !important; }
 
 /* Dashboard Marketing Digital - Design System 

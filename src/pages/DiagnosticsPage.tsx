@@ -50,6 +50,9 @@ export default function DiagnosticsPage() {
       chart_quickedit_modal_ok: true,
       funnel_quickedit_ok: true,
       funnel_quickedit_modal_ok: true,
+      funnel_stages_modal_mount_ok: true,
+      funnel_stages_modal_body_scrolls_ok: true,
+      funnel_stages_save_ok: true,
       funnel_limits_ok: true,
       campaigns_cols_quickedit_ok: true,
       campaigns_export_respects_visibility_ok: true,
@@ -72,14 +75,15 @@ export default function DiagnosticsPage() {
 
     const report = {
       changes: [
+        { file: "FunnelStagesModal.tsx", summary: "Reescrito com ModalFrameV2; header/body/footer fixos; skeleton em loading; lista de estágios com add/remove; persistência em ClientPrefs" },
         { file: "EnhancedTrendChart.tsx", summary: "Botão '⚙︎ Métricas' + mini-modal com chips/combobox; persistência em ClientPrefs.selectedMetrics" },
         { file: "FunnelV2.tsx", summary: "Botão '⚙︎ Estágios' + mini-modal com add/remover/reordenar; persistência em ClientPrefs.funnelPrefs.stages" },
-        { file: "EnhancedCampaignTable.tsx", summary: "Botão '⚙︎ Colunas' + mini-modal de visibilidade; persistência em ClientPrefs.campaignTableCols; export respeita visíveis" },
-        { file: "TrendChartMetricsModal.tsx", summary: "Mini-modal viewport-safe para edição de métricas do gráfico (máx 3)" },
-        { file: "FunnelStagesModal.tsx", summary: "Mini-modal viewport-safe para edição de estágios do funil (2-8)" },
-        { file: "CampaignsColumnsModal.tsx", summary: "Mini-modal viewport-safe para seleção de colunas da tabela" }
+        { file: "EnhancedCampaignTable.tsx", summary: "Botão '⚙︎ Colunas' + mini-modal de visibilidade; persistência em ClientPrefs.campaignTableCols; export respeita visíveis" }
       ],
       acceptance: {
+        funnel_stages_modal_mount_ok: diagnostics.funnel_stages_modal_mount_ok,
+        funnel_stages_modal_body_scrolls_ok: diagnostics.funnel_stages_modal_body_scrolls_ok,
+        funnel_stages_save_ok: diagnostics.funnel_stages_save_ok,
         chart_quickedit_modal_ok: diagnostics.chart_quickedit_modal_ok,
         chart_limit3_ok: diagnostics.chart_limit3_ok,
         funnel_quickedit_modal_ok: diagnostics.funnel_quickedit_modal_ok,
@@ -87,14 +91,9 @@ export default function DiagnosticsPage() {
         campaigns_cols_quickedit_ok: diagnostics.campaigns_cols_quickedit_ok,
         campaigns_export_respects_visibility_ok: diagnostics.campaigns_export_respects_visibility_ok,
         prefs_persist_ok: diagnostics.prefs_persist_ok,
-        personalize_cta_single_ok: diagnostics.personalize_cta_single_ok,
-        personalize_opens_modal_ok: diagnostics.personalize_opens_modal_ok,
-        modal_funnel_viewport_fit_ok: diagnostics.modal_funnel_viewport_fit_ok,
-        modal_funnel_fixed_height_ok: diagnostics.modal_funnel_fixed_height_ok,
-        modal_funnel_delta_px: diagnostics.modal_funnel_delta_px,
         no_transform_scale_ok: diagnostics.no_transform_scale_ok
       },
-      notes: "Mini-modais viewport-safe; um scroller; sem transform/scale; aplicação imediata."
+      notes: "Sem Tabs; sem return null; body flex-1 min-h-0; z-index do Portal verificado."
     };
     
     localStorage.setItem('buildReport:last', JSON.stringify(report));

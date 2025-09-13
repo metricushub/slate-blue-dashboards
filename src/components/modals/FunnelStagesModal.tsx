@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import React, { useState, useEffect, useMemo } from 'react';
+import { ModalFrameV2 } from "../../pages/client-dashboard/overview/ModalFrameV2";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
-import { Settings, X, Plus, Trash2, GripVertical, ArrowUp, ArrowDown } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Plus, Trash2 } from "lucide-react";
 import { useClientPrefs, FunnelStagePrefs } from "@/shared/prefs/useClientPrefs";
 import { useToast } from "@/hooks/use-toast";
 
@@ -23,18 +24,33 @@ const AVAILABLE_METRICS = [
   { key: 'conversions', label: 'Conversões' }
 ];
 
+const DEFAULT_STAGES: FunnelStagePrefs[] = [
+  { id: 's1', label: 'Impressões', metric: 'impressions', userLabel: false },
+  { id: 's2', label: 'Cliques', metric: 'clicks', userLabel: false },
+  { id: 's3', label: 'Leads', metric: 'leads', userLabel: false },
+  { id: 's4', label: 'Receita', metric: 'revenue', userLabel: false }
+];
+
 export function FunnelStagesModal({ isOpen, onClose, clientId }: FunnelStagesModalProps) {
   const { prefs, patch } = useClientPrefs(clientId);
   const { toast } = useToast();
   
   const [stages, setStages] = useState<FunnelStagePrefs[]>([]);
+  const [isDirty, setIsDirty] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
-  // Initialize state from prefs
+  // Get stages from prefs or use defaults - never null/undefined
+  const initialStages = useMemo(() => {
+    return prefs?.funnelPrefs?.stages?.length > 0 ? prefs.funnelPrefs.stages : DEFAULT_STAGES;
+  }, [prefs]);
+
+  // Initialize stages when modal opens or prefs change
   useEffect(() => {
-    if (prefs.funnelPrefs?.stages) {
-      setStages([...prefs.funnelPrefs.stages]);
+    if (isOpen) {
+      setStages([...initialStages]);
+      setIsDirty(false);
     }
-  }, [prefs.funnelPrefs?.stages]);
+  }, [isOpen, initialStages]);
 
   const handleAddStage = () => {
     if (stages.length >= 8) {
@@ -54,6 +70,7 @@ export function FunnelStagesModal({ isOpen, onClose, clientId }: FunnelStagesMod
     };
 
     setStages([...stages, newStage]);
+    setIsDirty(true);
   };
 
   const handleRemoveStage = (stageId: string) => {
@@ -67,6 +84,7 @@ export function FunnelStagesModal({ isOpen, onClose, clientId }: FunnelStagesMod
     }
 
     setStages(stages.filter(s => s.id !== stageId));
+    setIsDirty(true);
   };
 
   const handleUpdateStage = (stageId: string, updates: Partial<FunnelStagePrefs>) => {
@@ -75,66 +93,75 @@ export function FunnelStagesModal({ isOpen, onClose, clientId }: FunnelStagesMod
         ? { ...stage, ...updates, userLabel: updates.label ? true : stage.userLabel }
         : stage
     ));
+    setIsDirty(true);
   };
 
-  const handleMoveStage = (stageId: string, direction: 'up' | 'down') => {
-    const currentIndex = stages.findIndex(s => s.id === stageId);
-    if (currentIndex === -1) return;
-
-    const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-    if (newIndex < 0 || newIndex >= stages.length) return;
-
-    const newStages = [...stages];
-    [newStages[currentIndex], newStages[newIndex]] = [newStages[newIndex], newStages[currentIndex]];
-    setStages(newStages);
-  };
-
-  const handleSave = () => {
-    const updatedFunnelPrefs = {
-      ...prefs.funnelPrefs,
-      stages
-    };
-    patch({ funnelPrefs: updatedFunnelPrefs });
-    toast({ title: "Funil salvo", description: "A configuração do funil foi atualizada." });
-    onClose();
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      const updatedFunnelPrefs = {
+        ...prefs.funnelPrefs,
+        stages
+      };
+      await patch({ funnelPrefs: updatedFunnelPrefs });
+      toast({ title: "Funil salvo", description: "A configuração do funil foi atualizada." });
+      setIsDirty(false);
+      onClose();
+    } catch (error) {
+      toast({ title: "Erro ao salvar", description: "Não foi possível salvar as alterações.", variant: "destructive" });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleCancel = () => {
-    setStages(prefs.funnelPrefs?.stages || []);
+    setStages([...initialStages]);
+    setIsDirty(false);
     onClose();
   };
 
   const handleRestore = () => {
-    const defaultStages: FunnelStagePrefs[] = [
-      { id: 'stage-1', label: 'Impressões', metric: 'impressions', userLabel: false },
-      { id: 'stage-2', label: 'Cliques', metric: 'clicks', userLabel: false },
-      { id: 'stage-3', label: 'Leads', metric: 'leads', userLabel: false }
-    ];
-    setStages(defaultStages);
+    setStages([...DEFAULT_STAGES]);
+    setIsDirty(true);
   };
 
-  return (
-    <Dialog open={isOpen} onOpenChange={handleCancel}>
-      <DialogContent className="mx-auto w-[92vw] max-w-md md:max-w-lg h-auto max-h-[72svh] overflow-hidden rounded-2xl bg-white shadow-xl [contain:size_layout_paint] p-0">
-        <div className="flex flex-col h-full">
-          {/* Header */}
-          <div className="shrink-0 sticky top-0 z-10 border-b bg-white px-5 py-4 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Settings className="h-5 w-5 text-slate-600" />
-              <div className="text-base font-medium">Estágios do Funil</div>
-            </div>
-            <Button variant="ghost" size="sm" onClick={handleCancel} className="h-8 w-8 p-0">
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
+  // RENDER GUARD: Never return null - show skeleton if loading
+  const isLoading = !clientId || !prefs;
 
-          {/* Body */}
-          <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 py-4 [overflow-anchor:none] no-height-anim">
+  return (
+    <ModalFrameV2 isOpen={isOpen} onClose={handleCancel} title="" maxWidth="lg">
+      <div className="w-[92vw] max-w-lg h-auto max-h-[72svh] overflow-hidden rounded-2xl bg-white shadow-xl [contain:size_layout_paint] no-height-anim">
+        {/* Header fixo */}
+        <div className="sticky top-0 z-10 border-b bg-white px-5 py-4">
+          <h3 className="text-base font-medium">Configurar estágios do funil</h3>
+          <p className="text-sm text-muted-foreground">2 a 8 estágios. Rótulo + Métrica.</p>
+        </div>
+
+        {/* Body: único scroller */}
+        <div className="flex-1 min-h-0 max-h-[60svh] overflow-y-auto px-5 py-4 [overflow-anchor:none]">
+          {isLoading ? (
+            // Skeleton loading state - never return null
+            <div className="space-y-3">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Card key={i} className="border border-slate-200">
+                  <CardContent className="p-4">
+                    <div className="space-y-3">
+                      <Skeleton className="h-4 w-24" />
+                      <div className="grid grid-cols-2 gap-3">
+                        <Skeleton className="h-8 w-full" />
+                        <Skeleton className="h-8 w-full" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-medium text-slate-900">
+                <h4 className="text-sm font-medium text-slate-900">
                   Configurar estágios ({stages.length}/8)
-                </h3>
+                </h4>
                 <Button
                   variant="outline"
                   size="sm"
@@ -153,41 +180,18 @@ export function FunnelStagesModal({ isOpen, onClose, clientId }: FunnelStagesMod
                     <CardContent className="p-4">
                       <div className="space-y-3">
                         <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <GripVertical className="h-4 w-4 text-slate-400" />
-                            <span className="text-sm font-medium text-slate-600">
-                              Estágio {index + 1}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleMoveStage(stage.id, 'up')}
-                              disabled={index === 0}
-                              className="h-8 w-8 p-0"
-                            >
-                              <ArrowUp className="h-3 w-3" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleMoveStage(stage.id, 'down')}
-                              disabled={index === stages.length - 1}
-                              className="h-8 w-8 p-0"
-                            >
-                              <ArrowDown className="h-3 w-3" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleRemoveStage(stage.id)}
-                              disabled={stages.length <= 2}
-                              className="h-8 w-8 p-0 hover:bg-red-100"
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </div>
+                          <span className="text-sm font-medium text-slate-600">
+                            Estágio {index + 1}
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleRemoveStage(stage.id)}
+                            disabled={stages.length <= 2}
+                            className="h-8 w-8 p-0 hover:bg-red-100"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
                         </div>
 
                         <div className="grid grid-cols-2 gap-3">
@@ -241,16 +245,18 @@ export function FunnelStagesModal({ isOpen, onClose, clientId }: FunnelStagesMod
                 </div>
               )}
             </div>
-          </div>
-
-          {/* Footer */}
-          <div className="shrink-0 sticky bottom-0 z-10 border-t bg-white px-4 py-3 flex justify-end gap-2">
-            <Button variant="ghost" onClick={handleCancel}>Cancelar</Button>
-            <Button variant="secondary" onClick={handleRestore}>Restaurar padrão</Button>
-            <Button onClick={handleSave}>Salvar alterações</Button>
-          </div>
+          )}
         </div>
-      </DialogContent>
-    </Dialog>
+
+        {/* Footer fixo */}
+        <div className="sticky bottom-0 z-10 border-t bg-white px-5 py-3 flex justify-end gap-2">
+          <Button variant="ghost" onClick={handleCancel}>Cancelar</Button>
+          <Button variant="secondary" onClick={handleRestore}>Restaurar</Button>
+          <Button onClick={handleSave} disabled={!isDirty || isSaving}>
+            {isSaving ? "Salvando…" : "Salvar"}
+          </Button>
+        </div>
+      </div>
+    </ModalFrameV2>
   );
 }
