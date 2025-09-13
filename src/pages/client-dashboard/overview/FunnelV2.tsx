@@ -7,6 +7,7 @@ import { useDataSource } from "@/hooks/useDataSource";
 import { useEffect, useState } from "react";
 import { BarChart3, List, TrendingDown, TrendingUp, AlertCircle, Settings } from "lucide-react";
 import { FunnelStagesModal } from "@/components/modals/FunnelStagesModal";
+import { useClientPrefs } from "@/shared/prefs/useClientPrefs";
 
 // New V2 structure for dynamic funnel
 type FunnelStage = { 
@@ -55,85 +56,21 @@ interface FunnelStageData {
 
 export function FunnelV2({ clientId, period, platform }: FunnelV2Props) {
   const { dataSource } = useDataSource();
+  const { prefs } = useClientPrefs(clientId);
   const [stages, setStages] = useState<FunnelStageData[]>([]);
   const [previousStages, setPreviousStages] = useState<FunnelStageData[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'chart' | 'table'>('chart');
   const [showStagesModal, setShowStagesModal] = useState(false);
-  const [funnelPrefs, setFunnelPrefs] = useState<FunnelPrefsV2>(() => {
-    if (!clientId) return defaultFunnelPrefsV2;
-    
-    try {
-      // Try V2 format first
-      const storedV2 = localStorage.getItem(`client:${clientId}:funnel_prefs@v2`);
-      if (storedV2) {
-        const parsed = JSON.parse(storedV2);
-        return {
-          ...defaultFunnelPrefsV2,
-          ...parsed,
-          stages: parsed.stages || defaultFunnelPrefsV2.stages
-        };
-      }
 
-      // Migrate from V1 format
-      const storedV1 = localStorage.getItem(`client:${clientId}:funnel_prefs`);
-      if (storedV1) {
-        const parsedV1 = JSON.parse(storedV1);
-        
-        // Convert V1 mapping to V2 stages
-        const migratedStages: FunnelStage[] = [];
-        if (parsedV1.mapping) {
-          const { stage1, stage2, stage3, stage4 } = parsedV1.mapping;
-          const getLabel = (metric: string) => {
-            const labels = {
-              impressions: 'Impressões',
-              clicks: 'Cliques', 
-              leads: 'Leads',
-              revenue: 'Receita',
-              spend: 'Investimento'
-            };
-            return labels[metric as keyof typeof labels] || metric;
-          };
+  // Get funnel stages from ClientPrefs
+  const funnelStages = prefs?.funnelPrefs?.stages || defaultFunnelPrefsV2.stages;
+  const funnelPrefs = prefs?.funnelPrefs || defaultFunnelPrefsV2;
 
-          if (stage1) migratedStages.push({ id: 'stage1', label: getLabel(stage1), metric: stage1 });
-          if (stage2) migratedStages.push({ id: 'stage2', label: getLabel(stage2), metric: stage2 });
-          if (stage3) migratedStages.push({ id: 'stage3', label: getLabel(stage3), metric: stage3 });
-          if (stage4) migratedStages.push({ id: 'stage4', label: getLabel(stage4), metric: stage4 });
-        }
-
-        const migrated: FunnelPrefsV2 = {
-          mode: parsedV1.mode || 'Detalhado',
-          showRates: parsedV1.showRates !== false,
-          comparePrevious: parsedV1.comparePrevious === true,
-          colorByStage: false, // Default to neutral
-          stages: migratedStages.length > 0 ? migratedStages : defaultFunnelPrefsV2.stages
-        };
-
-        // Save as V2
-        localStorage.setItem(`client:${clientId}:funnel_prefs@v2`, JSON.stringify(migrated));
-        return migrated;
-      }
-    } catch (error) {
-      console.warn('Failed to parse funnel preferences:', error);
-    }
-    
-    return defaultFunnelPrefsV2;
-  });
-
-  // Update localStorage when prefs change  
-  useEffect(() => {
-    if (clientId && funnelPrefs) {
-      try {
-        localStorage.setItem(`client:${clientId}:funnel_prefs@v2`, JSON.stringify(funnelPrefs));
-      } catch (error) {
-        console.warn('Failed to save funnel preferences:', error);
-      }
-    }
-  }, [clientId, funnelPrefs]);
-
+  // Remove localStorage sync - now handled by ClientPrefs
   useEffect(() => {
     const loadFunnelData = async () => {
-      if (!clientId || funnelPrefs.stages.length === 0) {
+      if (!clientId || funnelStages.length === 0) {
         setLoading(false);
         return;
       }
@@ -171,38 +108,30 @@ export function FunnelV2({ clientId, period, platform }: FunnelV2Props) {
               return filteredMetrics.reduce((sum, row) => sum + (row.revenue || 0), 0);
             case 'spend':
               return filteredMetrics.reduce((sum, row) => sum + (row.spend || 0), 0);
+            case 'conversions':
+              return filteredMetrics.reduce((sum, row) => sum + (row.conversions || 0), 0);
             default:
               return 0;
           }
         };
 
-        // Build stage data with auto-labels
+        // Build stage data with auto-labels from ClientPrefs
         let previousValue = 0;
-        const stageData: FunnelStageData[] = funnelPrefs.stages.map((stage, index) => {
+        const stageData: FunnelStageData[] = funnelStages.map((stage, index) => {
           const value = getMetricTotal(stage.metric);
           const hasData = value > 0;
           const rate = index > 0 && previousValue > 0 ? (value / previousValue) * 100 : undefined;
           
-          // Auto-generate label if not user-defined
-          let displayLabel = stage.label;
-          if (!stage.userLabel && stage.metric) {
-            const metricLabels: Record<string, string> = {
-              impressions: 'Impressões',
-              clicks: 'Cliques',
-              leads: 'Leads',
-              revenue: 'Receita',
-              spend: 'Investimento'
-            };
-            displayLabel = metricLabels[stage.metric] || stage.metric;
-          }
+          // Use label from ClientPrefs (preserves user edits)
+          const displayLabel = stage.label;
           
           const stageResult: FunnelStageData = {
             id: stage.id,
             name: displayLabel,
             value,
             rate,
-            percentage: funnelPrefs.stages.length > 0 && funnelPrefs.stages[0] 
-              ? (value / getMetricTotal(funnelPrefs.stages[0].metric)) * 100 || 0
+            percentage: funnelStages.length > 0 && funnelStages[0] 
+              ? (value / getMetricTotal(funnelStages[0].metric)) * 100 || 0
               : 100,
             hasData
           };
@@ -246,13 +175,15 @@ export function FunnelV2({ clientId, period, platform }: FunnelV2Props) {
                 return prevFilteredMetrics.reduce((sum, row) => sum + (row.revenue || 0), 0);
               case 'spend':
                 return prevFilteredMetrics.reduce((sum, row) => sum + (row.spend || 0), 0);
+              case 'conversions':
+                return prevFilteredMetrics.reduce((sum, row) => sum + (row.conversions || 0), 0);
               default:
                 return 0;
             }
           };
 
           let prevPreviousValue = 0;
-          const prevStageData: FunnelStageData[] = funnelPrefs.stages.map((stage, index) => {
+          const prevStageData: FunnelStageData[] = funnelStages.map((stage, index) => {
             const value = getPrevMetricTotal(stage.metric);
             const hasData = value > 0;
             const rate = index > 0 && prevPreviousValue > 0 ? (value / prevPreviousValue) * 100 : undefined;
@@ -262,8 +193,8 @@ export function FunnelV2({ clientId, period, platform }: FunnelV2Props) {
               name: stage.label,
               value,
               rate,
-              percentage: funnelPrefs.stages.length > 0 && funnelPrefs.stages[0] 
-                ? (value / getPrevMetricTotal(funnelPrefs.stages[0].metric)) * 100 || 0
+              percentage: funnelStages.length > 0 && funnelStages[0] 
+                ? (value / getPrevMetricTotal(funnelStages[0].metric)) * 100 || 0
                 : 100,
               hasData
             };
@@ -282,8 +213,8 @@ export function FunnelV2({ clientId, period, platform }: FunnelV2Props) {
           clientId, 
           platform, 
           period,
-          stagesCount: funnelPrefs.stages.length,
-          stages: funnelPrefs.stages.map(s => ({ label: s.label, metric: s.metric }))
+          stagesCount: funnelStages.length,
+          stages: funnelStages.map(s => ({ label: s.label, metric: s.metric }))
         });
       } catch (error) {
         console.error('Failed to load funnel data:', error);
@@ -293,20 +224,12 @@ export function FunnelV2({ clientId, period, platform }: FunnelV2Props) {
     };
 
     loadFunnelData();
-  }, [clientId, period, platform, dataSource, funnelPrefs]);
+  }, [clientId, period, platform, dataSource, funnelStages, funnelPrefs]);
 
   const handleToggleView = (mode: 'chart' | 'table') => {
     setViewMode(mode);
     console.log('telemetry:funnel_view_toggle', { clientId, mode });
   };
-
-  // Sync with external funnel prefs updates
-  const updateFunnelPrefs = (newPrefs: Partial<FunnelPrefsV2>) => {
-    setFunnelPrefs(prev => ({ ...prev, ...newPrefs }));
-  };
-
-  // Expose function for external updates (from customize modal)
-  (window as any).updateFunnelV2Prefs = updateFunnelPrefs;
 
   if (loading) {
     return (
@@ -317,7 +240,7 @@ export function FunnelV2({ clientId, period, platform }: FunnelV2Props) {
           <div className="animate-pulse">
             <div className="h-4 bg-slate-200 rounded mb-4 w-32"></div>
             <div className="space-y-3">
-              {Array.from({ length: funnelPrefs.stages.length }).map((_, i) => (
+              {Array.from({ length: funnelStages.length }).map((_, i) => (
                 <div key={i} className="h-8 bg-slate-200 rounded"></div>
               ))}
             </div>
@@ -331,13 +254,13 @@ export function FunnelV2({ clientId, period, platform }: FunnelV2Props) {
     <Card className="rounded-2xl border border-slate-200 bg-white shadow-sm flex flex-col h-[72vh] min-h-[560px] max-h-[85vh] overflow-hidden">
       <CardHeader className="shrink-0 sticky top-0 z-10 bg-white/95 backdrop-blur px-5 py-4 border-b">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg font-semibold text-slate-900 flex items-center gap-2">
-            Funil de Conversão {funnelPrefs.stages.length > 4 && (
-              <Badge variant="secondary" className="text-xs">
-                {funnelPrefs.stages.length} etapas
-              </Badge>
-            )}
-          </CardTitle>
+        <CardTitle className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+          Funil de Conversão {funnelStages.length > 4 && (
+            <Badge variant="secondary" className="text-xs">
+              {funnelStages.length} etapas
+            </Badge>
+          )}
+        </CardTitle>
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
