@@ -6,13 +6,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { MetricRow } from "@/types";
 import { METRICS, MetricKey, formatMetricValue, DEFAULT_SELECTED_METRICS } from "@/shared/types/metrics";
 import { useDataSource } from "@/hooks/useDataSource";
 import { useStableEChart } from "@/shared/hooks/useStableEChart";
+import { useClientPrefs } from "@/shared/prefs/useClientPrefs";
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
-import { Download, TrendingUp, X, AlertCircle, BarChart3 } from "lucide-react";
+import { Download, TrendingUp, X, AlertCircle, BarChart3, Plus, Check, ChevronsUpDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 // Metric axis mapping for smart dual-axis handling
 const METRIC_AXIS_MAP = {
@@ -46,69 +50,31 @@ interface EnhancedTrendChartProps {
   period: number;
   platform: 'all' | 'google' | 'meta';
   granularity: 'day' | 'week' | 'month';
-  selectedMetrics: MetricKey[];
-  onMetricsChange?: (metrics: MetricKey[]) => void;
-  kpiMetrics?: MetricKey[];  // For auto-selection from KPI board
 }
 
 export function EnhancedTrendChart({ 
   clientId, 
   period, 
   platform, 
-  granularity, 
-  selectedMetrics,
-  onMetricsChange,
-  kpiMetrics = []
+  granularity
 }: EnhancedTrendChartProps) {
   const { dataSource } = useDataSource();
   const { containerRef, updateChart, reinitialize, initError } = useStableEChart({ height: 400 });
   const { toast } = useToast();
+  const { prefs, patch } = useClientPrefs(clientId);
+  
+  // Get metrics from ClientPrefs
+  const selectedMetrics = prefs.selectedMetrics;
   
   // Auto-selection and readiness tracking
-  const [autoSelectedMetrics, setAutoSelectedMetrics] = useState<MetricKey[]>([]);
   const [dataReady, setDataReady] = useState(false);
   const autoRecoverTimeoutRef = useRef<NodeJS.Timeout>();
   const [showMaxMetricsWarning, setShowMaxMetricsWarning] = useState(false);
   const [firstPaintMs, setFirstPaintMs] = useState<number>(0);
   const firstPaintStartTime = useRef<number>(0);
+  const [addMetricOpen, setAddMetricOpen] = useState(false);
 
-  // Auto-select metrics on first load
-  useEffect(() => {
-    if (selectedMetrics.length > 0) {
-      setAutoSelectedMetrics(selectedMetrics.slice(0, 3));
-      return;
-    }
-
-    // Auto-selection priority order
-    const storageKey = `client:${clientId}:metrics_selected@v1`;
-    const savedMetrics = localStorage.getItem(storageKey);
-    
-    let metricsToUse: MetricKey[] = [];
-    
-    if (savedMetrics) {
-      try {
-        const parsed = JSON.parse(savedMetrics) as MetricKey[];
-        if (parsed.length > 0) {
-          metricsToUse = parsed.slice(0, 3);
-        }
-      } catch (e) {
-        console.warn('Failed to parse saved metrics:', e);
-      }
-    }
-    
-    if (metricsToUse.length === 0 && kpiMetrics.length > 0) {
-      metricsToUse = kpiMetrics.slice(0, 3);
-    }
-    
-    if (metricsToUse.length === 0) {
-      metricsToUse = DEFAULT_SELECTED_METRICS.slice(0, 3);
-    }
-    
-    setAutoSelectedMetrics(metricsToUse);
-    onMetricsChange?.(metricsToUse);
-  }, [clientId, selectedMetrics, kpiMetrics, onMetricsChange]);
-  
-  // Single source of truth for chart state
+  // Remove the auto-selection logic since we use ClientPrefs now
   const [chartState, setChartState] = useState<ChartState>(() => {
     const endDate = new Date();
     const startDate = new Date();
@@ -128,7 +94,7 @@ export function EnhancedTrendChart({
   const [loading, setLoading] = useState(true);
   const [chartType, setChartType] = useState<'line' | 'bar'>('line');
 
-  // Update chart state when auto-selected metrics or props change
+  // Update chart state when selectedMetrics or props change
   useEffect(() => {
     if (!clientId) return;
     
@@ -136,11 +102,10 @@ export function EnhancedTrendChart({
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - period);
     
-    const effectiveMetrics = autoSelectedMetrics.length > 0 ? autoSelectedMetrics : selectedMetrics;
-    const limitedMetrics = effectiveMetrics.slice(0, 3);
+    const limitedMetrics = selectedMetrics.slice(0, 3);
     
     // Show warning if more than 3 metrics were provided
-    if (effectiveMetrics.length > 3) {
+    if (selectedMetrics.length > 3) {
       setShowMaxMetricsWarning(true);
       setTimeout(() => setShowMaxMetricsWarning(false), 5000);
     }
@@ -152,15 +117,9 @@ export function EnhancedTrendChart({
       dateTo: endDate.toISOString().split('T')[0],
       granularity
     }));
-  }, [autoSelectedMetrics, selectedMetrics, period, granularity, clientId]);
+  }, [selectedMetrics, period, granularity, clientId]);
 
-  // Persist metrics selection
-  useEffect(() => {
-    if (chartState.selectedMetrics.length > 0) {
-      const storageKey = `client:${clientId}:metrics_selected@v1`;
-      localStorage.setItem(storageKey, JSON.stringify(chartState.selectedMetrics));
-    }
-  }, [chartState.selectedMetrics, clientId]);
+  // Remove persistence logic as it's handled by ClientPrefs
 
   // Load chart data with readiness gate
   useEffect(() => {
@@ -356,28 +315,49 @@ export function EnhancedTrendChart({
   const handleMetricToggle = useCallback((metric: MetricKey) => {
     if (!METRICS[metric]) return; // Guard against invalid metrics
     
-    setChartState(prev => {
-      const { selectedMetrics } = prev;
-      let newMetrics: MetricKey[];
-      
-      if (selectedMetrics.includes(metric)) {
-        newMetrics = selectedMetrics.filter(m => m !== metric);
-      } else if (selectedMetrics.length < 3) {
-        newMetrics = [...selectedMetrics, metric];
-      } else {
-        // Show warning when trying to add more than 3 metrics
-        setShowMaxMetricsWarning(true);
-        setTimeout(() => setShowMaxMetricsWarning(false), 5000);
-        return prev;
-      }
-      
-      // Update auto-selected metrics to keep them in sync
-      setAutoSelectedMetrics(newMetrics);
-      onMetricsChange?.(newMetrics);
-      
-      return { ...prev, selectedMetrics: newMetrics };
-    });
-  }, [onMetricsChange]);
+    const currentMetrics = selectedMetrics;
+    let newMetrics: MetricKey[];
+    
+    if (currentMetrics.includes(metric)) {
+      newMetrics = currentMetrics.filter(m => m !== metric);
+    } else if (currentMetrics.length < 3) {
+      newMetrics = [...currentMetrics, metric];
+    } else {
+      // Show warning when trying to add more than 3 metrics
+      setShowMaxMetricsWarning(true);
+      setTimeout(() => setShowMaxMetricsWarning(false), 5000);
+      toast({
+        title: "Máximo de métricas atingido",
+        description: "Máx. 3 métricas no gráfico. Remova uma métrica antes de adicionar outra.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // Update ClientPrefs
+    patch({ selectedMetrics: newMetrics });
+  }, [selectedMetrics, patch, toast]);
+
+  const handleAddMetric = useCallback((metric: MetricKey) => {
+    if (selectedMetrics.length >= 3) {
+      toast({
+        title: "Máximo de métricas atingido", 
+        description: "Máx. 3 métricas no gráfico.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    if (!selectedMetrics.includes(metric)) {
+      patch({ selectedMetrics: [...selectedMetrics, metric] });
+    }
+    setAddMetricOpen(false);
+  }, [selectedMetrics, patch, toast]);
+
+  const handleRemoveMetric = useCallback((metric: MetricKey) => {
+    const newMetrics = selectedMetrics.filter(m => m !== metric);
+    patch({ selectedMetrics: newMetrics });
+  }, [selectedMetrics, patch]);
 
   const handleComparePreviousToggle = useCallback((checked: boolean) => {
     setChartState(prev => ({ ...prev, comparePrevious: checked }));
@@ -703,28 +683,76 @@ export function EnhancedTrendChart({
           </Alert>
         )}
 
-        {/* Metric Selection */}
+        {/* Quick-edit Metric Chips */}
         <div className="flex items-center gap-2 flex-wrap">
-          {Object.keys(METRICS).slice(0, 6).map(metricKey => {
-            const metric = metricKey as MetricKey;
-            return (
-              <Badge
-                key={metric}
-                variant={chartState.selectedMetrics.includes(metric) ? "default" : "outline"}
-                className={`cursor-pointer text-xs ${
-                  chartState.selectedMetrics.includes(metric) 
-                    ? "bg-blue-100 text-blue-700 border-blue-200" 
-                    : "hover:bg-slate-50"
-                }`}
-                onClick={() => handleMetricToggle(metric)}
-              >
-                {METRICS[metric].label}
-                {chartState.selectedMetrics.includes(metric) && (
-                  <X className="h-3 w-3 ml-1" />
-                )}
-              </Badge>
-            );
-          })}
+          {/* Current metric chips */}
+          {selectedMetrics.map(metric => (
+            <Badge
+              key={metric}
+              variant="default"
+              className="bg-blue-100 text-blue-700 border-blue-200 cursor-pointer text-xs flex items-center gap-1"
+              onClick={() => handleRemoveMetric(metric)}
+            >
+              {METRICS[metric].label}
+              <X className="h-3 w-3" />
+            </Badge>
+          ))}
+          
+          {/* Add metric button */}
+          {selectedMetrics.length < 3 && (
+            <Popover open={addMetricOpen} onOpenChange={setAddMetricOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-6 px-2 text-xs border-dashed hover:bg-slate-50"
+                >
+                  <Plus className="h-3 w-3 mr-1" />
+                  Métrica
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[280px] p-0">
+                <Command>
+                  <CommandInput placeholder="Buscar métricas..." className="h-9" />
+                  <CommandEmpty>Nenhuma métrica encontrada.</CommandEmpty>
+                  <CommandGroup className="max-h-[200px] overflow-y-auto">
+                    {Object.entries(METRICS)
+                      .filter(([key]) => !selectedMetrics.includes(key as MetricKey))
+                      .map(([key, metric]) => (
+                        <CommandItem
+                          key={key}
+                          value={key}
+                          onSelect={() => handleAddMetric(key as MetricKey)}
+                          className="cursor-pointer"
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              "opacity-0"
+                            )}
+                          />
+                          <div>
+                            <div className="font-medium">{metric.label}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {metric.unit === 'currency' && 'Valor monetário'}
+                              {metric.unit === 'int' && 'Número inteiro'}
+                              {metric.unit === 'percent' && 'Percentual'}
+                              {metric.unit === 'decimal' && 'Número decimal'}
+                            </div>
+                          </div>
+                        </CommandItem>
+                      ))}
+                  </CommandGroup>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          )}
+          
+          {selectedMetrics.length === 3 && (
+            <Badge variant="secondary" className="text-xs">
+              Máx. 3 métricas
+            </Badge>
+          )}
         </div>
 
         {/* Compare Period Toggle */}

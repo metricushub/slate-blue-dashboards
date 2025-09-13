@@ -11,7 +11,7 @@ import { ChevronUp, ChevronDown, X, Search, GripVertical, Plus, Trash2 } from "l
 import { METRICS, MetricKey, DEFAULT_SELECTED_METRICS } from "@/shared/types/metrics";
 import { STORAGE_KEYS_EXTENDED } from "@/shared/data-source";
 import { useToast } from "@/hooks/use-toast";
-import { useFunnelConfig } from "@/hooks/useFunnelConfig";
+import { useClientPrefs, type FunnelStagePrefs } from "@/shared/prefs/useClientPrefs";
 import "@/styles/modal-guards.css";
 
 const MAX_METRICS = 10;
@@ -32,19 +32,21 @@ export function CustomizeModal({
   onMetricsChange 
 }: CustomizeModalProps) {
   const [activeTab, setActiveTab] = useState<string>("metrics");
-  const [localSelectedMetrics, setLocalSelectedMetrics] = useState<MetricKey[]>(selectedMetrics);
   const [searchQuery, setSearchQuery] = useState("");
+  const { prefs, patch } = useClientPrefs(clientId);
+
+  // Get metrics from ClientPrefs
+  const localSelectedMetrics = prefs.selectedMetrics;
 
   const { toast } = useToast();
 
   // Reset local state when modal opens
   useEffect(() => {
     if (isOpen) {
-      setLocalSelectedMetrics(selectedMetrics);
       setSearchQuery("");
       setActiveTab("metrics");
     }
-  }, [isOpen, selectedMetrics]);
+  }, [isOpen]);
 
   // Measure modal height stability and viewport fit for diagnostics
   useEffect(() => {
@@ -83,44 +85,55 @@ export function CustomizeModal({
     return measureStability();
   }, [isOpen, activeTab]);
 
-  // Metric management functions
+  // Metric management functions using ClientPrefs
   const handleMetricToggle = (metricKey: MetricKey, isAdding: boolean) => {
-    setLocalSelectedMetrics(prev => {
-      if (isAdding) {
-        if (prev.length >= MAX_METRICS || prev.includes(metricKey)) return prev;
-        return [...prev, metricKey];
-      } else {
-        return prev.filter(key => key !== metricKey);
-      }
-    });
+    const currentMetrics = localSelectedMetrics;
+    let newMetrics: MetricKey[];
+    
+    if (isAdding) {
+      if (currentMetrics.length >= MAX_METRICS || currentMetrics.includes(metricKey)) return;
+      newMetrics = [...currentMetrics, metricKey];
+    } else {
+      newMetrics = currentMetrics.filter(key => key !== metricKey);
+    }
+    
+    patch({ selectedMetrics: newMetrics });
+    onMetricsChange?.(newMetrics);
   };
 
   const handleRemoveMetric = (metricKey: MetricKey) => {
-    setLocalSelectedMetrics(prev => prev.filter(key => key !== metricKey));
+    const newMetrics = localSelectedMetrics.filter(key => key !== metricKey);
+    patch({ selectedMetrics: newMetrics });
+    onMetricsChange?.(newMetrics);
   };
 
   const handleSave = () => {
-    onMetricsChange(localSelectedMetrics);
-    
-    try {
-      localStorage.setItem(STORAGE_KEYS_EXTENDED.SELECTED_METRICS, JSON.stringify(localSelectedMetrics));
-    } catch (error) {
-      console.warn('Failed to save metrics to localStorage:', error);
-    }
-
+    // ClientPrefs auto-saves, so we just need to close
     toast({
       title: "Configurações salvas",
-      description: "As métricas selecionadas foram atualizadas com sucesso.",
+      description: "As configurações foram salvas automaticamente.",
     });
-
     onClose();
   };
 
   const handleReset = () => {
-    setLocalSelectedMetrics(DEFAULT_SELECTED_METRICS);
+    patch({ 
+      selectedMetrics: DEFAULT_SELECTED_METRICS.slice(0, 3),
+      funnelPrefs: {
+        stages: [
+          { id: 'stage-1', label: 'Impressões', metric: 'impressions' },
+          { id: 'stage-2', label: 'Cliques', metric: 'clicks' },
+          { id: 'stage-3', label: 'Leads', metric: 'leads' }
+        ],
+        mode: 'Detalhado' as const,
+        showRates: true,
+        comparePrevious: false,
+        colorByStage: true
+      }
+    });
     toast({
       title: "Configurações restauradas",
-      description: "As métricas foram restauradas para o padrão.",
+      description: "As configurações foram restauradas para o padrão.",
     });
   };
 
@@ -130,13 +143,7 @@ export function CustomizeModal({
   };
 
   const handleCancel = () => {
-    if (JSON.stringify(localSelectedMetrics) !== JSON.stringify(selectedMetrics)) {
-      if (confirm("Você tem alterações não salvas. Descartar alterações?")) {
-        onClose();
-      }
-    } else {
-      onClose();
-    }
+    onClose();
   };
 
   // Filtered metrics
@@ -295,10 +302,10 @@ export function CustomizeModal({
 
                 <TabsContent value="funnel" forceMount className={activeTab === 'funnel' ? '' : 'hidden'}>
                   <div className="flex flex-col gap-4">
-                    {/* Controles + lista de estágios (pode crescer, mas rola no BODY) */}
-                    <section className="flex flex-col gap-3">
-                      <FunnelStageManager clientId={clientId} />
-                    </section>
+            {/* Controles + lista de estágios (pode crescer, mas rola no BODY) */}
+            <section className="flex flex-col gap-3">
+              <FunnelStageManager clientId={clientId} />
+            </section>
 
                     {/* PRÉVIA DO FUNIL (não pode esticar o modal) */}
                     <section className="shrink-0 min-h-[200px] bg-slate-50 rounded-xl p-4 border">
@@ -335,21 +342,12 @@ export function CustomizeModal({
   );
 }
 
-// Funnel Stage Manager Component - NO internal footer
+// Funnel Stage Manager Component - Updated to use ClientPrefs
 function FunnelStageManager({ clientId }: { clientId: string }) {
-  const {
-    funnelPrefs,
-    isDirty,
-    isSaving,
-    errorMsg,
-    fieldErrors,
-    updatePrefs,
-    updateStage,
-    addStage,
-    removeStage,
-    save,
-    reset,
-  } = useFunnelConfig(clientId);
+  const { prefs, patch } = useClientPrefs(clientId);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  
+  const funnelPrefs = prefs.funnelPrefs;
 
   // Available metrics for funnel stages
   const AVAILABLE_METRICS = [
@@ -359,6 +357,35 @@ function FunnelStageManager({ clientId }: { clientId: string }) {
     { value: 'revenue', label: 'Receita' },
     { value: 'spend', label: 'Investimento' },
   ];
+
+  const updatePrefs = (updates: Partial<typeof funnelPrefs>) => {
+    patch({ funnelPrefs: { ...funnelPrefs, ...updates } });
+  };
+
+  const updateStage = (index: number, updates: Partial<FunnelStagePrefs>) => {
+    const newStages = [...funnelPrefs.stages];
+    newStages[index] = { ...newStages[index], ...updates };
+    updatePrefs({ stages: newStages });
+  };
+
+  const addStage = () => {
+    if (funnelPrefs.stages.length >= 8) return;
+    
+    const newStage: FunnelStagePrefs = {
+      id: `stage-${Date.now()}`,
+      label: `Estágio ${funnelPrefs.stages.length + 1}`,
+      metric: 'impressions'
+    };
+    
+    updatePrefs({ stages: [...funnelPrefs.stages, newStage] });
+  };
+
+  const removeStage = (index: number) => {
+    if (funnelPrefs.stages.length <= 2) return;
+    
+    const newStages = funnelPrefs.stages.filter((_, i) => i !== index);
+    updatePrefs({ stages: newStages });
+  };
 
   return (
     <div className="space-y-6 no-height-anim">
@@ -370,19 +397,7 @@ function FunnelStageManager({ clientId }: { clientId: string }) {
             Configure os estágios do funil e suas métricas correspondentes
           </p>
         </div>
-        {isDirty && (
-          <Badge variant="secondary" className="text-xs">
-            Alterações não salvas
-          </Badge>
-        )}
       </div>
-
-      {/* Error display */}
-      {errorMsg && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-          <p className="text-sm text-red-800">{errorMsg}</p>
-        </div>
-      )}
 
       {/* Mode Selection */}
       <div className="space-y-3">
