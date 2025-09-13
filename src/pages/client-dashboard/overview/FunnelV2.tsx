@@ -5,7 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { MetricRow } from "@/types";
 import { useDataSource } from "@/hooks/useDataSource";
 import { useEffect, useState } from "react";
-import { BarChart3, List, TrendingDown, TrendingUp, AlertCircle } from "lucide-react";
+import { BarChart3, List, TrendingDown, TrendingUp, AlertCircle, Settings } from "lucide-react";
+import { FunnelStagesModal } from "@/components/modals/FunnelStagesModal";
 
 // New V2 structure for dynamic funnel
 type FunnelStage = { 
@@ -58,6 +59,7 @@ export function FunnelV2({ clientId, period, platform }: FunnelV2Props) {
   const [previousStages, setPreviousStages] = useState<FunnelStageData[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'chart' | 'table'>('chart');
+  const [showStagesModal, setShowStagesModal] = useState(false);
   const [funnelPrefs, setFunnelPrefs] = useState<FunnelPrefsV2>(() => {
     if (!clientId) return defaultFunnelPrefsV2;
     
@@ -336,31 +338,42 @@ export function FunnelV2({ clientId, period, platform }: FunnelV2Props) {
               </Badge>
             )}
           </CardTitle>
-          <div className="flex gap-1 bg-slate-100 rounded-lg p-1">
+          <div className="flex items-center gap-2">
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
-              onClick={() => handleToggleView('chart')}
-              className={`h-8 w-8 p-0 rounded ${
-                viewMode === 'chart' 
-                  ? 'bg-white text-slate-700 shadow-sm' 
-                  : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
-              }`}
+              onClick={() => setShowStagesModal(true)}
+              className="h-8 gap-1"
             >
-              <BarChart3 className="h-4 w-4" />
+              <Settings className="h-3 w-3" />
+              Estágios
             </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => handleToggleView('table')}
-              className={`h-8 w-8 p-0 rounded ${
-                viewMode === 'table' 
-                  ? 'bg-white text-slate-700 shadow-sm' 
-                  : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
-              }`}
-            >
-              <List className="h-4 w-4" />
-            </Button>
+            <div className="flex gap-1 bg-slate-100 rounded-lg p-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleToggleView('chart')}
+                className={`h-8 w-8 p-0 rounded ${
+                  viewMode === 'chart' 
+                    ? 'bg-white text-slate-700 shadow-sm' 
+                    : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
+                }`}
+              >
+                <BarChart3 className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleToggleView('table')}
+                className={`h-8 w-8 p-0 rounded ${
+                  viewMode === 'table' 
+                    ? 'bg-white text-slate-700 shadow-sm' 
+                    : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
+                }`}
+              >
+                <List className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </div>
       </CardHeader>
@@ -509,7 +522,13 @@ export function FunnelV2({ clientId, period, platform }: FunnelV2Props) {
              compare={funnelPrefs.comparePrevious ? 'on' : 'off'}
            </div>
          )}
-       </CardContent>
-     </Card>
+      </CardContent>
+
+      <FunnelStagesModal
+        isOpen={showStagesModal}
+        onClose={() => setShowStagesModal(false)}
+        clientId={clientId}
+      />
+    </Card>
    );
  }

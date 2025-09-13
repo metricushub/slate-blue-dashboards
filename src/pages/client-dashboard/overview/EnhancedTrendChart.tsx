@@ -14,9 +14,10 @@ import { useDataSource } from "@/hooks/useDataSource";
 import { useStableEChart } from "@/shared/hooks/useStableEChart";
 import { useClientPrefs } from "@/shared/prefs/useClientPrefs";
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
-import { Download, TrendingUp, X, AlertCircle, BarChart3, Plus, Check, ChevronsUpDown } from "lucide-react";
+import { Download, TrendingUp, X, AlertCircle, BarChart3, Plus, Check, ChevronsUpDown, Settings } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { TrendChartMetricsModal } from "@/components/modals/TrendChartMetricsModal";
 
 // Metric axis mapping for smart dual-axis handling
 const METRIC_AXIS_MAP = {
@@ -73,6 +74,7 @@ export function EnhancedTrendChart({
   const [firstPaintMs, setFirstPaintMs] = useState<number>(0);
   const firstPaintStartTime = useRef<number>(0);
   const [addMetricOpen, setAddMetricOpen] = useState(false);
+  const [showMetricsModal, setShowMetricsModal] = useState(false);
 
   // Remove the auto-selection logic since we use ClientPrefs now
   const [chartState, setChartState] = useState<ChartState>(() => {
@@ -657,6 +659,15 @@ export function EnhancedTrendChart({
             Tendência das Métricas
           </CardTitle>
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowMetricsModal(true)}
+              className="h-8 gap-1"
+            >
+              <Settings className="h-3 w-3" />
+              Métricas
+            </Button>
             <Select value={chartType} onValueChange={(value: 'line' | 'bar') => setChartType(value)}>
               <SelectTrigger className="w-24 h-8">
                 <SelectValue />
@@ -821,6 +832,12 @@ export function EnhancedTrendChart({
           </div>
         )}
       </CardContent>
+
+      <TrendChartMetricsModal
+        isOpen={showMetricsModal}
+        onClose={() => setShowMetricsModal(false)}
+        clientId={clientId}
+      />
     </Card>
   );
 }

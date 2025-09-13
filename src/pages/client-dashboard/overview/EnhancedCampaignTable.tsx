@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { CampaignsColumnsModal } from "@/components/modals/CampaignsColumnsModal";
 
 interface EnhancedCampaignTableProps {
   clientId: string;
@@ -97,6 +98,7 @@ export function EnhancedCampaignTable({ clientId, period, platform }: EnhancedCa
   const [columnConfig, setColumnConfig] = useState<ColumnConfig[]>(DEFAULT_COLUMNS);
   const [showColumnSelector, setShowColumnSelector] = useState(false);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [showColumnsModal, setShowColumnsModal] = useState(false);
   
   // Filter states
   const [filters, setFilters] = useState<CampaignFilters>({
@@ -432,7 +434,7 @@ export function EnhancedCampaignTable({ clientId, period, platform }: EnhancedCa
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setShowColumnSelector(true)}
+              onClick={() => setShowColumnsModal(true)}
               className="gap-2"
             >
               <Settings className="h-4 w-4" />
@@ -698,6 +700,12 @@ export function EnhancedCampaignTable({ clientId, period, platform }: EnhancedCa
           ))}
         </div>
       </ModalFrameV2>
+
+      <CampaignsColumnsModal
+        isOpen={showColumnsModal}
+        onClose={() => setShowColumnsModal(false)}
+        clientId={clientId}
+      />
     </Card>
   );
 }
