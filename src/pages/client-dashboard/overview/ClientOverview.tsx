@@ -201,6 +201,8 @@ export function ClientOverview() {
                 platform={platform}
                 granularity={granularity}
                 selectedMetrics={selectedMetrics}
+                onMetricsChange={setSelectedMetrics}
+                kpiMetrics={selectedMetrics}
               />
             </div>
             <div className="lg:col-span-1">

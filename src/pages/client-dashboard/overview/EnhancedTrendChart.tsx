@@ -5,12 +5,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { MetricRow } from "@/types";
-import { METRICS, MetricKey, formatMetricValue } from "@/shared/types/metrics";
+import { METRICS, MetricKey, formatMetricValue, DEFAULT_SELECTED_METRICS } from "@/shared/types/metrics";
 import { useDataSource } from "@/hooks/useDataSource";
 import { useStableEChart } from "@/shared/hooks/useStableEChart";
-import { useEffect, useState, useCallback, useMemo } from "react";
-import { Download, TrendingUp, X } from "lucide-react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import { Download, TrendingUp, X, AlertCircle, BarChart3 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 // Metric axis mapping for smart dual-axis handling
 const METRIC_AXIS_MAP = {
@@ -45,6 +47,8 @@ interface EnhancedTrendChartProps {
   platform: 'all' | 'google' | 'meta';
   granularity: 'day' | 'week' | 'month';
   selectedMetrics: MetricKey[];
+  onMetricsChange?: (metrics: MetricKey[]) => void;
+  kpiMetrics?: MetricKey[];  // For auto-selection from KPI board
 }
 
 export function EnhancedTrendChart({ 
@@ -52,10 +56,55 @@ export function EnhancedTrendChart({
   period, 
   platform, 
   granularity, 
-  selectedMetrics 
+  selectedMetrics,
+  onMetricsChange,
+  kpiMetrics = []
 }: EnhancedTrendChartProps) {
   const { dataSource } = useDataSource();
   const { containerRef, updateChart, reinitialize, initError } = useStableEChart({ height: 400 });
+  const { toast } = useToast();
+  
+  // Auto-selection and readiness tracking
+  const [autoSelectedMetrics, setAutoSelectedMetrics] = useState<MetricKey[]>([]);
+  const [dataReady, setDataReady] = useState(false);
+  const autoRecoverTimeoutRef = useRef<NodeJS.Timeout>();
+  const [showMaxMetricsWarning, setShowMaxMetricsWarning] = useState(false);
+
+  // Auto-select metrics on first load
+  useEffect(() => {
+    if (selectedMetrics.length > 0) {
+      setAutoSelectedMetrics(selectedMetrics.slice(0, 3));
+      return;
+    }
+
+    // Auto-selection priority order
+    const storageKey = `client:${clientId}:metrics_selected@v1`;
+    const savedMetrics = localStorage.getItem(storageKey);
+    
+    let metricsToUse: MetricKey[] = [];
+    
+    if (savedMetrics) {
+      try {
+        const parsed = JSON.parse(savedMetrics) as MetricKey[];
+        if (parsed.length > 0) {
+          metricsToUse = parsed.slice(0, 3);
+        }
+      } catch (e) {
+        console.warn('Failed to parse saved metrics:', e);
+      }
+    }
+    
+    if (metricsToUse.length === 0 && kpiMetrics.length > 0) {
+      metricsToUse = kpiMetrics.slice(0, 3);
+    }
+    
+    if (metricsToUse.length === 0) {
+      metricsToUse = DEFAULT_SELECTED_METRICS.slice(0, 3);
+    }
+    
+    setAutoSelectedMetrics(metricsToUse);
+    onMetricsChange?.(metricsToUse);
+  }, [clientId, selectedMetrics, kpiMetrics, onMetricsChange]);
   
   // Single source of truth for chart state
   const [chartState, setChartState] = useState<ChartState>(() => {
@@ -64,7 +113,7 @@ export function EnhancedTrendChart({
     startDate.setDate(startDate.getDate() - period);
     
     return {
-      selectedMetrics: selectedMetrics.slice(0, 3),
+      selectedMetrics: [],
       comparePrevious: false,
       dateFrom: startDate.toISOString().split('T')[0],
       dateTo: endDate.toISOString().split('T')[0],
@@ -77,32 +126,51 @@ export function EnhancedTrendChart({
   const [loading, setLoading] = useState(true);
   const [chartType, setChartType] = useState<'line' | 'bar'>('line');
 
-  // Update chart state when props change
+  // Update chart state when auto-selected metrics or props change
   useEffect(() => {
-    if (!clientId) return; // Guard against undefined clientId
+    if (!clientId) return;
     
     const endDate = new Date();
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - period);
     
+    const effectiveMetrics = autoSelectedMetrics.length > 0 ? autoSelectedMetrics : selectedMetrics;
+    const limitedMetrics = effectiveMetrics.slice(0, 3);
+    
+    // Show warning if more than 3 metrics were provided
+    if (effectiveMetrics.length > 3) {
+      setShowMaxMetricsWarning(true);
+      setTimeout(() => setShowMaxMetricsWarning(false), 5000);
+    }
+    
     setChartState(prev => ({
       ...prev,
-      selectedMetrics: selectedMetrics.slice(0, 3),
+      selectedMetrics: limitedMetrics,
       dateFrom: startDate.toISOString().split('T')[0],
       dateTo: endDate.toISOString().split('T')[0],
       granularity
     }));
-  }, [selectedMetrics, period, granularity, clientId]);
+  }, [autoSelectedMetrics, selectedMetrics, period, granularity, clientId]);
 
-  // Load chart data
+  // Persist metrics selection
+  useEffect(() => {
+    if (chartState.selectedMetrics.length > 0) {
+      const storageKey = `client:${clientId}:metrics_selected@v1`;
+      localStorage.setItem(storageKey, JSON.stringify(chartState.selectedMetrics));
+    }
+  }, [chartState.selectedMetrics, clientId]);
+
+  // Load chart data with readiness gate
   useEffect(() => {
     const loadChartData = async () => {
       if (!clientId || chartState.selectedMetrics.length === 0) {
+        setDataReady(false);
         setLoading(false);
         return;
       }
 
       setLoading(true);
+      setDataReady(false);
       
       try {
         let metrics = await dataSource.getMetrics(
@@ -145,6 +213,7 @@ export function EnhancedTrendChart({
           .sort((a, b) => a.date.localeCompare(b.date));
 
         setChartData(chartPoints);
+        setDataReady(true);  // Mark data as ready
 
         // Load previous period data if comparison is enabled
         if (chartState.comparePrevious) {
@@ -197,6 +266,7 @@ export function EnhancedTrendChart({
         }
       } catch (error) {
         console.error('Failed to load chart data:', error);
+        setDataReady(false);
       } finally {
         setLoading(false);
       }
@@ -206,6 +276,31 @@ export function EnhancedTrendChart({
     const timeoutId = setTimeout(loadChartData, 120);
     return () => clearTimeout(timeoutId);
   }, [clientId, platform, chartState, dataSource]);
+
+  // Auto-recover mechanism
+  useEffect(() => {
+    if (dataReady && !loading && chartData.length > 0 && chartState.selectedMetrics.length > 0) {
+      // Clear any existing auto-recover timeout
+      if (autoRecoverTimeoutRef.current) {
+        clearTimeout(autoRecoverTimeoutRef.current);
+      }
+      
+      // Set up auto-recover after 500ms if chart is still empty
+      autoRecoverTimeoutRef.current = setTimeout(() => {
+        const container = containerRef.current;
+        if (container && container.children.length === 0) {
+          console.log('Auto-recovering empty chart...');
+          reinitialize();
+        }
+      }, 500);
+    }
+
+    return () => {
+      if (autoRecoverTimeoutRef.current) {
+        clearTimeout(autoRecoverTimeoutRef.current);
+      }
+    };
+  }, [dataReady, loading, chartData, chartState.selectedMetrics, containerRef, reinitialize]);
 
   const groupMetricsByDate = (metrics: MetricRow[], granularity: 'day' | 'week' | 'month') => {
     return metrics.reduce((acc, metric) => {
@@ -250,14 +345,26 @@ export function EnhancedTrendChart({
     
     setChartState(prev => {
       const { selectedMetrics } = prev;
+      let newMetrics: MetricKey[];
+      
       if (selectedMetrics.includes(metric)) {
-        return { ...prev, selectedMetrics: selectedMetrics.filter(m => m !== metric) };
+        newMetrics = selectedMetrics.filter(m => m !== metric);
       } else if (selectedMetrics.length < 3) {
-        return { ...prev, selectedMetrics: [...selectedMetrics, metric] };
+        newMetrics = [...selectedMetrics, metric];
+      } else {
+        // Show warning when trying to add more than 3 metrics
+        setShowMaxMetricsWarning(true);
+        setTimeout(() => setShowMaxMetricsWarning(false), 5000);
+        return prev;
       }
-      return prev;
+      
+      // Update auto-selected metrics to keep them in sync
+      setAutoSelectedMetrics(newMetrics);
+      onMetricsChange?.(newMetrics);
+      
+      return { ...prev, selectedMetrics: newMetrics };
     });
-  }, []);
+  }, [onMetricsChange]);
 
   const handleComparePreviousToggle = useCallback((checked: boolean) => {
     setChartState(prev => ({ ...prev, comparePrevious: checked }));
@@ -430,19 +537,19 @@ export function EnhancedTrendChart({
     };
   }, [chartData, previousPeriodData, chartState, chartType]);
 
-  // Update chart when option changes
+  // Update chart when option changes - with readiness gate
   useEffect(() => {
-    if (chartOption && !loading) {
+    if (chartOption && !loading && dataReady) {
       updateChart(chartOption);
     }
-  }, [chartOption, loading, updateChart]);
+  }, [chartOption, loading, dataReady, updateChart]);
 
   const exportChart = () => {
     // Implementation for chart export would go here
     console.log('Exporting chart...');
   };
 
-  if (loading) {
+  if (loading || !dataReady) {
     return (
       <Card className="rounded-2xl border border-slate-200 bg-white shadow-sm">
         <CardHeader className="p-5">
@@ -450,6 +557,23 @@ export function EnhancedTrendChart({
         </CardHeader>
         <CardContent className="p-5 pt-0">
           <Skeleton className="h-[320px] md:h-[380px] w-full" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Empty state when no metrics selected
+  if (chartState.selectedMetrics.length === 0) {
+    return (
+      <Card className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <CardContent className="p-8 text-center">
+          <BarChart3 className="h-12 w-12 text-slate-300 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-slate-700 mb-2">
+            Nenhuma métrica selecionada
+          </h3>
+          <p className="text-slate-500 mb-4">
+            Selecione até 3 métricas para visualizar as tendências
+          </p>
         </CardContent>
       </Card>
     );
@@ -479,25 +603,38 @@ export function EnhancedTrendChart({
           </div>
         </div>
 
+        {/* Max metrics warning */}
+        {showMaxMetricsWarning && (
+          <Alert className="border-amber-200 bg-amber-50">
+            <AlertCircle className="h-4 w-4 text-amber-600" />
+            <AlertDescription className="text-amber-800">
+              Máximo de 3 métricas no gráfico. As primeiras 3 foram mantidas.
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Metric Selection */}
         <div className="flex items-center gap-2 flex-wrap">
-          {selectedMetrics.slice(0, 6).map(metric => (
-            <Badge
-              key={metric}
-              variant={chartState.selectedMetrics.includes(metric) ? "default" : "outline"}
-              className={`cursor-pointer text-xs ${
-                chartState.selectedMetrics.includes(metric) 
-                  ? "bg-blue-100 text-blue-700 border-blue-200" 
-                  : "hover:bg-slate-50"
-              }`}
-              onClick={() => handleMetricToggle(metric)}
-            >
-              {METRICS[metric].label}
-              {chartState.selectedMetrics.includes(metric) && (
-                <X className="h-3 w-3 ml-1" />
-              )}
-            </Badge>
-          ))}
+          {Object.keys(METRICS).slice(0, 6).map(metricKey => {
+            const metric = metricKey as MetricKey;
+            return (
+              <Badge
+                key={metric}
+                variant={chartState.selectedMetrics.includes(metric) ? "default" : "outline"}
+                className={`cursor-pointer text-xs ${
+                  chartState.selectedMetrics.includes(metric) 
+                    ? "bg-blue-100 text-blue-700 border-blue-200" 
+                    : "hover:bg-slate-50"
+                }`}
+                onClick={() => handleMetricToggle(metric)}
+              >
+                {METRICS[metric].label}
+                {chartState.selectedMetrics.includes(metric) && (
+                  <X className="h-3 w-3 ml-1" />
+                )}
+              </Badge>
+            );
+          })}
         </div>
 
         {/* Compare Period Toggle */}
