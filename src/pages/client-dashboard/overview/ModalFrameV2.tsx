@@ -75,9 +75,14 @@ export function ModalFrameV2({
           ${isMobile ? 'w-full h-full max-w-full max-h-full' : widthClasses[maxWidth]} 
           p-0 bg-white border border-border 
           ${isMobile ? 'rounded-none' : 'rounded-lg'}
-          min-h-[560px] max-h-[85vh]
+          ${isMobile ? 'min-h-[100vh] max-h-[100vh]' : 'min-h-[560px] max-h-[85vh]'}
           overflow-hidden flex flex-col
+          [--modal-body-vh:72vh]
         `}
+        style={{ 
+          transition: 'none',
+          height: isMobile ? '100vh' : undefined
+        }}
         aria-describedby={undefined}
       >
         {/* Sticky Header */}
@@ -98,8 +103,17 @@ export function ModalFrameV2({
           </div>
         </DialogHeader>
 
-        {/* Scrollable Body */}
-        <div className="flex-1 overflow-y-auto px-6 py-4 min-h-0">
+        {/* Fixed Height Scrollable Body */}
+        <div 
+          className={`
+            flex-1 overflow-y-auto px-6 py-4 
+            ${isMobile ? 'min-h-0' : 'min-h-[var(--modal-body-vh)] max-h-[var(--modal-body-vh)]'}
+          `}
+          style={{ 
+            transition: 'none',
+            height: isMobile ? undefined : 'var(--modal-body-vh)'
+          }}
+        >
           {children}
         </div>
 
