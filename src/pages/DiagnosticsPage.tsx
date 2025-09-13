@@ -7,6 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
+import { FunnelModalDiagnostics } from "@/components/diagnostics/FunnelModalDiagnostics";
 import { 
   CheckCircle, XCircle, Clock, Download, Copy, RefreshCw, 
   FileText, AlertTriangle, Info, Database, Zap 
@@ -900,112 +901,5 @@ export default function DiagnosticsPage() {
         </div>
       </div>
     </div>
-  );
-}
-
-// Funnel Modal Diagnostics Component  
-function FunnelModalDiagnostics() {
-  const [diagData, setDiagData] = useState<any>(null);
-
-  useEffect(() => {
-    // Load funnel modal diagnostics data
-    const loadDiagData = () => {
-      try {
-        const data = localStorage.getItem('diag:funilModal:last');
-        if (data) {
-          setDiagData(JSON.parse(data));
-        }
-      } catch (error) {
-        console.warn('Failed to load funnel modal diagnostics:', error);
-      }
-    };
-
-    loadDiagData();
-    
-    // Refresh every 5 seconds
-    const interval = setInterval(loadDiagData, 5000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const getDeltaStatus = (delta: number): 'PASS' | 'FAIL' => {
-    return delta <= 2 ? 'PASS' : 'FAIL';
-  };
-
-  const getStatusIcon = (status: 'PASS' | 'FAIL') => {
-    switch (status) {
-      case 'PASS':
-        return <CheckCircle className="h-4 w-4 text-green-600" />;
-      case 'FAIL':
-        return <XCircle className="h-4 w-4 text-red-600" />;
-      default:
-        return <Clock className="h-4 w-4 text-amber-600" />;
-    }
-  };
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <div className="p-2 bg-blue-100 rounded-lg">
-            <div className="h-4 w-4 bg-blue-600 rounded"></div>
-          </div>
-          Funil Modal - Altura Fixa
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          {diagData ? (
-            <>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                <div>
-                  <span className="text-muted-foreground">Timestamp:</span>
-                  <div className="font-medium">
-                    {format(new Date(diagData.ts), "HH:mm:ss", { locale: ptBR })}
-                  </div>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Altura @200ms:</span>
-                  <div className="font-medium">{diagData.h200 || 0}px</div>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Altura @1200ms:</span>
-                  <div className="font-medium">{diagData.h1200 || 0}px</div>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">DPR:</span>
-                  <div className="font-medium">{diagData.dpr || 1}</div>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 p-3 border rounded-lg">
-                {getStatusIcon(getDeltaStatus(diagData.delta_px || 0))}
-                <div className="flex-1">
-                  <div className="font-medium">
-                    Delta de Altura: {diagData.delta_px || 0}px
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    {getDeltaStatus(diagData.delta_px || 0)} - Estabilidade do modal após alterações
-                  </div>
-                </div>
-                <Badge className={getDeltaStatus(diagData.delta_px || 0) === 'PASS' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
-                  {getDeltaStatus(diagData.delta_px || 0)}
-                </Badge>
-              </div>
-
-              <div className="text-xs text-muted-foreground bg-slate-50 p-3 rounded-lg">
-                <strong>Critérios:</strong> Delta ≤ 2px entre medições 200ms e 1200ms após abertura do modal. 
-                Estrutura: flex-col h-[72vh] min-h-[560px] max-h-[85vh] com Body flex-1 min-h-0 overflow-y-auto.
-              </div>
-            </>
-          ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              <div className="text-sm">
-                Nenhum teste executado ainda. Abra o modal do funil (Personalizar → Funil) para gerar dados.
-              </div>
-            </div>
-          )}
-        </div>
-      </CardContent>
-    </Card>
   );
 }
