@@ -37,22 +37,16 @@ export function EnhancedKpiBoard({
   layout = 'grid'
 }: EnhancedKpiBoardProps) {
   const { dataSource } = useDataSource();
-  const { prefs, isLoading: prefsLoading } = useClientPrefs(clientId);
+  const { prefs } = useClientPrefs(clientId);
   const [kpiData, setKpiData] = useState<KPIData[]>([]);
   const [loading, setLoading] = useState(true);
   const [showMetricsModal, setShowMetricsModal] = useState(false);
 
-  // Get metrics from ClientPrefs - wait for prefs to load
+  // Get metrics from ClientPrefs
   const selectedMetrics = prefs?.selectedMetrics || [];
 
   useEffect(() => {
     const loadKpiData = async () => {
-      // Wait for prefs to load before proceeding
-      if (prefsLoading) {
-        return;
-      }
-
-      // Always load even if no metrics to show proper empty state
       if (!clientId) {
         setKpiData([]);
         setLoading(false);
@@ -142,7 +136,7 @@ export function EnhancedKpiBoard({
     };
 
     loadKpiData();
-  }, [selectedMetrics, clientId, period, platform, dataSource, prefs, prefsLoading]);
+  }, [selectedMetrics, clientId, period, platform, dataSource, prefs]);
 
   const getMetricDescription = (key: MetricKey): string => {
     const descriptions: Record<MetricKey, string> = {

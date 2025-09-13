@@ -69,7 +69,7 @@ export function useClientPrefs(clientId: string) {
         if (stored) {
           const parsed = JSON.parse(stored);
           // Validate limits
-          parsed.selectedMetrics = (parsed.selectedMetrics || DEFAULT_SELECTED_METRICS).slice(0, 3);
+          parsed.selectedMetrics = (parsed.selectedMetrics || DEFAULT_SELECTED_METRICS).slice(0, 9);
           parsed.funnelPrefs = parsed.funnelPrefs || getDefaultPrefs(clientId).funnelPrefs;
           parsed.funnelPrefs.stages = (parsed.funnelPrefs.stages || DEFAULT_FUNNEL_STAGES).slice(0, 8);
           if (parsed.funnelPrefs.stages.length < 2) {
@@ -101,7 +101,7 @@ export function useClientPrefs(clientId: string) {
       
       // Apply limits
       if (updates.selectedMetrics) {
-        newPrefs.selectedMetrics = updates.selectedMetrics.slice(0, 3);
+        newPrefs.selectedMetrics = updates.selectedMetrics.slice(0, 9);
       }
       
       if (updates.funnelPrefs?.stages) {
