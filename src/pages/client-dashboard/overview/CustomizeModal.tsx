@@ -19,6 +19,7 @@ type FunnelStage = {
   label: string; 
   metric: string; 
   color?: string;
+  userLabel?: boolean; // Track if user manually edited the label
 };
 
 type FunnelPrefsV2 = {
@@ -35,10 +36,10 @@ const defaultFunnelPrefsV2: FunnelPrefsV2 = {
   comparePrevious: false,
   colorByStage: false,
   stages: [
-    { id: 'stage1', label: 'Impressões', metric: 'impressions', color: '#3b82f6' },
-    { id: 'stage2', label: 'Cliques', metric: 'clicks', color: '#10b981' },
-    { id: 'stage3', label: 'Leads', metric: 'leads', color: '#f59e0b' },
-    { id: 'stage4', label: 'Receita', metric: 'revenue', color: '#ef4444' },
+    { id: 'stage1', label: 'Impressões', metric: 'impressions', color: '#3b82f6', userLabel: false },
+    { id: 'stage2', label: 'Cliques', metric: 'clicks', color: '#10b981', userLabel: false },
+    { id: 'stage3', label: 'Leads', metric: 'leads', color: '#f59e0b', userLabel: false },
+    { id: 'stage4', label: 'Receita', metric: 'revenue', color: '#ef4444', userLabel: false },
   ]
 };
 
@@ -472,7 +473,26 @@ function FunnelStageManager({ clientId }: { clientId: string }) {
 
   const handleStageUpdate = (stageIndex: number, updates: Partial<FunnelStage>) => {
     const newStages = [...funnelPrefs.stages];
-    newStages[stageIndex] = { ...newStages[stageIndex], ...updates };
+    const stage = { ...newStages[stageIndex], ...updates };
+    
+    // Auto-label when metric changes (if user hasn't manually edited)
+    if (updates.metric && !stage.userLabel) {
+      const metricLabels: Record<string, string> = {
+        impressions: 'Impressões',
+        clicks: 'Cliques',
+        leads: 'Leads',
+        revenue: 'Receita',
+        spend: 'Investimento'
+      };
+      stage.label = metricLabels[updates.metric] || updates.metric;
+    }
+    
+    // Mark as user-edited when label is manually changed
+    if (updates.label !== undefined) {
+      stage.userLabel = true;
+    }
+    
+    newStages[stageIndex] = stage;
     handleUpdateFunnelPrefs({ stages: newStages });
   };
 
@@ -490,7 +510,8 @@ function FunnelStageManager({ clientId }: { clientId: string }) {
       id: `stage${Date.now()}`,
       label: `Etapa ${funnelPrefs.stages.length + 1}`,
       metric: 'leads',
-      color: '#8b5cf6'
+      color: '#8b5cf6',
+      userLabel: false
     };
 
     handleUpdateFunnelPrefs({ 

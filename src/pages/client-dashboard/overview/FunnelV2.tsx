@@ -13,6 +13,7 @@ type FunnelStage = {
   label: string; 
   metric: string; 
   color?: string;
+  userLabel?: boolean; // Track if user manually edited the label
 };
 
 type FunnelPrefsV2 = {
@@ -23,16 +24,16 @@ type FunnelPrefsV2 = {
   colorByStage: boolean; // ON/OFF for stage colors
 };
 
-const defaultFunnelPrefsV2: FunnelPrefsV2 = {
+  const defaultFunnelPrefsV2: FunnelPrefsV2 = {
   mode: 'Detalhado',
   showRates: true,
   comparePrevious: false,
   colorByStage: false, // Default to neutral colors
   stages: [
-    { id: 'stage1', label: 'Impressões', metric: 'impressions', color: '#64748b' },
-    { id: 'stage2', label: 'Cliques', metric: 'clicks', color: '#10b981' },
-    { id: 'stage3', label: 'Leads', metric: 'leads', color: '#f59e0b' },
-    { id: 'stage4', label: 'Receita', metric: 'revenue', color: '#ef4444' },
+    { id: 'stage1', label: 'Impressões', metric: 'impressions', color: '#64748b', userLabel: false },
+    { id: 'stage2', label: 'Cliques', metric: 'clicks', color: '#10b981', userLabel: false },
+    { id: 'stage3', label: 'Leads', metric: 'leads', color: '#f59e0b', userLabel: false },
+    { id: 'stage4', label: 'Receita', metric: 'revenue', color: '#ef4444', userLabel: false },
   ]
 };
 
@@ -173,16 +174,29 @@ export function FunnelV2({ clientId, period, platform }: FunnelV2Props) {
           }
         };
 
-        // Build stage data
+        // Build stage data with auto-labels
         let previousValue = 0;
         const stageData: FunnelStageData[] = funnelPrefs.stages.map((stage, index) => {
           const value = getMetricTotal(stage.metric);
           const hasData = value > 0;
           const rate = index > 0 && previousValue > 0 ? (value / previousValue) * 100 : undefined;
           
+          // Auto-generate label if not user-defined
+          let displayLabel = stage.label;
+          if (!stage.userLabel && stage.metric) {
+            const metricLabels: Record<string, string> = {
+              impressions: 'Impressões',
+              clicks: 'Cliques',
+              leads: 'Leads',
+              revenue: 'Receita',
+              spend: 'Investimento'
+            };
+            displayLabel = metricLabels[stage.metric] || stage.metric;
+          }
+          
           const stageResult: FunnelStageData = {
             id: stage.id,
-            name: stage.label,
+            name: displayLabel,
             value,
             rate,
             percentage: funnelPrefs.stages.length > 0 && funnelPrefs.stages[0] 

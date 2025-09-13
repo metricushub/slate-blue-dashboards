@@ -69,6 +69,8 @@ export function EnhancedTrendChart({
   const [dataReady, setDataReady] = useState(false);
   const autoRecoverTimeoutRef = useRef<NodeJS.Timeout>();
   const [showMaxMetricsWarning, setShowMaxMetricsWarning] = useState(false);
+  const [firstPaintMs, setFirstPaintMs] = useState<number>(0);
+  const firstPaintStartTime = useRef<number>(0);
 
   // Auto-select metrics on first load
   useEffect(() => {
@@ -199,8 +201,19 @@ export function EnhancedTrendChart({
             chartState.selectedMetrics.forEach(metricKey => {
               const metricDef = METRICS[metricKey];
               
-              if (metricDef.compute) {
-                point[metricKey] = metricDef.compute(rows);
+              // Handle missing base data for ratios
+              if (metricDef.unit === 'percent' || metricDef.compute) {
+                // For computed metrics like ROAS, CPL - show null for missing base
+                if (metricKey === 'roas' && point.spend === 0) {
+                  point[metricKey] = null;
+                } else if (metricKey === 'cpl' && point.leads === 0) {
+                  point[metricKey] = null;
+                } else {
+                  const computed = metricDef.compute ? metricDef.compute(rows) : 
+                    (point[metricKey] as number || 0);
+                  // Use null instead of 0 when no base data (never string)
+                  point[metricKey] = computed || null;
+                }
               } else {
                 point[metricKey] = rows.reduce((sum, row) => 
                   sum + (row[metricKey as keyof MetricRow] as number || 0), 0
@@ -537,12 +550,89 @@ export function EnhancedTrendChart({
     };
   }, [chartData, previousPeriodData, chartState, chartType]);
 
+  // Ensure first paint - force chart render
+  const ensureFirstPaint = useCallback(() => {
+    if (!containerRef.current) return;
+    
+    firstPaintStartTime.current = Date.now();
+    
+    // 1. Draw base axes immediately (skeleton visual)
+    const baseOption = {
+      grid: { left: 60, right: 40, top: 40, bottom: 60 },
+      xAxis: {
+        type: 'category' as const,
+        data: [],
+        axisLine: { show: false },
+        axisTick: { show: false },
+        axisLabel: { color: '#64748b', fontSize: 11 }
+      },
+      yAxis: {
+        type: 'value' as const,
+        axisLine: { show: false },
+        axisTick: { show: false },
+        axisLabel: { color: '#64748b', fontSize: 11 },
+        splitLine: { lineStyle: { color: '#e5e7eb', type: 'dashed' } }
+      },
+      series: []
+    };
+    
+    // Apply base skeleton
+    updateChart(baseOption);
+    
+    // 2. Use requestAnimationFrame for full option with series
+    requestAnimationFrame(() => {
+      if (chartOption) {
+        updateChart(chartOption);
+        
+        // Record first paint time
+        const paintTime = Date.now() - firstPaintStartTime.current;
+        setFirstPaintMs(paintTime);
+        
+        // Save to localStorage for diagnostics
+        localStorage.setItem('chart_first_paint_ms', paintTime.toString());
+      }
+    });
+    
+    // 3. Watchdog for problematic renders (600ms)
+    const watchdog = setTimeout(() => {
+      const container = containerRef.current;
+      if (!container || container.children.length === 0 || container.offsetWidth === 0) {
+        console.log('Chart watchdog: attempting recovery...');
+        
+        // Try resize and reapply
+        if (updateChart && chartOption) {
+          // Force resize
+          const chart = (window as any).echarts?.getInstanceByDom?.(container);
+          if (chart) {
+            chart.resize();
+          }
+          
+          // Reapply option
+          updateChart(chartOption);
+        }
+        
+        // If still problematic, dispose and recreate
+        setTimeout(() => {
+          if (!container || container.children.length === 0) {
+            console.log('Chart watchdog: disposing and recreating...');
+            reinitialize();
+            if (chartOption) {
+              setTimeout(() => updateChart(chartOption), 50);
+            }
+          }
+        }, 100);
+      }
+    }, 600);
+    
+    return () => clearTimeout(watchdog);
+  }, [updateChart, chartOption, containerRef, reinitialize]);
+
   // Update chart when option changes - with readiness gate
   useEffect(() => {
     if (chartOption && !loading && dataReady) {
-      updateChart(chartOption);
+      ensureFirstPaint();
     }
-  }, [chartOption, loading, dataReady, updateChart]);
+  }, [chartOption, loading, dataReady, ensureFirstPaint]);
 
   const exportChart = () => {
     // Implementation for chart export would go here
