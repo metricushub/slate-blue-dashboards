@@ -224,7 +224,7 @@ export function FunnelV2({ clientId, period, platform }: FunnelV2Props) {
     };
 
     loadFunnelData();
-  }, [clientId, period, platform, dataSource, funnelStages, funnelPrefs]);
+  }, [clientId, period, platform, dataSource, funnelStages, funnelPrefs, prefs?.lastUpdated]);
 
   const handleToggleView = (mode: 'chart' | 'table') => {
     setViewMode(mode);
@@ -349,7 +349,7 @@ export function FunnelV2({ clientId, period, platform }: FunnelV2Props) {
                       <div 
                         className="absolute h-12 border-2 border-dashed border-slate-300 transition-all duration-700 rounded-md z-0"
                         style={{ 
-                          width: `${Math.max(20, 100 - (index * 15))}%`,
+                          width: `${Math.max(5, prevStage.percentage ?? 0)}%`,
                           top: '50%',
                           transform: 'translateY(-50%)'
                         }}
@@ -360,7 +360,7 @@ export function FunnelV2({ clientId, period, platform }: FunnelV2Props) {
                     <div 
                       className="h-12 transition-all duration-700 relative rounded-md z-10"
                       style={{ 
-                        width: `${Math.max(20, 100 - (index * 15))}%`,
+                        width: `${Math.max(5, stage.percentage)}%`,
                         background: stageColor,
                         opacity: stage.hasData ? 1 : 0.3
                       }}
