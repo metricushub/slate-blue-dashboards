@@ -21,6 +21,7 @@ import NotFound from "./pages/NotFound";
 // WIP Pages - Global
 import CalendarioWip from "./pages/wip/CalendarioWip";
 import EquipeWip from "./pages/wip/EquipeWip";
+import TarefasAnotacoesWip from "./pages/wip/TarefasAnotacoesWip";
 
 // WIP Pages - Cliente
 import CentralOtimizacoesWip from "./pages/wip/CentralOtimizacoesWip";
@@ -51,6 +52,7 @@ const App = () => (
                 <Route path="/" element={<HomePage />} />
                 <Route path="/clientes" element={<ClientsPage />} />
                 <Route path="/leads" element={<LeadsPage />} />
+                <Route path="/tarefas-anotacoes" element={<TarefasAnotacoesWip />} />
                 <Route path="/calendario" element={<CalendarioWip />} />
                 <Route path="/equipe" element={<EquipeWip />} />
                 <Route path="/otimizacoes" element={<OptimizationsPage />} />
