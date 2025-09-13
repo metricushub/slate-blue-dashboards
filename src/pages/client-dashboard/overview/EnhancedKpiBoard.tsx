@@ -212,15 +212,6 @@ export function EnhancedKpiBoard({
               {selectedMetrics.length}/9 métricas
             </Badge>
           </div>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={onCustomize}
-              className="gap-2 h-8"
-            >
-              <Settings className="h-4 w-4" />
-              Personalizar
-            </Button>
         </div>
 
         {/* KPI Grid */}

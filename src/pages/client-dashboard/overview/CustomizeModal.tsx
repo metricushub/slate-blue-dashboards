@@ -46,7 +46,7 @@ export function CustomizeModal({
     }
   }, [isOpen, selectedMetrics]);
 
-  // Measure modal height stability for diagnostics
+  // Measure modal height stability and viewport fit for diagnostics
   useEffect(() => {
     if (!isOpen) return;
     
@@ -55,6 +55,9 @@ export function CustomizeModal({
 
     const measureStability = () => {
       const initialHeight = modalContainer.offsetHeight;
+      const modalRect = modalContainer.getBoundingClientRect();
+      const viewportHeight = document.documentElement.clientHeight;
+      const fitsViewport = viewportHeight - modalRect.height >= 0;
       
       // Measure after potential content changes
       const timeout = setTimeout(() => {
@@ -65,8 +68,12 @@ export function CustomizeModal({
           initialHeight,
           finalHeight,
           deltaPx,
+          viewportHeight,
+          modalHeight: modalRect.height,
+          fitsViewport,
           timestamp: Date.now(),
-          pass: deltaPx <= 2
+          pass: deltaPx <= 2,
+          viewportFit: fitsViewport
         }));
       }, 800);
       
@@ -154,17 +161,24 @@ export function CustomizeModal({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="p-0 bg-transparent border-none shadow-none max-w-none">
-        <div className="mx-auto w-full max-w-3xl">
+        <div className="mx-auto w-[92vw] max-w-3xl">
           <div 
             data-modal-container
-            className="flex h-[72vh] min-h-[560px] max-h-[85vh] flex-col overflow-hidden bg-white rounded-2xl shadow-xl [contain:size_layout_paint] no-height-anim no-zoom"
+            className="
+              flex flex-col
+              h-[72svh] min-h-[560px] max-h-[85svh]
+              md:h-[72vh] md:max-h-[85vh]
+              overflow-hidden bg-white rounded-2xl shadow-xl
+              [contain:size_layout_paint]
+              no-height-anim no-zoom
+            "
           >
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               
               {/* HEADER (fixo) */}
               <div className="shrink-0 sticky top-0 z-10 border-b bg-white px-5 py-4 flex items-center justify-between">
-                <div className="text-base font-medium">Personalizar Dashboard</div>
-                <TabsList className="grid grid-cols-3">
+                <div className="text-base font-medium">Personalizar</div>
+                <TabsList>
                   <TabsTrigger value="metrics">Métricas</TabsTrigger>
                   <TabsTrigger value="funnel">Funil</TabsTrigger>
                   <TabsTrigger value="layout">Layout</TabsTrigger>
@@ -172,13 +186,13 @@ export function CustomizeModal({
               </div>
 
               {/* BODY: ÚNICO SCROLLER */}
-              <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4 [overflow-anchor:none] no-height-anim stable-modal-body">
+              <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 py-4 [overflow-anchor:none] no-height-anim">
                 
                 <TabsContent value="metrics" forceMount className={activeTab === 'metrics' ? '' : 'hidden'}>
                   <div className="space-y-6">
                     {/* Search */}
                     <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
+                      <Search className="absolute left-3 top-1/2 text-slate-400 h-4 w-4" style={{transform: 'translateY(-50%)'}} />
                       <Input
                         type="text"
                         placeholder="Buscar métricas..."
@@ -203,7 +217,7 @@ export function CustomizeModal({
                             return (
                               <div
                                 key={metricKey}
-                                className="flex items-center gap-3 p-3 border border-slate-200 rounded-2xl bg-white hover:bg-slate-50 transition-colors"
+                                className="flex items-center gap-3 p-3 border border-slate-200 rounded-2xl bg-white hover:bg-slate-50 transition-colors no-zoom"
                               >
                                 <div className="flex items-center gap-2 text-slate-400">
                                   <GripVertical className="h-4 w-4" />
@@ -222,7 +236,7 @@ export function CustomizeModal({
                                     variant="ghost"
                                     size="sm"
                                     onClick={() => handleRemoveMetric(metricKey)}
-                                    className="h-8 w-8 p-0 text-slate-400 hover:text-red-500 hover:bg-red-50"
+                                    className="h-8 w-8 p-0 text-slate-400 hover:text-red-500 hover:bg-red-50 no-zoom"
                                     aria-label={`Remover ${metric.label}`}
                                   >
                                     <X className="h-4 w-4" />
@@ -431,7 +445,7 @@ function FunnelStageManager({ clientId }: { clientId: string }) {
             size="sm"
             onClick={addStage}
             disabled={funnelPrefs.stages.length >= 8}
-            className="text-xs no-zoom"
+            className="text-xs no-zoom no-height-anim"
           >
             <Plus className="h-3 w-3 mr-1" />
             Adicionar
@@ -443,7 +457,7 @@ function FunnelStageManager({ clientId }: { clientId: string }) {
             <div
               key={stage.id}
               data-stage-index={index}
-              className="rounded-xl border p-4 bg-white space-y-3 no-height-anim"
+              className="rounded-xl border p-4 bg-white space-y-3 no-height-anim no-zoom"
             >
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium text-slate-700">
