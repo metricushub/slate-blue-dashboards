@@ -575,7 +575,7 @@ export function TasksAlertsModal({ isOpen, onClose, clientId }: TasksAlertsModal
 }
 
 // Hook to get next 5 tasks for overview display
-export function useNextTasks(clientId: string) {
+export function useNextTasks(clientId: string): Task[] {
   const [nextTasks, setNextTasks] = useState<Task[]>([]);
 
   useEffect(() => {

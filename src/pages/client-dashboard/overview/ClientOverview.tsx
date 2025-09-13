@@ -55,7 +55,7 @@ export function ClientOverview() {
   const [showChatPanel, setShowChatPanel] = useState(false);
   const [showCustomizeModal, setShowCustomizeModal] = useState(false);
 
-  // Get next tasks for overview
+  // Get next tasks for overview - using useNextTasks hook
   const nextTasks = useNextTasks(clientId || "");
 
   // Load client data and persist settings
@@ -83,8 +83,8 @@ export function ClientOverview() {
         
         setClient(foundClient);
 
-        // Client preferences will handle metrics now
-        console.log('Client loaded:', client.name);
+        // Client preferences will handle metrics - no need for manual localStorage
+        console.log('Client loaded successfully:', foundClient.name);
       } catch (error) {
         console.error('Failed to load client:', error);
         toast({
