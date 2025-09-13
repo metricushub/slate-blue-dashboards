@@ -358,9 +358,7 @@ export function CustomizeModal({
         </TabsContent>
         
         <TabsContent value="funnel" className="mt-6 space-y-6">
-          <div className="min-h-[200px] space-y-6">
-            <FunnelStageManager clientId={clientId} />
-          </div>
+          <FunnelStageManager clientId={clientId} />
         </TabsContent>
         
         <TabsContent value="layout" className="mt-6 space-y-6">
@@ -604,18 +602,6 @@ function FunnelStageManager({ clientId }: { clientId: string }) {
         </div>
       </div>
 
-      {/* Funnel Preview */}
-      <div className="border-t pt-6">
-        <label className="text-sm font-medium text-slate-700 mb-4 block">
-          Prévia do Funil
-        </label>
-        <div className="min-h-[200px] p-4 bg-slate-50 rounded-xl border">
-          <div className="text-xs text-slate-500 text-center">
-            Prévia será exibida aqui com {funnelPrefs.stages.length} estágios
-          </div>
-        </div>
-      </div>
-
       {/* Dynamic Stages Management */}
       <div className="border-t pt-6">
         <div className="flex items-center justify-between mb-4">
@@ -635,12 +621,11 @@ function FunnelStageManager({ clientId }: { clientId: string }) {
           </Button>
         </div>
 
-        <div className="space-y-3" style={{ transition: 'none' }}>
+        <div className="space-y-3">
           {funnelPrefs.stages.map((stage, index) => (
             <div
               key={stage.id}
               className="flex items-center gap-3 p-4 bg-slate-50 rounded-xl border"
-              style={{ transition: 'none' }}
             >
               <div className="flex flex-col gap-1">
                 <Button

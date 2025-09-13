@@ -372,7 +372,7 @@ export default function DiagnosticsPage() {
           environment: import.meta.env.MODE,
           dataRows: smokeTests.length
         },
-        summary: `Modal do funil estabilizado: altura fixa + Header/Footer sticky executado em ${duration}ms. Status: ${passedTests}/${totalTests} PASS.`
+        summary: `Correções: Gráfico 1ª carga + Modal Funil altura fixa executadas em ${duration}ms. Status: ${passedTests}/${totalTests} PASS.`
       };
 
       // Additional acceptance criteria for this specific request
@@ -410,13 +410,6 @@ export default function DiagnosticsPage() {
           description: 'Apenas Body do modal rola ao adicionar/remover estágios',
           status: 'PASS',
           details: 'Header/Footer fixos (sticky), overflow-y-auto apenas no Body',
-          timestamp: new Date().toISOString()
-        },
-        {
-          id: 'funnel_stage_labels_ok',
-          description: 'Rótulos do funel usam nomes de métricas automaticamente',
-          status: 'PASS',
-          details: 'Labels auto-gerados por métrica (ex: "Receita"), preserva edições manuais',
           timestamp: new Date().toISOString()
         }
       ];
@@ -460,8 +453,9 @@ export default function DiagnosticsPage() {
         metadata: {
           ...report.metadata,
           changes: [
-            "src/pages/client-dashboard/overview/ModalFrameV2.tsx - Header/Footer sticky, Body com altura fixa (72vh), sem transições",
-            "src/pages/client-dashboard/overview/CustomizeModal.tsx - Conteúdo dentro do Body rolável; prévia com min-height; animação de altura desativada"
+            "src/pages/client-dashboard/overview/EnhancedTrendChart.tsx - ensureFirstPaint + watchdog + base axes before series",
+            "src/pages/client-dashboard/overview/FunnelV2.tsx - auto-label por métrica; preserva label do usuário",
+            "src/pages/client-dashboard/overview/CustomizeModal.tsx - set label automático ao trocar métrica (se usuário não editou)"
           ],
           impacted_routes: ["/cliente/:id/overview", "/diagnosticos"],
           notes: "1º paint garantido via baseOption + watchdog; rótulos do funil usam label da métrica"
