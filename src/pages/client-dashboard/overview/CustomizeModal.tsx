@@ -31,7 +31,7 @@ export function CustomizeModal({
   selectedMetrics,
   onMetricsChange 
 }: CustomizeModalProps) {
-  const [activeTab, setActiveTab] = useState<string>("metrics");
+  const [activeTab, setActiveTab] = useState<string>("funnel");
   const [searchQuery, setSearchQuery] = useState("");
   const { prefs, patch } = useClientPrefs(clientId);
 
@@ -44,7 +44,7 @@ export function CustomizeModal({
   useEffect(() => {
     if (isOpen) {
       setSearchQuery("");
-      setActiveTab("metrics");
+      setActiveTab("funnel");
     }
   }, [isOpen]);
 
@@ -186,120 +186,15 @@ export function CustomizeModal({
               <div className="shrink-0 sticky top-0 z-10 border-b bg-white px-5 py-4 flex items-center justify-between">
                 <div className="text-base font-medium">Personalizar</div>
                 <TabsList>
-                  <TabsTrigger value="metrics">Métricas</TabsTrigger>
                   <TabsTrigger value="funnel">Funil</TabsTrigger>
                   <TabsTrigger value="layout">Layout</TabsTrigger>
+                  <TabsTrigger value="advanced">Avançado</TabsTrigger>
                 </TabsList>
               </div>
 
               {/* BODY: ÚNICO SCROLLER */}
               <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 py-4 [overflow-anchor:none] no-height-anim">
                 
-                <TabsContent value="metrics" forceMount className={activeTab === 'metrics' ? '' : 'hidden'}>
-                  <div className="space-y-6">
-                    {/* Search */}
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 text-slate-400 h-4 w-4" style={{transform: 'translateY(-50%)'}} />
-                      <Input
-                        type="text"
-                        placeholder="Buscar métricas..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-10"
-                      />
-                    </div>
-
-                    {/* Selected Metrics */}
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <h3 className="text-lg font-semibold text-slate-900">
-                          Métricas Selecionadas ({localSelectedMetrics.length}/{MAX_METRICS})
-                        </h3>
-                      </div>
-
-                      {selectedMetricsData.length > 0 ? (
-                        <div className="space-y-2">
-                          {selectedMetricsData.map((metric, index) => {
-                            const metricKey = metric.key;
-                            return (
-                              <div
-                                key={metricKey}
-                                className="flex items-center gap-3 p-3 border border-slate-200 rounded-2xl bg-white hover:bg-slate-50 transition-colors no-zoom"
-                              >
-                                <div className="flex items-center gap-2 text-slate-400">
-                                  <GripVertical className="h-4 w-4" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <div className="font-medium text-slate-900">{metric.label}</div>
-                                  <div className="text-xs text-slate-500 truncate">
-                                    {metric.unit === 'currency' && 'Valor monetário'}
-                                    {metric.unit === 'int' && 'Número inteiro'}
-                                    {metric.unit === 'percent' && 'Percentual'}
-                                    {metric.unit === 'decimal' && 'Número decimal'}
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-1">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleRemoveMetric(metricKey)}
-                                    className="h-8 w-8 p-0 text-slate-400 hover:text-red-500 hover:bg-red-50 no-zoom"
-                                    aria-label={`Remover ${metric.label}`}
-                                  >
-                                    <X className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <div className="text-center py-8 text-slate-400 bg-slate-50 rounded-2xl">
-                          Nenhuma métrica selecionada
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Available Metrics */}
-                    <div className="space-y-3">
-                      <h3 className="text-lg font-semibold text-slate-900">Métricas Disponíveis</h3>
-                      {unselectedMetrics.length > 0 ? (
-                        <div className="flex flex-wrap gap-2">
-                          {unselectedMetrics.map((metric) => {
-                            const disabled = localSelectedMetrics.length >= MAX_METRICS;
-                            return (
-                              <Button
-                                key={metric.key}
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                aria-pressed={false}
-                                disabled={disabled}
-                                onClick={() => !disabled && handleMetricToggle(metric.key, true)}
-                                className={`rounded-full border-slate-200 text-xs px-3 py-1 no-zoom ${
-                                  disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-slate-50'
-                                }`}
-                              >
-                                {metric.label}
-                              </Button>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <div className="text-center py-6 text-slate-400">
-                          {searchQuery ? 'Nenhuma métrica encontrada para a busca' : 'Todas as métricas já foram selecionadas'}
-                        </div>
-                      )}
-                      
-                      {localSelectedMetrics.length >= MAX_METRICS && unselectedMetrics.length > 0 && (
-                        <p className="text-xs text-slate-500 text-center bg-amber-50 border border-amber-200 rounded-xl p-3">
-                          ⚠️ Limite de {MAX_METRICS} métricas atingido. Remova uma métrica selecionada para adicionar outras.
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </TabsContent>
-
                 <TabsContent value="funnel" forceMount className={activeTab === 'funnel' ? '' : 'hidden'}>
                   <div className="flex flex-col gap-4">
             {/* Controles + lista de estágios (pode crescer, mas rola no BODY) */}
@@ -321,6 +216,14 @@ export function CustomizeModal({
                   <div className="text-center py-12 text-slate-400">
                     <div className="text-lg mb-2">🎨</div>
                     <div className="text-sm">Configurações de layout</div>
+                    <div className="text-xs mt-1">Em breve...</div>
+                  </div>
+                </TabsContent>
+                
+                <TabsContent value="advanced" forceMount className={activeTab === 'advanced' ? '' : 'hidden'}>
+                  <div className="text-center py-12 text-slate-400">
+                    <div className="text-lg mb-2">⚙️</div>
+                    <div className="text-sm">Configurações avançadas</div>
                     <div className="text-xs mt-1">Em breve...</div>
                   </div>
                 </TabsContent>

@@ -147,7 +147,7 @@ export function ClientOverview() {
             <div className="flex items-center gap-3">
               <Button variant="outline" onClick={() => setShowCustomizeModal(true)} className="gap-2">
                 <Settings className="h-4 w-4" />
-                Personalizar
+                Personalizar Métricas
               </Button>
               <Button variant="outline" onClick={() => setShowOptimizationsModal(true)} className="gap-2">
                 <Target className="h-4 w-4" />
