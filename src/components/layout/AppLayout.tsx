@@ -1,11 +1,16 @@
-import { AppSidebar } from "@/components/layout/AppSidebar";
+import { SidebarGlobal } from "@/components/layout/SidebarGlobal";
+import { SidebarCliente } from "@/components/layout/SidebarCliente";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import { useLocation } from "react-router-dom";
 
 interface AppLayoutProps {
   children: React.ReactNode;
 }
 
 export function AppLayout({ children }: AppLayoutProps) {
+  const location = useLocation();
+  const isClientRoute = location.pathname.startsWith('/cliente/');
+
   return (
     <>
       {/* Global header with trigger */}
@@ -19,7 +24,7 @@ export function AppLayout({ children }: AppLayoutProps) {
       </header>
 
       <div className="flex flex-1">
-        <AppSidebar />
+        {isClientRoute ? <SidebarCliente /> : <SidebarGlobal />}
         <main className="flex-1 overflow-hidden px-6 py-6">
           <div className="w-full">
             {children}
