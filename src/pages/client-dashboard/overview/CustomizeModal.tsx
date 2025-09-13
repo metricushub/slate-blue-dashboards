@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { ChevronUp, ChevronDown, X, Search, GripVertical, Plus, Trash2 } from "lucide-react";
 import { ModalFrameV2 } from "./ModalFrameV2";
 import { METRICS, MetricKey, DEFAULT_SELECTED_METRICS } from "@/shared/types/metrics";
@@ -189,6 +190,82 @@ export function CustomizeModal({
       </div>
     </>
   );
+
+  // Use fixed height structure for funnel tab
+  if (activeTab === 'funnel') {
+    return (
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent 
+          className="mx-auto w-full max-w-3xl p-0 bg-white border border-border rounded-2xl shadow-xl"
+          aria-describedby={undefined}
+        >
+          {/* ALTURA FIXA DO MODAL */}
+          <div className="flex h-[72vh] min-h-[560px] max-h-[85vh] flex-col bg-white rounded-2xl">
+            {/* Header fixo */}
+            <div className="shrink-0 sticky top-0 z-10 border-b bg-white px-5 py-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-semibold text-foreground">Personalizar Dashboard</h2>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onClose}
+                  className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                  aria-label="Fechar modal"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+              
+              {/* Tabs Header */}
+              <div className="mt-4">
+                <TabsList className="grid w-full grid-cols-4 bg-slate-100 rounded-2xl p-1">
+                  <TabsTrigger value="metrics" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                    Métricas
+                  </TabsTrigger>
+                  <TabsTrigger value="funnel" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                    Funil
+                  </TabsTrigger>
+                  <TabsTrigger value="layout" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                    Layout
+                  </TabsTrigger>
+                  <TabsTrigger value="advanced" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                    Avançado
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+            </div>
+
+            {/* Body rolável — o ponto crítico: flex-1 + min-h-0 */}
+            <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4 [overflow-anchor:none]">
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                <TabsContent value="funnel" className="mt-0 space-y-6">
+                  <FunnelStageManager clientId={clientId} />
+                </TabsContent>
+              </Tabs>
+            </div>
+
+            {/* Footer fixo */}
+            <div className="shrink-0 sticky bottom-0 z-10 border-t bg-white px-5 py-3 flex justify-end gap-2">
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={handleReset}>
+                  Restaurar Padrão
+                </Button>
+              </div>
+              
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={onClose}>
+                  Cancelar
+                </Button>
+                <Button onClick={handleSave}>
+                  Salvar
+                </Button>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <ModalFrameV2
@@ -557,6 +634,7 @@ function FunnelStageManager({ clientId }: { clientId: string }) {
               variant={funnelPrefs.mode === 'Detalhado' ? 'default' : 'outline'}
               size="sm"
               onClick={() => handleUpdateFunnelPrefs({ mode: 'Detalhado' })}
+              className="transition-none" // Disable height animation
             >
               Detalhado
             </Button>
@@ -565,6 +643,7 @@ function FunnelStageManager({ clientId }: { clientId: string }) {
               variant={funnelPrefs.mode === 'Compacto' ? 'default' : 'outline'}
               size="sm"
               onClick={() => handleUpdateFunnelPrefs({ mode: 'Compacto' })}
+              className="transition-none" // Disable height animation
             >
               Compacto
             </Button>
@@ -705,6 +784,33 @@ function FunnelStageManager({ clientId }: { clientId: string }) {
             ℹ️ Máximo de 8 estágios atingido.
           </p>
         )}
+      </div>
+
+      {/* Funnel Preview with fixed min-height */}
+      <div className="border-t pt-6">
+        <label className="text-sm font-medium text-slate-700 mb-3 block">
+          Prévia do Funil
+        </label>
+        <div className="min-h-[200px] p-4 bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl border border-slate-200">
+          <div className="space-y-3">
+            {funnelPrefs.stages.map((stage, index) => (
+              <div key={stage.id} className="flex items-center gap-3">
+                <div 
+                  className="h-8 rounded-md flex items-center justify-center text-xs font-medium text-white min-w-[120px]"
+                  style={{ 
+                    background: `linear-gradient(135deg, #3b82f6, #1d4ed8)`,
+                    width: `${Math.max(30, 100 - (index * 12))}%`
+                  }}
+                >
+                  {stage.label}
+                </div>
+                <div className="text-xs text-slate-500 flex-1">
+                  {AVAILABLE_METRICS.find(m => m.value === stage.metric)?.label}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
