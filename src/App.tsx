@@ -7,7 +7,7 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppLayout } from "@/components/layout/AppLayout";
 
 // Pages
-import RadarDoDia from "./pages/Home/RadarDoDia";
+import HomePage from "./pages/Home/HomePage";
 import ClientsPage from "./pages/ClientsPage";
 import LeadsPage from "./pages/LeadsPage";
 import OptimizationsPage from "./pages/OptimizationsPage";
@@ -49,7 +49,7 @@ const App = () => (
             <AppLayout>
               <Routes>
                 {/* Global Routes */}
-                <Route path="/" element={<RadarDoDia />} />
+                <Route path="/" element={<HomePage />} />
                 <Route path="/clientes" element={<ClientsPage />} />
                 <Route path="/leads" element={<LeadsPage />} />
                 <Route path="/tarefas-anotacoes" element={<TarefasAnotacoesWip />} />
