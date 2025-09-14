@@ -2,8 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Search, Plus, AlertTriangle, TrendingUp, Users, Clock, Target } from "lucide-react";
+import { Search, Plus, AlertTriangle, Users, Clock, Target } from "lucide-react";
 import { useDataSource } from "@/hooks/useDataSource";
 import { Client } from "@/types";
 import { ClientCard } from "@/components/home/ClientCard";
@@ -18,6 +17,8 @@ const ClientsPage = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [ownerFilter, setOwnerFilter] = useState<string>("all");
+  const [stageFilter, setStageFilter] = useState<string>("all");
+  const [orderBy, setOrderBy] = useState<string>("name_asc");
   const [showRegistrationModal, setShowRegistrationModal] = useState(false);
 
   const loadClients = async () => {
@@ -60,8 +61,31 @@ const ClientsPage = () => {
       filtered = filtered.filter(client => client.owner === ownerFilter);
     }
 
-    setFilteredClients(filtered);
-  }, [clients, searchQuery, statusFilter, ownerFilter]);
+    if (stageFilter !== "all") {
+      filtered = filtered.filter(client => client.stage === stageFilter);
+    }
+
+    // Sorting
+    const sorted = [...filtered].sort((a, b) => {
+      switch (orderBy) {
+        case 'name_desc':
+          return b.name.localeCompare(a.name);
+        case 'budget_desc':
+          return (b.monthlyBudget || 0) - (a.monthlyBudget || 0);
+        case 'budget_asc':
+          return (a.monthlyBudget || 0) - (b.monthlyBudget || 0);
+        case 'lastUpdate_desc':
+          return new Date(b.lastUpdate).getTime() - new Date(a.lastUpdate).getTime();
+        case 'lastUpdate_asc':
+          return new Date(a.lastUpdate).getTime() - new Date(b.lastUpdate).getTime();
+        case 'name_asc':
+        default:
+          return a.name.localeCompare(b.name);
+      }
+    });
+
+    setFilteredClients(sorted);
+  }, [clients, searchQuery, statusFilter, ownerFilter, stageFilter, orderBy]);
 
   const kpiData = {
     active: clients.filter(c => c.status === 'active').length,
@@ -75,6 +99,7 @@ const ClientsPage = () => {
     .reduce((sum, client) => sum + client.monthlyBudget, 0);
 
   const uniqueOwners = [...new Set(clients.map(c => c.owner))];
+  const uniqueStages = [...new Set(clients.map(c => c.stage))];
 
   const handleClientRegistered = async (client: Client) => {
     try {
@@ -124,6 +149,7 @@ const ClientsPage = () => {
           <p className="text-muted-foreground">
             Gerencie todos os seus clientes e acompanhe performance
           </p>
+          <p className="text-sm text-muted-foreground mt-1">{kpiData.total} clientes</p>
         </div>
         <Button onClick={() => setShowRegistrationModal(true)}>
           <Plus className="h-4 w-4 mr-2" />
@@ -222,7 +248,7 @@ const ClientsPage = () => {
           />
         </div>
         
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
@@ -244,6 +270,30 @@ const ClientsPage = () => {
             {uniqueOwners.map(owner => (
               <option key={owner} value={owner}>{owner}</option>
             ))}
+          </select>
+
+          <select
+            value={stageFilter}
+            onChange={(e) => setStageFilter(e.target.value)}
+            className="px-3 py-2 border rounded-md text-sm"
+          >
+            <option value="all">Todos os estágios</option>
+            {uniqueStages.map(stage => (
+              <option key={stage} value={stage}>{stage}</option>
+            ))}
+          </select>
+
+          <select
+            value={orderBy}
+            onChange={(e) => setOrderBy(e.target.value)}
+            className="px-3 py-2 border rounded-md text-sm"
+          >
+            <option value="name_asc">A-Z</option>
+            <option value="name_desc">Z-A</option>
+            <option value="budget_desc">Maior orçamento</option>
+            <option value="budget_asc">Menor orçamento</option>
+            <option value="lastUpdate_desc">Mais recente</option>
+            <option value="lastUpdate_asc">Mais antigo</option>
           </select>
         </div>
       </div>
