@@ -12,6 +12,7 @@ import { taskOperations, noteOperations, dashboardDb } from "@/shared/db/dashboa
 import { NewTaskModal } from "@/components/modals/NewTaskModal";
 import { NewNoteModal } from "@/components/modals/NewNoteModal";
 import { BulkAddTasksModal } from "@/components/modals/BulkAddTasksModal";
+import { TaskEditDrawer } from '@/components/modals/TaskEditDrawer';
 import { TaskDashboardCards } from "@/components/dashboard/TaskDashboardCards";
 import { TaskAlertsBanner } from "@/components/dashboard/TaskAlertsBanner";
 import { TaskKanban } from "@/components/dashboard/TaskKanban";
@@ -51,6 +52,7 @@ export default function TarefasAnotacoesPage() {
   const [showNewTaskModal, setShowNewTaskModal] = useState(false);
   const [showNewNoteModal, setShowNewNoteModal] = useState(false);
   const [showBulkAddModal, setShowBulkAddModal] = useState(false);
+  const [showEditTaskDrawer, setShowEditTaskDrawer] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [editingNote, setEditingNote] = useState<Note | null>(null);
   
@@ -329,6 +331,57 @@ export default function TarefasAnotacoesPage() {
     }
   };
 
+  // Edit task handlers
+  const handleTaskClick = (task: Task) => {
+    setEditingTask(task);
+    setShowEditTaskDrawer(true);
+  };
+
+  const handleEditTask = async (taskId: string, updates: Partial<Task>) => {
+    try {
+      await taskOperations.update(taskId, updates);
+      await loadAllData();
+      toast({
+        title: "Tarefa atualizada",
+        description: "Tarefa atualizada com sucesso"
+      });
+    } catch (error) {
+      console.error('Erro ao atualizar tarefa:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao atualizar tarefa",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleDuplicateTask = async (task: Task) => {
+    try {
+      const duplicatedTask = {
+        title: `${task.title} (cópia)`,
+        description: task.description,
+        status: task.status,
+        priority: task.priority,
+        due_date: task.due_date,
+        client_id: task.client_id,
+        owner: task.owner,
+      };
+      await taskOperations.create(duplicatedTask);
+      await loadAllData();
+      toast({
+        title: "Tarefa duplicada",
+        description: "Tarefa duplicada com sucesso"
+      });
+    } catch (error) {
+      console.error('Erro ao duplicar tarefa:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao duplicar tarefa",
+        variant: "destructive"
+      });
+    }
+  };
+
   // Utility functions
   const getClientName = (clientId?: string) => {
     if (!clientId) return null;
@@ -474,11 +527,12 @@ export default function TarefasAnotacoesPage() {
           />
           
           {/* Kanban */}
-          <TaskKanban 
-            tasks={filteredTasks}
-            onTaskMove={handleTaskMove}
-            clients={clients}
-          />
+              <TaskKanban 
+                tasks={filteredTasks} 
+                onTaskMove={handleTaskMove}
+                onTaskClick={handleTaskClick}
+                clients={clients}
+              />
         </TabsContent>
 
         {/* Notes Tab */}
@@ -635,6 +689,17 @@ export default function TarefasAnotacoesPage() {
         open={showBulkAddModal}
         onOpenChange={setShowBulkAddModal}
         onTasksCreated={handleCreateTasksBulk}
+      />
+
+      {/* Edit Task Drawer */}
+      <TaskEditDrawer
+        open={showEditTaskDrawer}
+        onOpenChange={setShowEditTaskDrawer}
+        task={editingTask}
+        onSave={handleEditTask}
+        onDelete={handleDeleteTask}
+        onDuplicate={handleDuplicateTask}
+        clients={clients}
       />
     </div>
   );

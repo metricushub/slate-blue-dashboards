@@ -23,6 +23,7 @@ import {
 interface TaskKanbanProps {
   tasks: Task[];
   onTaskMove: (taskId: string, newStatus: TaskStatus, shouldArchive?: boolean) => void;
+  onTaskClick?: (task: Task) => void;
   clients: any[];
 }
 
@@ -37,9 +38,10 @@ const KANBAN_COLUMNS = [
 interface SortableTaskCardProps {
   task: Task;
   clients: any[];
+  onTaskClick?: (task: Task) => void;
 }
 
-function SortableTaskCard({ task, clients }: SortableTaskCardProps) {
+function SortableTaskCard({ task, clients, onTaskClick }: SortableTaskCardProps) {
   const {
     attributes,
     listeners,
@@ -73,17 +75,28 @@ function SortableTaskCard({ task, clients }: SortableTaskCardProps) {
   const today = new Date().toISOString().split('T')[0];
   const isOverdue = task.due_date && task.due_date < today && task.status !== 'Concluída';
 
+  const handleTitleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    onTaskClick?.(task);
+  };
+
   return (
     <div
       ref={setNodeRef}
       style={style}
       {...attributes}
-      {...listeners}
-      className="cursor-grab active:cursor-grabbing"
+      className="mb-3"
     >
-      <Card className={`mb-3 ${isOverdue ? 'border-red-300 bg-red-50/50' : ''}`}>
+      <Card className={`${isOverdue ? 'border-red-300 bg-red-50/50' : ''}`}>
         <CardContent className="p-3 space-y-2">
-          <h4 className="font-medium text-sm leading-tight">{task.title}</h4>
+          <h4 
+            className="font-medium text-sm leading-tight cursor-pointer hover:text-primary transition-colors"
+            onClick={handleTitleClick}
+            {...listeners}
+          >
+            {task.title}
+          </h4>
           
           {task.description && (
             <p className="text-xs text-muted-foreground line-clamp-2">{task.description}</p>
@@ -123,7 +136,7 @@ function SortableTaskCard({ task, clients }: SortableTaskCardProps) {
   );
 }
 
-export function TaskKanban({ tasks, onTaskMove, clients }: TaskKanbanProps) {
+export function TaskKanban({ tasks, onTaskMove, onTaskClick, clients }: TaskKanbanProps) {
   const [showArchived, setShowArchived] = useState(false);
   const [archivedPage, setArchivedPage] = useState(1);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
@@ -253,6 +266,7 @@ export function TaskKanban({ tasks, onTaskMove, clients }: TaskKanbanProps) {
                             key={task.id}
                             task={task}
                             clients={clients}
+                            onTaskClick={onTaskClick}
                           />
                         ))
                       )}
