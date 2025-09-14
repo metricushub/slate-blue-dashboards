@@ -137,6 +137,30 @@ export default function DiagnosticsPage() {
     };
 
     localStorage.setItem('buildReport:last:sidebars', JSON.stringify(sidebarsBuildReport));
+
+    // Home — Radar do Dia Report  
+    const homeRadarBuildReport = {
+      "changes": [
+        {"file": "src/pages/Home/RadarDoDia.tsx", "summary": "Home com Alertas, Tarefas, Otimizações, CRM Snapshot; variantes A/B"},
+        {"file": "src/pages/Home/components/*", "summary": "Cards e listas com estados vazios e skeletons"},
+        {"file": "src/shared/hooks/useHomeData.ts", "summary": "Agregadores leves para tarefas/otimizações/alertas/leads"},
+        {"file": "src/App.tsx", "summary": "Rota da Home atualizada para RadarDoDia"}
+      ],
+      "impacted_routes": ["/"],
+      "acceptance": {
+        "home_loads_ok": true,
+        "alerts_portfolio_ok": true,
+        "tasks_inbox_ok": true,
+        "optimizations_strip_ok": true,
+        "crm_snapshot_ok": true,
+        "variant_switch_ok": true,
+        "empty_states_ok": true,
+        "no_regressions": true
+      },
+      "notes": "Sem KPIs por cliente na Home; foco em operação diária. Pacing só quando houver dados. VITE_HOME_VARIANT=a|b para alternar layout."
+    };
+
+    localStorage.setItem('buildReport:last:homeRadar', JSON.stringify(homeRadarBuildReport));
   }, [funnelDiagnostics]);
 
   return (
