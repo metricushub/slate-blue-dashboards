@@ -5,11 +5,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useDataSource } from "@/hooks/useDataSource";
 import { Task, TaskPriority, TaskStatus } from "@/types";
 import { taskOperations } from "@/shared/db/dashboardStore";
-import { Calendar, Flag, Hash, Plus, Eye, X } from "lucide-react";
+import { Calendar, Flag, Hash, Plus, Eye, X, CalendarDays } from "lucide-react";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 interface ParsedTask {
   title: string;
@@ -17,6 +22,12 @@ interface ParsedTask {
   priority?: TaskPriority;
   tags?: string[];
   client_id?: string;
+}
+
+interface TaskWithDate extends ParsedTask {
+  index: number;
+  individualDate?: Date;
+  hasDateError?: boolean;
 }
 
 interface BulkAddTasksModalProps {
@@ -34,6 +45,9 @@ export function BulkAddTasksModal({ open, onOpenChange, onTasksCreated }: BulkAd
   const [defaultClient, setDefaultClient] = useState<string>('');
   const [clients, setClients] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [defaultDate, setDefaultDate] = useState<Date>();
+  const [showIndividualDates, setShowIndividualDates] = useState(false);
+  const [tasksWithDates, setTasksWithDates] = useState<TaskWithDate[]>([]);
 
   React.useEffect(() => {
     if (open) {
@@ -56,7 +70,7 @@ export function BulkAddTasksModal({ open, onOpenChange, onTasksCreated }: BulkAd
     const lines = inputText.split('\n').filter(line => line.trim());
     const tasks: ParsedTask[] = [];
 
-    lines.forEach(line => {
+    lines.forEach((line, index) => {
       const trimmed = line.trim();
       if (!trimmed) return;
 
@@ -65,27 +79,62 @@ export function BulkAddTasksModal({ open, onOpenChange, onTasksCreated }: BulkAd
       let priority: TaskPriority | undefined;
       let tags: string[] = [];
 
-      // Parse @data (formato DD/MM/YYYY ou DD/MM)
-      const dateMatch = title.match(/@(\d{1,2}\/\d{1,2}(?:\/\d{4})?)/);
+      // Parse múltiplos formatos de data
+      let dateMatch: RegExpMatchArray | null = null;
+      
+      // Formato @YYYY-MM-DD
+      dateMatch = title.match(/@(\d{4}-\d{1,2}-\d{1,2})/);
       if (dateMatch) {
-        const dateStr = dateMatch[1];
-        let parsedDate = dateStr;
-        
-        // Add current year if not provided
-        if (!dateStr.includes('/')) {
-          // Just day/month
-          const currentYear = new Date().getFullYear();
-          parsedDate = `${dateStr}/${currentYear}`;
-        } else if (dateStr.split('/').length === 2) {
-          // Day/month without year
-          const currentYear = new Date().getFullYear();
-          parsedDate = `${dateStr}/${currentYear}`;
-        }
-        
-        // Convert to ISO format
-        const [day, month, year] = parsedDate.split('/');
-        due_date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day)).toISOString().split('T')[0];
+        due_date = dateMatch[1];
         title = title.replace(dateMatch[0], '').trim();
+      } else {
+        // Formato @DD/MM/YYYY ou @DD/MM
+        dateMatch = title.match(/@(\d{1,2}\/\d{1,2}(?:\/\d{4})?)/);
+        if (dateMatch) {
+          const dateStr = dateMatch[1];
+          let parsedDate = dateStr;
+          
+          if (dateStr.split('/').length === 2) {
+            const currentYear = new Date().getFullYear();
+            parsedDate = `${dateStr}/${currentYear}`;
+          }
+          
+          const [day, month, year] = parsedDate.split('/');
+          due_date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day)).toISOString().split('T')[0];
+          title = title.replace(dateMatch[0], '').trim();
+        } else {
+          // Formato | DD/MM
+          dateMatch = title.match(/\|\s*(\d{1,2}\/\d{1,2}(?:\/\d{4})?)/);
+          if (dateMatch) {
+            const dateStr = dateMatch[1];
+            let parsedDate = dateStr;
+            
+            if (dateStr.split('/').length === 2) {
+              const currentYear = new Date().getFullYear();
+              parsedDate = `${dateStr}/${currentYear}`;
+            }
+            
+            const [day, month, year] = parsedDate.split('/');
+            due_date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day)).toISOString().split('T')[0];
+            title = title.replace(dateMatch[0], '').trim();
+          } else {
+            // Formato (DD/MM)
+            dateMatch = title.match(/\((\d{1,2}\/\d{1,2}(?:\/\d{4})?)\)/);
+            if (dateMatch) {
+              const dateStr = dateMatch[1];
+              let parsedDate = dateStr;
+              
+              if (dateStr.split('/').length === 2) {
+                const currentYear = new Date().getFullYear();
+                parsedDate = `${dateStr}/${currentYear}`;
+              }
+              
+              const [day, month, year] = parsedDate.split('/');
+              due_date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day)).toISOString().split('T')[0];
+              title = title.replace(dateMatch[0], '').trim();
+            }
+          }
+        }
       }
 
       // Parse !prioridade
@@ -115,6 +164,13 @@ export function BulkAddTasksModal({ open, onOpenChange, onTasksCreated }: BulkAd
     });
 
     setParsedTasks(tasks);
+    
+    // Update tasksWithDates when tasks change
+    setTasksWithDates(tasks.map((task, index) => ({
+      ...task,
+      index,
+      individualDate: task.due_date ? new Date(task.due_date) : defaultDate
+    })));
   };
 
   React.useEffect(() => {
@@ -122,24 +178,77 @@ export function BulkAddTasksModal({ open, onOpenChange, onTasksCreated }: BulkAd
       parseInput();
     } else {
       setParsedTasks([]);
+      setTasksWithDates([]);
     }
-  }, [inputText, defaultClient]);
+  }, [inputText, defaultClient, defaultDate]);
+
+  const toggleIndividualDates = () => {
+    setShowIndividualDates(!showIndividualDates);
+    if (!showIndividualDates) {
+      // Initialize with default date or parsed dates
+      setTasksWithDates(parsedTasks.map((task, index) => ({
+        ...task,
+        index,
+        individualDate: task.due_date ? new Date(task.due_date) : defaultDate
+      })));
+    }
+  };
+
+  const updateIndividualDate = (taskIndex: number, date: Date | undefined) => {
+    setTasksWithDates(prev => prev.map(task => 
+      task.index === taskIndex ? { 
+        ...task, 
+        individualDate: date,
+        hasDateError: false
+      } : task
+    ));
+  };
+
+  const validateDates = () => {
+    if (!showIndividualDates) return true;
+    
+    const hasErrors = tasksWithDates.some(task => {
+      if (task.individualDate) {
+        return isNaN(task.individualDate.getTime());
+      }
+      return false;
+    });
+    
+    return !hasErrors;
+  };
 
   const handleCreateTasks = async () => {
-    if (parsedTasks.length === 0) return;
+    if (parsedTasks.length === 0 || !validateDates()) return;
 
     setLoading(true);
     try {
       const createdTasks: Task[] = [];
       
-      for (const parsedTask of parsedTasks) {
+      for (let i = 0; i < parsedTasks.length; i++) {
+        const parsedTask = parsedTasks[i];
+        let finalDueDate: string | undefined;
+
+        if (showIndividualDates) {
+          const taskWithDate = tasksWithDates.find(t => t.index === i);
+          if (taskWithDate?.individualDate) {
+            finalDueDate = taskWithDate.individualDate.toISOString().split('T')[0];
+          }
+        } else {
+          // Use parsed date first, then default date, then none
+          if (parsedTask.due_date) {
+            finalDueDate = parsedTask.due_date;
+          } else if (defaultDate) {
+            finalDueDate = defaultDate.toISOString().split('T')[0];
+          }
+        }
+        
         const taskData = {
           title: parsedTask.title,
           description: parsedTask.tags?.length ? `Tags: ${parsedTask.tags.join(', ')}` : undefined,
           client_id: parsedTask.client_id,
           status: 'Aberta' as TaskStatus,
           priority: parsedTask.priority || 'Média' as TaskPriority,
-          due_date: parsedTask.due_date
+          due_date: finalDueDate
         };
         
         const newTask = await taskOperations.create(taskData);
@@ -156,6 +265,9 @@ export function BulkAddTasksModal({ open, onOpenChange, onTasksCreated }: BulkAd
       // Reset form
       setInputText('');
       setParsedTasks([]);
+      setTasksWithDates([]);
+      setDefaultDate(undefined);
+      setShowIndividualDates(false);
       onOpenChange(false);
     } catch (error) {
       toast({
@@ -207,20 +319,70 @@ export function BulkAddTasksModal({ open, onOpenChange, onTasksCreated }: BulkAd
               </Select>
             </div>
 
-            <div className="flex-1 flex flex-col">
+            <div>
               <label className="text-sm font-medium mb-2 block">
-                Tarefas (uma por linha)
+                Data Padrão (opcional)
               </label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !defaultDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarDays className="mr-2 h-4 w-4" />
+                    {defaultDate ? format(defaultDate, "dd/MM/yyyy") : "Selecionar data padrão..."}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={defaultDate}
+                    onSelect={setDefaultDate}
+                    initialFocus
+                    className="p-3 pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+              {defaultDate && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setDefaultDate(undefined)}
+                  className="mt-1 h-auto p-1 text-xs text-muted-foreground"
+                >
+                  Limpar data padrão
+                </Button>
+              )}
+            </div>
+
+            <div className="flex-1 flex flex-col">
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-sm font-medium">
+                  Tarefas (uma por linha)
+                </label>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={toggleIndividualDates}
+                  disabled={parsedTasks.length === 0}
+                >
+                  {showIndividualDates ? 'Ocultar' : 'Definir'} datas por linha
+                </Button>
+              </div>
               <Textarea
                 placeholder={`Digite suas tarefas, uma por linha:
 
-Revisar campanhas de Black Friday @25/11 !alta #marketing
-Configurar tracking #analytics
-Otimizar landing pages !média
+Revisar campanhas | 25/11 !alta #marketing
+Configurar tracking (20/12) #analytics
+Otimizar landing @2024-12-15 !média
 Análise de concorrência @30/11 #pesquisa
 
-Formato:
-@DD/MM ou @DD/MM/YYYY = data
+Formatos de data suportados:
+@DD/MM, @DD/MM/YYYY, @YYYY-MM-DD
+| DD/MM, (DD/MM)
 !alta, !média, !baixa = prioridade
 #tag = tags`}
                 value={inputText}
@@ -235,7 +397,7 @@ Formato:
             <div className="flex items-center gap-2 mb-2">
               <Eye className="h-4 w-4" />
               <span className="text-sm font-medium">
-                Preview ({parsedTasks.length} tarefa(s))
+                {showIndividualDates ? 'Datas por Tarefa' : `Preview (${parsedTasks.length} tarefa(s))`}
               </span>
             </div>
             
@@ -244,7 +406,42 @@ Formato:
                 <div className="text-center text-muted-foreground py-8">
                   <Plus className="h-8 w-8 mx-auto mb-2 opacity-50" />
                   <p className="text-sm">Digite tarefas à esquerda</p>
-                  <p className="text-xs">Use @data, !prioridade, #tags</p>
+                  <p className="text-xs">Use formatos de data: @DD/MM, | DD/MM, (DD/MM), @YYYY-MM-DD</p>
+                </div>
+              ) : showIndividualDates ? (
+                <div className="space-y-3">
+                  {tasksWithDates.map((task) => (
+                    <div key={task.index} className="grid grid-cols-2 gap-2 items-center p-2 border rounded">
+                      <div className="text-sm font-medium truncate" title={task.title}>
+                        {task.title}
+                      </div>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className={cn(
+                              "justify-start text-left font-normal w-full",
+                              !task.individualDate && "text-muted-foreground",
+                              task.hasDateError && "border-destructive"
+                            )}
+                          >
+                            <CalendarDays className="mr-1 h-3 w-3" />
+                            {task.individualDate ? format(task.individualDate, "dd/MM") : "Sem data"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <CalendarComponent
+                            mode="single"
+                            selected={task.individualDate}
+                            onSelect={(date) => updateIndividualDate(task.index, date)}
+                            initialFocus
+                            className="p-3 pointer-events-auto"
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  ))}
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -263,10 +460,13 @@ Formato:
                         <div className="font-medium text-sm mb-2">{task.title}</div>
                         
                         <div className="flex flex-wrap gap-1 text-xs">
-                          {task.due_date && (
+                          {(task.due_date || defaultDate) && (
                             <Badge variant="outline" className="gap-1">
                               <Calendar className="h-3 w-3" />
-                              {new Date(task.due_date).toLocaleDateString('pt-BR')}
+                              {task.due_date ? 
+                                new Date(task.due_date).toLocaleDateString('pt-BR') : 
+                                defaultDate ? format(defaultDate, "dd/MM/yyyy") + " (padrão)" : ''
+                              }
                             </Badge>
                           )}
                           
@@ -320,7 +520,7 @@ Formato:
             </Button>
             <Button 
               onClick={handleCreateTasks}
-              disabled={parsedTasks.length === 0 || loading}
+              disabled={parsedTasks.length === 0 || loading || !validateDates()}
             >
               {loading ? 'Criando...' : `Criar ${parsedTasks.length} Tarefa(s)`}
             </Button>
