@@ -114,14 +114,14 @@ export function LeadFilters({ filters, onFiltersChange, leads }: LeadFiltersProp
             <div className="space-y-2">
               <Label htmlFor="owner-filter" className="text-sm font-medium">Proprietário</Label>
               <Select
-                value={filters.owner}
-                onValueChange={handleOwnerChange}
+                value={filters.owner || "all"}
+                onValueChange={(value) => handleOwnerChange(value === "all" ? "" : value)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Todos os proprietários" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos os proprietários</SelectItem>
+                  <SelectItem value="all">Todos os proprietários</SelectItem>
                   {uniqueOwners.map(owner => (
                     <SelectItem key={owner} value={owner!}>
                       {owner}

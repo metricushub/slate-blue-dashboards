@@ -268,14 +268,14 @@ export function LeadDrawer({ open, onOpenChange, lead, onSave, onDelete }: LeadD
                 <div>
                   <Label htmlFor="client_id">Cliente</Label>
                   <Select
-                    value={formData.client_id}
-                    onValueChange={(value) => handleInputChange('client_id', value)}
+                    value={formData.client_id || "none"}
+                    onValueChange={(value) => handleInputChange('client_id', value === "none" ? "" : value)}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecionar cliente" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Nenhum cliente</SelectItem>
+                      <SelectItem value="none">Nenhum cliente</SelectItem>
                       {clients.map(client => (
                         <SelectItem key={client.id} value={client.id}>
                           {client.name}
