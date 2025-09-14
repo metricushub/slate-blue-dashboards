@@ -12,6 +12,7 @@ import { taskOperations, noteOperations, dashboardDb } from "@/shared/db/dashboa
 import { NewTaskModal } from "@/components/modals/NewTaskModal";
 import { NewNoteModal } from "@/components/modals/NewNoteModal";
 import { BulkAddTasksModal } from "@/components/modals/BulkAddTasksModal";
+import { TaskEditModal } from "@/components/modals/TaskEditModal";
 import { TaskDashboardCards } from "@/components/dashboard/TaskDashboardCards";
 import { TaskAlertsBanner } from "@/components/dashboard/TaskAlertsBanner";
 import { TaskKanban } from "@/components/dashboard/TaskKanban";
@@ -66,21 +67,38 @@ export default function TarefasAnotacoesPage() {
   const loadAllData = async () => {
     setLoading(true);
     try {
-      // Load tasks from all clients
-      const allTasks = await dashboardDb.tasks.orderBy('created_at').reverse().toArray();
-      setTasks(allTasks);
-      
-      // Load notes
-      const allNotes = await noteOperations.getAll();
-      setNotes(allNotes);
-      
-      // Load clients if available
+      // Load clients first
+      let clientsData: any[] = [];
       if (dataSource) {
-        const clientsData = await dataSource.getClients();
+        clientsData = await dataSource.getClients();
         setClients(clientsData);
       }
+
+      // Load tasks from all clients
+      let allTasks: Task[] = [];
+      for (const client of clientsData) {
+        try {
+          const clientTasks = await taskOperations.getByClient(client.id);
+          allTasks = [...allTasks, ...clientTasks];
+        } catch (error) {
+          console.error(`Error loading tasks for client ${client.id}:`, error);
+        }
+      }
+      setTasks(allTasks);
+
+      // Load notes from all clients
+      let allNotes: Note[] = []; 
+      for (const client of clientsData) {
+        try {
+          const clientNotes = await noteOperations.getByClient(client.id);
+          allNotes = [...allNotes, ...clientNotes];
+        } catch (error) {
+          console.error(`Error loading notes for client ${client.id}:`, error);
+        }
+      }
+      setNotes(allNotes);
     } catch (error) {
-      console.error('Error loading data:', error);
+      console.error("Error loading data:", error);
       toast({
         title: "Erro",
         description: "Erro ao carregar dados",
@@ -92,10 +110,11 @@ export default function TarefasAnotacoesPage() {
   };
 
   // Task handlers
-  const handleCreateTask = async (taskData: Omit<Task, 'id' | 'created_at'>) => {
+  const handleCreateTask = async (taskData: Omit<Task, 'id' | 'created_at' | 'updated_at'>) => {
     try {
       const newTask = await taskOperations.create(taskData);
-      setTasks(prev => [newTask, ...prev]);
+      setTasks(prev => [...prev, newTask]);
+      setShowNewTaskModal(false);
       toast({
         title: "Tarefa criada",
         description: "Tarefa criada com sucesso"
@@ -109,16 +128,36 @@ export default function TarefasAnotacoesPage() {
     }
   };
 
-  const handleUpdateTask = async (taskData: Omit<Task, 'id' | 'created_at'>) => {
+  const handleCreateTasksBulk = async (tasksData: Omit<Task, 'id' | 'created_at' | 'updated_at'>[]) => {
+    try {
+      const newTasks = [];
+      for (const taskData of tasksData) {
+        const newTask = await taskOperations.create(taskData);
+        newTasks.push(newTask);
+      }
+      setTasks(prev => [...prev, ...newTasks]);
+      setShowBulkAddModal(false);
+      toast({
+        title: "Tarefas criadas",
+        description: `${newTasks.length} tarefa${newTasks.length !== 1 ? 's' : ''} criada${newTasks.length !== 1 ? 's' : ''} com sucesso`
+      });
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Erro ao criar tarefas",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleUpdateTask = async (taskData: Omit<Task, 'id' | 'created_at' | 'updated_at'>) => {
     if (!editingTask) return;
     
     try {
       await taskOperations.update(editingTask.id, taskData);
-      setTasks(prev => prev.map(t => 
-        t.id === editingTask.id 
-          ? { ...t, ...taskData, updated_at: new Date().toISOString() }
-          : t
-      ));
+      // Get the updated task
+      const updatedTask = { ...editingTask, ...taskData, updated_at: new Date().toISOString() };
+      setTasks(prev => prev.map(t => t.id === editingTask.id ? updatedTask : t));
       setEditingTask(null);
       toast({
         title: "Tarefa atualizada",
@@ -133,87 +172,22 @@ export default function TarefasAnotacoesPage() {
     }
   };
 
-  const handleCompleteTask = async (taskId: string) => {
-    try {
-      const now = new Date().toISOString();
-      await taskOperations.update(taskId, { 
-        status: 'Concluída',
-        completed_at: now,
-        updated_at: now
-      });
-      setTasks(prev => prev.map(t => 
-        t.id === taskId 
-          ? { ...t, status: 'Concluída' as TaskStatus, completed_at: now, updated_at: now }
-          : t
-      ));
-      toast({
-        title: "Tarefa concluída",
-        description: "Tarefa marcada como concluída"
-      });
-    } catch (error) {
-      toast({
-        title: "Erro",
-        description: "Erro ao concluir tarefa",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handlePostponeTask = async (taskId: string) => {
-    try {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const newDueDate = tomorrow.toISOString().split('T')[0];
-      
-      await taskOperations.update(taskId, { 
-        due_date: newDueDate,
-        updated_at: new Date().toISOString()
-      });
-      setTasks(prev => prev.map(t => 
-        t.id === taskId 
-          ? { ...t, due_date: newDueDate, updated_at: new Date().toISOString() }
-          : t
-      ));
-      toast({
-        title: "Tarefa adiada",
-        description: "Prazo adiado para amanhã"
-      });
-    } catch (error) {
-      toast({
-        title: "Erro",
-        description: "Erro ao adiar tarefa",
-        variant: "destructive"
-      });
-    }
-  };
-
   const handleTaskMove = async (taskId: string, newStatus: TaskStatus, shouldArchive?: boolean) => {
     try {
-      const now = new Date().toISOString();
-      const updates: Partial<Task> = {
-        status: newStatus,
-        updated_at: now
-      };
+      const task = tasks.find(t => t.id === taskId);
+      if (!task) return;
 
+      let updateData: Partial<Task>;
+      
       if (shouldArchive) {
-        updates.archived_at = now;
-      } else if (newStatus === 'Concluída') {
-        updates.completed_at = now;
+        updateData = { archived_at: new Date().toISOString() };
+      } else {
+        updateData = { status: newStatus };
       }
 
-      await taskOperations.update(taskId, updates);
-      setTasks(prev => prev.map(t => 
-        t.id === taskId ? { ...t, ...updates } : t
-      ));
-      
-      const action = shouldArchive ? 'arquivada' : 
-                    newStatus === 'Concluída' ? 'concluída' : 
-                    `movida para ${newStatus}`;
-      
-      toast({
-        title: "Tarefa atualizada",
-        description: `Tarefa ${action} com sucesso`
-      });
+      await taskOperations.update(taskId, updateData);
+      const updatedTask = { ...task, ...updateData, updated_at: new Date().toISOString() };
+      setTasks(prev => prev.map(t => t.id === taskId ? updatedTask : t));
     } catch (error) {
       toast({
         title: "Erro",
@@ -230,37 +204,25 @@ export default function TarefasAnotacoesPage() {
 
   const handleTaskSave = async (updatedTask: Task) => {
     try {
-      await taskOperations.update(updatedTask.id, {
-        title: updatedTask.title,
-        description: updatedTask.description,
-        due_date: updatedTask.due_date,
-        owner: updatedTask.owner,
-        priority: updatedTask.priority,
-        status: updatedTask.status,
-        client_id: updatedTask.client_id,
-        tags: updatedTask.tags,
-        updated_at: updatedTask.updated_at
-      });
-      
-      setTasks(prev => prev.map(t => 
-        t.id === updatedTask.id ? updatedTask : t
-      ));
-      
-      toast({
-        title: "Tarefa atualizada",
-        description: "Alterações salvas com sucesso"
-      });
-      
+      await taskOperations.update(updatedTask.id, updatedTask);
+      const saved = { ...updatedTask, updated_at: new Date().toISOString() };
+      setTasks(prev => prev.map(t => t.id === updatedTask.id ? saved : t));
       setShowTaskEditModal(false);
       setEditingTask(null);
+      toast({
+        title: "Tarefa atualizada",
+        description: "Tarefa atualizada com sucesso"
+      });
     } catch (error) {
       toast({
-        title: "Erro",
+        title: "Erro", 
         description: "Erro ao atualizar tarefa",
         variant: "destructive"
       });
     }
   };
+
+  const handleDeleteTask = async (taskId: string) => {
     try {
       await taskOperations.delete(taskId);
       setTasks(prev => prev.filter(t => t.id !== taskId));
@@ -277,19 +239,12 @@ export default function TarefasAnotacoesPage() {
     }
   };
 
-  const handleCreateTasksBulk = async (newTasks: Task[]) => {
-    setTasks(prev => [...newTasks, ...prev]);
-    toast({
-      title: "Tarefas criadas",
-      description: `${newTasks.length} tarefa(s) criada(s) em lote`
-    });
-  };
-
   // Note handlers
-  const handleCreateNote = async (noteData: Omit<Note, 'id' | 'created_at'>) => {
+  const handleCreateNote = async (noteData: Omit<Note, 'id' | 'created_at' | 'updated_at'>) => {
     try {
       const newNote = await noteOperations.create(noteData);
-      setNotes(prev => [newNote, ...prev]);
+      setNotes(prev => [...prev, newNote]);
+      setShowNewNoteModal(false);
       toast({
         title: "Anotação criada",
         description: "Anotação criada com sucesso"
@@ -303,16 +258,13 @@ export default function TarefasAnotacoesPage() {
     }
   };
 
-  const handleUpdateNote = async (noteData: Omit<Note, 'id' | 'created_at'>) => {
+  const handleUpdateNote = async (noteData: Omit<Note, 'id' | 'created_at' | 'updated_at'>) => {
     if (!editingNote) return;
     
     try {
       await noteOperations.update(editingNote.id, noteData);
-      setNotes(prev => prev.map(n => 
-        n.id === editingNote.id 
-          ? { ...n, ...noteData, updated_at: new Date().toISOString() }
-          : n
-      ));
+      const updatedNote = { ...editingNote, ...noteData, updated_at: new Date().toISOString() };
+      setNotes(prev => prev.map(n => n.id === editingNote.id ? updatedNote : n));
       setEditingNote(null);
       toast({
         title: "Anotação atualizada",
@@ -330,21 +282,19 @@ export default function TarefasAnotacoesPage() {
   const handlePinNote = async (noteId: string, pinned: boolean) => {
     try {
       await noteOperations.update(noteId, { pinned });
-      setNotes(prev => prev.map(n => 
-        n.id === noteId 
-          ? { ...n, pinned, updated_at: new Date().toISOString() }
-          : n
-      ));
+      const note = notes.find(n => n.id === noteId);
+      if (note) {
+        const updatedNote = { ...note, pinned, updated_at: new Date().toISOString() };
+        setNotes(prev => prev.map(n => n.id === noteId ? updatedNote : n));
+      }
       toast({
         title: pinned ? "Anotação fixada" : "Anotação desfixada",
         description: pinned ? "Anotação fixada no topo" : "Anotação removida do topo"
       });
-      // Reload to update order
-      loadAllData();
     } catch (error) {
       toast({
         title: "Erro",
-        description: "Erro ao fixar anotação",
+        description: "Erro ao atualizar anotação",
         variant: "destructive"
       });
     }
@@ -398,22 +348,22 @@ export default function TarefasAnotacoesPage() {
       if (filters.search && !task.title.toLowerCase().includes(filters.search.toLowerCase())) {
         return false;
       }
-      if (filters.status && task.status !== filters.status) {
+      if (filters.status && filters.status !== 'all' && (filters.status as string) !== '' && task.status !== filters.status) {
         return false;
       }
-      if (filters.priority && task.priority !== filters.priority) {
+      if (filters.priority && filters.priority !== 'all' && (filters.priority as string) !== '' && task.priority !== filters.priority) {
         return false;
       }
-      if (filters.client_id && task.client_id !== filters.client_id) {
+      if (filters.client_id && filters.client_id !== 'all' && task.client_id !== filters.client_id) {
         return false;
       }
-      if (filters.owner && task.owner !== filters.owner) {
+      if (filters.owner && filters.owner !== 'all' && task.owner !== filters.owner) {
         return false;
       }
-      if (filters.due_date_from && (!task.due_date || task.due_date < filters.due_date_from)) {
+      if (filters.due_date_from && task.due_date && task.due_date < filters.due_date_from) {
         return false;
       }
-      if (filters.due_date_to && (!task.due_date || task.due_date > filters.due_date_to)) {
+      if (filters.due_date_to && task.due_date && task.due_date > filters.due_date_to) {
         return false;
       }
       return true;
@@ -421,13 +371,12 @@ export default function TarefasAnotacoesPage() {
   };
 
   const filteredTasks = applyTaskFilters(tasks, taskFilters);
-  
-  // Filter notes
-  const filteredNotes = notes.filter(note => {
-    if (taskFilters.search && !note.title.toLowerCase().includes(taskFilters.search.toLowerCase())) {
-      return false;
-    }
-    return true;
+
+  // Sort notes (pinned first, then by date)
+  const sortedNotes = [...notes].sort((a, b) => {
+    if (a.pinned && !b.pinned) return -1;
+    if (!a.pinned && b.pinned) return 1;
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
   });
 
   if (loading) {
@@ -493,17 +442,24 @@ export default function TarefasAnotacoesPage() {
 
         {/* Tasks Tab */}
         <TabsContent value="tarefas" className="space-y-6">
-          {/* Dashboard Cards */}
-          <TaskDashboardCards tasks={filteredTasks} />
+          {/* Task Dashboard Cards */}
+          <TaskDashboardCards tasks={tasks} />
           
-          {/* Alerts Banner */}
+          {/* Task Alerts Banner */}
           <TaskAlertsBanner 
-            tasks={filteredTasks}
-            onCompleteTask={handleCompleteTask}
-            onPostponeTask={handlePostponeTask}
+            tasks={tasks} 
+            onCompleteTask={(taskId) => handleTaskMove(taskId, 'Concluída')}
+            onPostponeTask={(taskId) => {
+              const task = tasks.find(t => t.id === taskId);
+              if (task) {
+                const tomorrow = new Date();
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                handleTaskSave({ ...task, due_date: tomorrow.toISOString().split('T')[0] });
+              }
+            }}
           />
           
-          {/* Filters and Views */}
+          {/* Task Filters */}
           <TaskFiltersAndViews
             filters={taskFilters}
             onFiltersChange={setTaskFilters}
@@ -511,8 +467,8 @@ export default function TarefasAnotacoesPage() {
             tasks={tasks}
           />
           
-          {/* Kanban */}
-          <TaskKanban 
+          {/* Task Kanban */}
+          <TaskKanban
             tasks={filteredTasks}
             onTaskMove={handleTaskMove}
             onTaskEdit={handleTaskEdit}
@@ -521,55 +477,39 @@ export default function TarefasAnotacoesPage() {
         </TabsContent>
 
         {/* Notes Tab */}
-        <TabsContent value="anotacoes" className="space-y-4">
-          {/* Search for notes */}
-          <Card>
-            <CardContent className="p-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar anotações..."
-                  value={taskFilters.search || ''}
-                  onChange={(e) => setTaskFilters(prev => ({ ...prev, search: e.target.value }))}
-                  className="pl-10"
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Notes List */}
-          {filteredNotes.length === 0 ? (
-            <Card className="p-12 text-center">
-              <StickyNote className="h-16 w-16 mx-auto mb-4 text-muted-foreground/50" />
-              <h3 className="text-xl font-semibold mb-2">
-                {taskFilters.search ? "Nenhuma anotação encontrada" : "Nenhuma anotação ainda"}
-              </h3>
-              <p className="text-muted-foreground mb-6">
-                {taskFilters.search 
-                  ? "Tente ajustar os termos de busca"
-                  : "Crie sua primeira anotação para começar a documentar informações importantes"
-                }
-              </p>
-              {!taskFilters.search && (
+        <TabsContent value="anotacoes" className="space-y-6">
+          {sortedNotes.length === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+                <StickyNote className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                <h3 className="text-lg font-medium mb-2">Nenhuma anotação encontrada</h3>
+                <p className="text-muted-foreground mb-4">
+                  Comece criando sua primeira anotação
+                </p>
                 <Button onClick={() => setShowNewNoteModal(true)}>
                   <Plus className="h-4 w-4 mr-2" />
-                  Criar primeira anotação
+                  Nova Anotação
                 </Button>
-              )}
+              </CardContent>
             </Card>
           ) : (
-            <div className="grid gap-4">
-              {filteredNotes.map(note => (
-                <Card key={note.id} className={`p-4 ${note.pinned ? 'ring-2 ring-primary/20 bg-primary/5' : ''}`}>
-                  <div className="flex items-start justify-between">
+            <div className="space-y-4">
+              {sortedNotes.map(note => (
+                <Card key={note.id} className={`transition-colors hover:shadow-md ${note.pinned ? 'ring-2 ring-primary/20 bg-primary/5' : ''}`}>
+                  <div className="flex items-start gap-4 p-4">
                     <div className="flex-1 space-y-2">
-                      <div className="flex items-center gap-3">
-                        {note.pinned && <Pin className="h-4 w-4 text-primary" />}
-                        <h3 className="font-semibold">{note.title}</h3>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-medium">{note.title}</h3>
+                        {note.pinned && (
+                          <Badge variant="secondary" className="text-xs">
+                            <Pin className="h-3 w-3 mr-1" />
+                            Fixado
+                          </Badge>
+                        )}
                       </div>
                       
                       {note.content && (
-                        <div className="text-sm text-muted-foreground bg-muted/30 p-3 rounded-md whitespace-pre-wrap">
+                        <div className="text-sm text-muted-foreground">
                           {note.content.length > 200 
                             ? `${note.content.substring(0, 200)}...` 
                             : note.content
@@ -648,13 +588,6 @@ export default function TarefasAnotacoesPage() {
         open={showNewTaskModal}
         onOpenChange={setShowNewTaskModal}
         onSave={handleCreateTask}
-      />
-
-      <NewTaskModal
-        open={!!editingTask}
-        onOpenChange={(open) => !open && setEditingTask(null)}
-        onSave={handleUpdateTask}
-        initialData={editingTask || undefined}
       />
 
       <NewNoteModal
