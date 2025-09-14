@@ -182,14 +182,14 @@ export function TaskFiltersAndViews({
 
             {/* Status */}
             <Select 
-              value={filters.status || ''} 
-              onValueChange={(value) => onFiltersChange({ ...filters, status: value as TaskStatus })}
+              value={filters.status ?? 'all'} 
+              onValueChange={(value) => onFiltersChange({ ...filters, status: value === 'all' ? undefined : (value as TaskStatus) })}
             >
               <SelectTrigger className="w-40">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todos</SelectItem>
+                <SelectItem value="all">Todos</SelectItem>
                 <SelectItem value="Aberta">Aberta</SelectItem>
                 <SelectItem value="Em progresso">Em progresso</SelectItem>
                 <SelectItem value="Concluída">Concluída</SelectItem>
@@ -198,14 +198,14 @@ export function TaskFiltersAndViews({
 
             {/* Priority */}
             <Select 
-              value={filters.priority || ''} 
-              onValueChange={(value) => onFiltersChange({ ...filters, priority: value as TaskPriority })}
+              value={filters.priority ?? 'all'} 
+              onValueChange={(value) => onFiltersChange({ ...filters, priority: value === 'all' ? undefined : (value as TaskPriority) })}
             >
               <SelectTrigger className="w-40">
                 <SelectValue placeholder="Prioridade" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todas</SelectItem>
+                <SelectItem value="all">Todas</SelectItem>
                 <SelectItem value="Alta">Alta</SelectItem>
                 <SelectItem value="Média">Média</SelectItem>
                 <SelectItem value="Baixa">Baixa</SelectItem>
@@ -215,14 +215,14 @@ export function TaskFiltersAndViews({
             {/* Client */}
             {clients.length > 0 && (
               <Select 
-                value={filters.client_id || ''} 
-                onValueChange={(value) => onFiltersChange({ ...filters, client_id: value })}
+                value={filters.client_id ?? 'all'} 
+                onValueChange={(value) => onFiltersChange({ ...filters, client_id: value === 'all' ? undefined : value })}
               >
                 <SelectTrigger className="w-48">
                   <SelectValue placeholder="Cliente" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos</SelectItem>
+                  <SelectItem value="all">Todos</SelectItem>
                   {clients.map(client => (
                     <SelectItem key={client.id} value={client.id}>
                       {client.name}
@@ -235,14 +235,14 @@ export function TaskFiltersAndViews({
             {/* Owner */}
             {uniqueOwners.length > 0 && (
               <Select 
-                value={filters.owner || ''} 
-                onValueChange={(value) => onFiltersChange({ ...filters, owner: value })}
+                value={filters.owner ?? 'all'} 
+                onValueChange={(value) => onFiltersChange({ ...filters, owner: value === 'all' ? undefined : value })}
               >
                 <SelectTrigger className="w-40">
                   <SelectValue placeholder="Responsável" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos</SelectItem>
+                  <SelectItem value="all">Todos</SelectItem>
                   {uniqueOwners.map(owner => (
                     <SelectItem key={owner} value={owner}>
                       {owner}
