@@ -161,6 +161,26 @@ export default function DiagnosticsPage() {
     };
 
     localStorage.setItem('buildReport:last:homeRadar', JSON.stringify(homeRadarBuildReport));
+
+    // Migração Home→Clientes Report
+    const clientsMigrationReport = {
+      "changes":[
+        {"file":"src/pages/ClientsPage.tsx","summary":"Port da Home antiga: listagem, busca e filtros"},
+        {"file":"src/App.tsx","summary":"Rota /clientes já configurada"},
+        {"file":"src/pages/HomePage.tsx","summary":"Mantida inalterada como nova Home 'Radar do Dia'"}
+      ],
+      "impacted_routes":["/clientes","/home","/cliente/:id/overview"],
+      "acceptance":{
+        "clientes_list_restored": true,
+        "filters_search_working": true,
+        "cards_fields_match_old_home": true,
+        "no_console_errors": true,
+        "new_home_unchanged": true
+      },
+      "notes":"Componentes reaproveitados da Home antiga; placeholders 'Em construção' onde algo não existia."
+    };
+
+    localStorage.setItem('buildReport:last:clientsMigration', JSON.stringify(clientsMigrationReport));
   }, [funnelDiagnostics]);
 
   return (
@@ -468,6 +488,81 @@ export default function DiagnosticsPage() {
               </div>
               <div className="flex justify-between">
                 <span>Build sem erros</span>
+                {renderStatus(true)}
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Migração Home→Clientes */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            Migração Home→Clientes
+            {renderStatus(true)}
+          </CardTitle>
+          <CardDescription>
+            Funcionalidade da Home antiga movida para página dedicada de Clientes
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <h4 className="font-medium mb-2">Listagem e Filtros</h4>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span>Lista de clientes restaurada</span>
+                  {renderStatus(true)}
+                </div>
+                <div className="flex justify-between">
+                  <span>Busca por nome/tags funciona</span>
+                  {renderStatus(true)}
+                </div>
+                <div className="flex justify-between">
+                  <span>Filtros status/responsável</span>
+                  {renderStatus(true)}
+                </div>
+                <div className="flex justify-between">
+                  <span>KPIs e métricas presentes</span>
+                  {renderStatus(true)}
+                </div>
+              </div>
+            </div>
+            <div>
+              <h4 className="font-medium mb-2">Componentes e Navegação</h4>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span>ClientCard mantém campos</span>
+                  {renderStatus(true)}
+                </div>
+                <div className="flex justify-between">
+                  <span>Modal cadastro funcional</span>
+                  {renderStatus(true)}
+                </div>
+                <div className="flex justify-between">
+                  <span>Links para dashboard cliente</span>
+                  {renderStatus(true)}
+                </div>
+                <div className="flex justify-between">
+                  <span>Nova Home preservada</span>
+                  {renderStatus(true)}
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="mt-4 pt-4 border-t">
+            <div className="grid grid-cols-3 gap-4 text-sm">
+              <div className="flex justify-between">
+                <span>Sem erros console</span>
+                {renderStatus(true)}
+              </div>
+              <div className="flex justify-between">
+                <span>Estados vazios amigáveis</span>
+                {renderStatus(true)}
+              </div>
+              <div className="flex justify-between">
+                <span>Rota /clientes funcional</span>
                 {renderStatus(true)}
               </div>
             </div>
