@@ -343,6 +343,17 @@ export default function TarefasAnotacoesPage() {
             />
           </div>
 
+          {/* Bulk Add Button (only for tasks) */}
+          {activeTab === "tarefas" && (
+            <Button 
+              variant="outline"
+              onClick={() => setShowBulkAddModal(true)}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Adicionar em Lote
+            </Button>
+          )}
+
           {/* New Button */}
           <Button 
             onClick={() => {
