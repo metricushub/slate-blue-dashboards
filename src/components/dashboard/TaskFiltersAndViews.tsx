@@ -8,8 +8,8 @@ import { TaskStatus, TaskPriority } from "@/types";
 import { Filter, Star, Save, X, Search } from "lucide-react";
 
 export interface TaskFilters {
-  status?: TaskStatus | 'all' | '';
-  priority?: TaskPriority | 'all' | '';
+  status?: TaskStatus | '';
+  priority?: TaskPriority | '';
   client_id?: string;
   owner?: string;
   due_date_from?: string;
