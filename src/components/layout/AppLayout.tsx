@@ -1,7 +1,6 @@
 import { SidebarGlobal } from "@/components/layout/SidebarGlobal";
 import { SidebarCliente } from "@/components/layout/SidebarCliente";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { BrandLogo } from "@/components/ui/brand-logo";
 import { useLocation } from "react-router-dom";
 
 interface AppLayoutProps {
@@ -17,8 +16,10 @@ export function AppLayout({ children }: AppLayoutProps) {
       {/* Global header with trigger */}
       <header className="h-14 flex items-center border-b bg-card px-4 sticky top-0 z-50">
         <SidebarTrigger className="h-8 w-8" />
-        <div className="ml-4 flex-1">
-          <BrandLogo showText={false} className="p-0" />
+        <div className="ml-4">
+          <h1 className="text-lg font-semibold text-foreground">
+            Dashboard Marketing
+          </h1>
         </div>
       </header>
 

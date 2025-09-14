@@ -10,7 +10,6 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
-import { BrandLogo } from "@/components/ui/brand-logo";
 
 import {
   Sidebar,
@@ -21,7 +20,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarHeader,
   useSidebar,
 } from "@/components/ui/sidebar";
 
@@ -62,10 +60,6 @@ export function SidebarGlobal() {
       className={`transition-all duration-300 ${collapsed ? "w-14" : "w-64"}`}
       collapsible="icon"
     >
-      <SidebarHeader className="border-b border-sidebar-border p-4">
-        <BrandLogo collapsed={collapsed} />
-      </SidebarHeader>
-      
       <SidebarContent className="py-4">
         <SidebarGroup>
           <SidebarGroupLabel className={collapsed ? "sr-only" : ""}>
