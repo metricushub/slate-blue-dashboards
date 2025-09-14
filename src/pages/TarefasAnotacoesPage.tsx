@@ -12,6 +12,10 @@ import { taskOperations, noteOperations, dashboardDb } from "@/shared/db/dashboa
 import { NewTaskModal } from "@/components/modals/NewTaskModal";
 import { NewNoteModal } from "@/components/modals/NewNoteModal";
 import { BulkAddTasksModal } from "@/components/modals/BulkAddTasksModal";
+import { TaskDashboardCards } from "@/components/dashboard/TaskDashboardCards";
+import { TaskAlertsBanner } from "@/components/dashboard/TaskAlertsBanner";
+import { TaskKanban } from "@/components/dashboard/TaskKanban";
+import { TaskFiltersAndViews, TaskFilters } from "@/components/dashboard/TaskFiltersAndViews";
 import { Task, Note, TaskPriority, TaskStatus } from "@/types";
 import { 
   Plus, 
@@ -42,7 +46,6 @@ export default function TarefasAnotacoesPage() {
   const [notes, setNotes] = useState<Note[]>([]);
   const [clients, setClients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
   
   // Modal states
   const [showNewTaskModal, setShowNewTaskModal] = useState(false);
@@ -52,11 +55,7 @@ export default function TarefasAnotacoesPage() {
   const [editingNote, setEditingNote] = useState<Note | null>(null);
   
   // Filter states
-  const [taskFilters, setTaskFilters] = useState({
-    status: '',
-    priority: '',
-    client_id: ''
-  });
+  const [taskFilters, setTaskFilters] = useState<TaskFilters>({});
 
   // Load data
   useEffect(() => {
@@ -135,10 +134,15 @@ export default function TarefasAnotacoesPage() {
 
   const handleCompleteTask = async (taskId: string) => {
     try {
-      await taskOperations.update(taskId, { status: 'Concluída' });
+      const now = new Date().toISOString();
+      await taskOperations.update(taskId, { 
+        status: 'Concluída',
+        completed_at: now,
+        updated_at: now
+      });
       setTasks(prev => prev.map(t => 
         t.id === taskId 
-          ? { ...t, status: 'Concluída' as TaskStatus, updated_at: new Date().toISOString() }
+          ? { ...t, status: 'Concluída' as TaskStatus, completed_at: now, updated_at: now }
           : t
       ));
       toast({
@@ -149,6 +153,70 @@ export default function TarefasAnotacoesPage() {
       toast({
         title: "Erro",
         description: "Erro ao concluir tarefa",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handlePostponeTask = async (taskId: string) => {
+    try {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const newDueDate = tomorrow.toISOString().split('T')[0];
+      
+      await taskOperations.update(taskId, { 
+        due_date: newDueDate,
+        updated_at: new Date().toISOString()
+      });
+      setTasks(prev => prev.map(t => 
+        t.id === taskId 
+          ? { ...t, due_date: newDueDate, updated_at: new Date().toISOString() }
+          : t
+      ));
+      toast({
+        title: "Tarefa adiada",
+        description: "Prazo adiado para amanhã"
+      });
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Erro ao adiar tarefa",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleTaskMove = async (taskId: string, newStatus: TaskStatus, shouldArchive?: boolean) => {
+    try {
+      const now = new Date().toISOString();
+      const updates: Partial<Task> = {
+        status: newStatus,
+        updated_at: now
+      };
+
+      if (shouldArchive) {
+        updates.archived_at = now;
+      } else if (newStatus === 'Concluída') {
+        updates.completed_at = now;
+      }
+
+      await taskOperations.update(taskId, updates);
+      setTasks(prev => prev.map(t => 
+        t.id === taskId ? { ...t, ...updates } : t
+      ));
+      
+      const action = shouldArchive ? 'arquivada' : 
+                    newStatus === 'Concluída' ? 'concluída' : 
+                    `movida para ${newStatus}`;
+      
+      toast({
+        title: "Tarefa atualizada",
+        description: `Tarefa ${action} com sucesso`
+      });
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Erro ao mover tarefa",
         variant: "destructive"
       });
     }
@@ -171,11 +239,11 @@ export default function TarefasAnotacoesPage() {
     }
   };
 
-  const handleCreateTasksBulk = async (tasks: Task[]) => {
-    setTasks(prev => [...tasks, ...prev]);
+  const handleCreateTasksBulk = async (newTasks: Task[]) => {
+    setTasks(prev => [...newTasks, ...prev]);
     toast({
       title: "Tarefas criadas",
-      description: `${tasks.length} tarefa(s) criada(s) em lote`
+      description: `${newTasks.length} tarefa(s) criada(s) em lote`
     });
   };
 
@@ -286,26 +354,39 @@ export default function TarefasAnotacoesPage() {
     }
   };
 
-  // Filter tasks
-  const filteredTasks = tasks.filter(task => {
-    if (searchQuery && !task.title.toLowerCase().includes(searchQuery.toLowerCase())) {
-      return false;
-    }
-    if (taskFilters.status && task.status !== taskFilters.status) {
-      return false;
-    }
-    if (taskFilters.priority && task.priority !== taskFilters.priority) {
-      return false;
-    }
-    if (taskFilters.client_id && task.client_id !== taskFilters.client_id) {
-      return false;
-    }
-    return true;
-  });
+  // Apply filters
+  const applyTaskFilters = (tasks: Task[], filters: TaskFilters) => {
+    return tasks.filter(task => {
+      if (filters.search && !task.title.toLowerCase().includes(filters.search.toLowerCase())) {
+        return false;
+      }
+      if (filters.status && task.status !== filters.status) {
+        return false;
+      }
+      if (filters.priority && task.priority !== filters.priority) {
+        return false;
+      }
+      if (filters.client_id && task.client_id !== filters.client_id) {
+        return false;
+      }
+      if (filters.owner && task.owner !== filters.owner) {
+        return false;
+      }
+      if (filters.due_date_from && (!task.due_date || task.due_date < filters.due_date_from)) {
+        return false;
+      }
+      if (filters.due_date_to && (!task.due_date || task.due_date > filters.due_date_to)) {
+        return false;
+      }
+      return true;
+    });
+  };
 
+  const filteredTasks = applyTaskFilters(tasks, taskFilters);
+  
   // Filter notes
   const filteredNotes = notes.filter(note => {
-    if (searchQuery && !note.title.toLowerCase().includes(searchQuery.toLowerCase())) {
+    if (taskFilters.search && !note.title.toLowerCase().includes(taskFilters.search.toLowerCase())) {
       return false;
     }
     return true;
@@ -332,17 +413,6 @@ export default function TarefasAnotacoesPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 w-64"
-            />
-          </div>
-
           {/* Bulk Add Button (only for tasks) */}
           {activeTab === "tarefas" && (
             <Button 
@@ -384,188 +454,64 @@ export default function TarefasAnotacoesPage() {
         </TabsList>
 
         {/* Tasks Tab */}
-        <TabsContent value="tarefas" className="space-y-4">
-          {/* Task Filters */}
-          <div className="flex items-center gap-4 p-4 bg-muted/30 rounded-lg">
-            <Filter className="h-4 w-4 text-muted-foreground" />
-            
-            <Select 
-              value={taskFilters.status} 
-              onValueChange={(value) => setTaskFilters(prev => ({...prev, status: value}))}
-            >
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Aberta">Aberta</SelectItem>
-                <SelectItem value="Em progresso">Em progresso</SelectItem>
-                <SelectItem value="Concluída">Concluída</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select 
-              value={taskFilters.priority} 
-              onValueChange={(value) => setTaskFilters(prev => ({...prev, priority: value}))}
-            >
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="Prioridade" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Alta">Alta</SelectItem>
-                <SelectItem value="Média">Média</SelectItem>
-                <SelectItem value="Baixa">Baixa</SelectItem>
-              </SelectContent>
-            </Select>
-
-            {clients.length > 0 && (
-              <Select 
-                value={taskFilters.client_id} 
-                onValueChange={(value) => setTaskFilters(prev => ({...prev, client_id: value}))}
-              >
-                <SelectTrigger className="w-48">
-                  <SelectValue placeholder="Cliente" />
-                </SelectTrigger>
-                <SelectContent>
-                  {clients.map(client => (
-                    <SelectItem key={client.id} value={client.id}>
-                      {client.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-
-            {(taskFilters.status || taskFilters.priority || taskFilters.client_id) && (
-              <Button 
-                variant="ghost" 
-                size="sm"
-                onClick={() => setTaskFilters({ status: '', priority: '', client_id: '' })}
-              >
-                Limpar filtros
-              </Button>
-            )}
-          </div>
-
-          {/* Tasks List */}
-          {filteredTasks.length === 0 ? (
-            <Card className="p-12 text-center">
-              <CheckSquare className="h-16 w-16 mx-auto mb-4 text-muted-foreground/50" />
-              <h3 className="text-xl font-semibold mb-2">
-                {searchQuery || Object.values(taskFilters).some(Boolean) 
-                  ? "Nenhuma tarefa encontrada" 
-                  : "Nenhuma tarefa ainda"
-                }
-              </h3>
-              <p className="text-muted-foreground mb-6">
-                {searchQuery || Object.values(taskFilters).some(Boolean)
-                  ? "Tente ajustar os filtros ou busca"
-                  : "Crie sua primeira tarefa para começar a organizar seu trabalho"
-                }
-              </p>
-              {!(searchQuery || Object.values(taskFilters).some(Boolean)) && (
-                <Button onClick={() => setShowNewTaskModal(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Criar primeira tarefa
-                </Button>
-              )}
-            </Card>
-          ) : (
-            <div className="grid gap-4">
-              {filteredTasks.map(task => (
-                <Card key={task.id} className="p-4">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 space-y-2">
-                      <div className="flex items-center gap-3">
-                        <h3 className="font-semibold">{task.title}</h3>
-                        <Badge variant={getStatusColor(task.status)}>{task.status}</Badge>
-                        <Badge variant={getPriorityColor(task.priority)}>{task.priority}</Badge>
-                      </div>
-                      
-                      {task.description && (
-                        <p className="text-sm text-muted-foreground">{task.description}</p>
-                      )}
-                      
-                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                        {task.client_id && (
-                          <div className="flex items-center gap-1">
-                            <User className="h-3 w-3" />
-                            <Badge 
-                              variant="outline" 
-                              className="cursor-pointer hover:bg-accent"
-                              onClick={() => navigate(`/cliente/${task.client_id}/overview`)}
-                            >
-                              {getClientName(task.client_id)}
-                              <ChevronRight className="h-3 w-3 ml-1" />
-                            </Badge>
-                          </div>
-                        )}
-                        
-                        {task.due_date && (
-                          <div className="flex items-center gap-1">
-                            <Calendar className="h-3 w-3" />
-                            {new Date(task.due_date).toLocaleDateString('pt-BR')}
-                          </div>
-                        )}
-                        
-                        {task.owner && (
-                          <div className="flex items-center gap-1">
-                            <User className="h-3 w-3" />
-                            {task.owner}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center gap-2 ml-4">
-                      {task.status !== 'Concluída' && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleCompleteTask(task.id)}
-                        >
-                          <CheckCircle className="h-4 w-4" />
-                        </Button>
-                      )}
-                      
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setEditingTask(task)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleDeleteTask(task.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          )}
+        <TabsContent value="tarefas" className="space-y-6">
+          {/* Dashboard Cards */}
+          <TaskDashboardCards tasks={filteredTasks} />
+          
+          {/* Alerts Banner */}
+          <TaskAlertsBanner 
+            tasks={filteredTasks}
+            onCompleteTask={handleCompleteTask}
+            onPostponeTask={handlePostponeTask}
+          />
+          
+          {/* Filters and Views */}
+          <TaskFiltersAndViews
+            filters={taskFilters}
+            onFiltersChange={setTaskFilters}
+            clients={clients}
+            tasks={tasks}
+          />
+          
+          {/* Kanban */}
+          <TaskKanban 
+            tasks={filteredTasks}
+            onTaskMove={handleTaskMove}
+            clients={clients}
+          />
         </TabsContent>
 
         {/* Notes Tab */}
         <TabsContent value="anotacoes" className="space-y-4">
+          {/* Search for notes */}
+          <Card>
+            <CardContent className="p-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar anotações..."
+                  value={taskFilters.search || ''}
+                  onChange={(e) => setTaskFilters(prev => ({ ...prev, search: e.target.value }))}
+                  className="pl-10"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Notes List */}
           {filteredNotes.length === 0 ? (
             <Card className="p-12 text-center">
               <StickyNote className="h-16 w-16 mx-auto mb-4 text-muted-foreground/50" />
               <h3 className="text-xl font-semibold mb-2">
-                {searchQuery ? "Nenhuma anotação encontrada" : "Nenhuma anotação ainda"}
+                {taskFilters.search ? "Nenhuma anotação encontrada" : "Nenhuma anotação ainda"}
               </h3>
               <p className="text-muted-foreground mb-6">
-                {searchQuery 
+                {taskFilters.search 
                   ? "Tente ajustar os termos de busca"
                   : "Crie sua primeira anotação para começar a documentar informações importantes"
                 }
               </p>
-              {!searchQuery && (
+              {!taskFilters.search && (
                 <Button onClick={() => setShowNewNoteModal(true)}>
                   <Plus className="h-4 w-4 mr-2" />
                   Criar primeira anotação

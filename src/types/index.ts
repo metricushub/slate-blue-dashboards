@@ -166,6 +166,8 @@ export interface Task {
   owner?: string;
   priority: TaskPriority; 
   status: TaskStatus;
+  completed_at?: string;  // ISO date when task was completed
+  archived_at?: string;   // ISO date when task was archived
   created_at: string; 
   updated_at?: string;
 }
