@@ -181,6 +181,15 @@ export interface Note {
   updated_at?: string;
 }
 
+export interface ChecklistItem {
+  id: string;
+  content: string;
+  completed: boolean;
+  client_id: string;
+  created_at: string;
+  updated_at?: string;
+}
+
 export interface AlertRule {
   id: string; 
   client_id: string;

@@ -1,11 +1,12 @@
 import Dexie, { Table } from 'dexie';
-import { Optimization, Task, AlertRule, Note } from '@/types';
+import { Optimization, Task, AlertRule, Note, ChecklistItem } from '@/types';
 
 export interface DashboardDatabase extends Dexie {
   optimizations: Table<Optimization>;
   tasks: Table<Task>;
   alerts: Table<AlertRule>;
   notes: Table<Note>;
+  checklistItems: Table<ChecklistItem>;
   meta: Table<{ key: string; value: any }>;
 }
 
@@ -16,6 +17,7 @@ dashboardDb.version(1).stores({
   tasks: 'id, client_id, status, priority, due_date, created_at',
   alerts: 'id, client_id, enabled, severity, created_at',
   notes: 'id, client_id, pinned, created_at',
+  checklistItems: 'id, client_id, completed, created_at',
   meta: 'key'
 });
 
@@ -174,6 +176,40 @@ export const noteOperations = {
 
   async delete(id: string): Promise<void> {
     await dashboardDb.notes.delete(id);
+  }
+};
+
+// Checklist item operations
+export const checklistOperations = {
+  async create(item: Omit<ChecklistItem, 'id' | 'created_at'>): Promise<ChecklistItem> {
+    const newItem: ChecklistItem = {
+      ...item,
+      id: `checklist_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    
+    await dashboardDb.checklistItems.add(newItem);
+    return newItem;
+  },
+
+  async update(id: string, updates: Partial<ChecklistItem>): Promise<void> {
+    await dashboardDb.checklistItems.update(id, {
+      ...updates,
+      updated_at: new Date().toISOString()
+    });
+  },
+
+  async getByClient(clientId: string): Promise<ChecklistItem[]> {
+    return await dashboardDb.checklistItems
+      .where('client_id')
+      .equals(clientId)
+      .reverse()
+      .toArray();
+  },
+
+  async delete(id: string): Promise<void> {
+    await dashboardDb.checklistItems.delete(id);
   }
 };
 

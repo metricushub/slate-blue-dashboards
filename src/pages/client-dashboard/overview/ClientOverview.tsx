@@ -28,6 +28,7 @@ import { EnhancedCampaignTable } from "./EnhancedCampaignTable";
 import { RecentOptimizations } from "./RecentOptimizations";
 import { TasksAlertsModal, useNextTasks } from "./TasksAlertsModal";
 import { useClientPrefs } from "@/shared/prefs/useClientPrefs";
+import { QuickChecklist } from "@/components/client/QuickChecklist";
 
 export function ClientOverview() {
   const { clientId } = useParams<{ clientId: string }>();
@@ -204,6 +205,9 @@ export function ClientOverview() {
             period={period}
             platform={platform}
           />
+
+          {/* Lista Rápida */}
+          <QuickChecklist clientId={clientId!} />
 
           {/* Recent Optimizations */}
           <RecentOptimizations key={optimizationsKey} clientId={clientId!} />

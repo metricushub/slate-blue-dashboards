@@ -11,6 +11,7 @@ import { useDataSource } from "@/hooks/useDataSource";
 import { taskOperations, noteOperations, dashboardDb } from "@/shared/db/dashboardStore";
 import { NewTaskModal } from "@/components/modals/NewTaskModal";
 import { NewNoteModal } from "@/components/modals/NewNoteModal";
+import { BulkAddTasksModal } from "@/components/modals/BulkAddTasksModal";
 import { Task, Note, TaskPriority, TaskStatus } from "@/types";
 import { 
   Plus, 
@@ -46,6 +47,7 @@ export default function TarefasAnotacoesPage() {
   // Modal states
   const [showNewTaskModal, setShowNewTaskModal] = useState(false);
   const [showNewNoteModal, setShowNewNoteModal] = useState(false);
+  const [showBulkAddModal, setShowBulkAddModal] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [editingNote, setEditingNote] = useState<Note | null>(null);
   
@@ -167,6 +169,14 @@ export default function TarefasAnotacoesPage() {
         variant: "destructive"
       });
     }
+  };
+
+  const handleCreateTasksBulk = async (tasks: Task[]) => {
+    setTasks(prev => [...tasks, ...prev]);
+    toast({
+      title: "Tarefas criadas",
+      description: `${tasks.length} tarefa(s) criada(s) em lote`
+    });
   };
 
   // Note handlers
@@ -662,6 +672,12 @@ export default function TarefasAnotacoesPage() {
         onOpenChange={(open) => !open && setEditingNote(null)}
         onSave={handleUpdateNote}
         initialData={editingNote || undefined}
+      />
+
+      <BulkAddTasksModal
+        open={showBulkAddModal}
+        onOpenChange={setShowBulkAddModal}
+        onTasksCreated={handleCreateTasksBulk}
       />
     </div>
   );
