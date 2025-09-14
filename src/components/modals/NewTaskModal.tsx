@@ -55,7 +55,7 @@ export function NewTaskModal({ open, onOpenChange, onSave }: NewTaskModalProps) 
         owner: formData.owner.trim() || undefined,
         priority: formData.priority,
         status: formData.status,
-        client_id: formData.client_id || '',
+        client_id: formData.client_id || undefined,
         updated_at: new Date().toISOString()
       };
 
@@ -194,7 +194,6 @@ export function NewTaskModal({ open, onOpenChange, onSave }: NewTaskModalProps) 
                     <SelectValue placeholder="Selecionar cliente (opcional)" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Sem cliente específico</SelectItem>
                     {clients.map(client => (
                       <SelectItem key={client.id} value={client.id}>
                         {client.name}

@@ -199,7 +199,6 @@ export function NewLeadModal({ open, onOpenChange, onSave }: NewLeadModalProps) 
                     <SelectValue placeholder="Selecionar cliente" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Nenhum cliente</SelectItem>
                     {clients.map(client => (
                       <SelectItem key={client.id} value={client.id}>
                         {client.name}

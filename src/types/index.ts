@@ -159,7 +159,7 @@ export interface Optimization {
 
 export interface Task {
   id: string; 
-  client_id: string;
+  client_id?: string;  // Made optional - tasks can be general or client-specific
   title: string; 
   description?: string;
   due_date?: string; 
