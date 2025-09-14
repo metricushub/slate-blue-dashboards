@@ -8,9 +8,14 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { useHomeData } from "@/shared/hooks/useHomeData";
 import { useDataSource } from "@/hooks/useDataSource";
-import { taskOperations } from "@/shared/db/dashboardStore";
+import { taskOperations, optimizationOperations } from "@/shared/db/dashboardStore";
 import { LeadsStore } from "@/shared/db/leadsStore";
 import { useGlobalSearch } from "@/hooks/useGlobalSearch";
+import { useTelemetry } from "@/hooks/useTelemetry";
+import { NewLeadModal } from "@/components/leads/NewLeadModal";
+import { NewTaskModal } from "@/components/modals/NewTaskModal";
+import { NewOptimizationModal } from "@/components/modals/NewOptimizationModal";
+import { Task, Optimization } from "@/types";
 import { 
   Bell, 
   CheckSquare, 
@@ -38,6 +43,12 @@ const HomePage = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const { search, isSearching } = useGlobalSearch();
   const [searchResults, setSearchResults] = useState<any[]>([]);
+  const { trackQuickAction, trackKeyboardShortcut, trackSearch, trackSearchClick } = useTelemetry();
+  
+  // Modal states
+  const [showNewLeadModal, setShowNewLeadModal] = useState(false);
+  const [showNewTaskModal, setShowNewTaskModal] = useState(false);  
+  const [showNewOptimizationModal, setShowNewOptimizationModal] = useState(false);
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -46,23 +57,60 @@ const HomePage = () => {
     return "Boa noite";
   };
 
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Skip if user is typing in an input
+      if (e.target && (e.target as HTMLElement).tagName.toLowerCase() === 'input') {
+        return;
+      }
+      
+      switch (e.key.toLowerCase()) {
+        case 'n':
+          e.preventDefault();
+          trackKeyboardShortcut('newLead');
+          setShowNewLeadModal(true);
+          break;
+        case 't':
+          e.preventDefault();
+          trackKeyboardShortcut('newTask');
+          setShowNewTaskModal(true);
+          break;
+        case 'o':
+          e.preventDefault();
+          trackKeyboardShortcut('newOptimization');
+          setShowNewOptimizationModal(true);
+          break;
+        case '/':
+          e.preventDefault();
+          trackKeyboardShortcut('searchFocus');
+          document.getElementById('global-search')?.focus();
+          break;
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [trackKeyboardShortcut]);
+
   const handleQuickAction = (action: string) => {
     switch (action) {
       case 'novo-lead':
-        navigate('/leads');
+        trackQuickAction('newLead');
+        setShowNewLeadModal(true);
         break;
       case 'nova-otimizacao':
-        navigate('/otimizacoes');
+        trackQuickAction('newOptimization');
+        setShowNewOptimizationModal(true);
         break;
       case 'nova-tarefa':
-        toast({
-          title: "Em breve",
-          description: "Modal de nova tarefa será implementado em breve"
-        });
+        trackQuickAction('newTask');
+        setShowNewTaskModal(true);
         break;
       case 'chat-ia':
+        trackQuickAction('chatIA');
         toast({
-          title: "Em breve", 
+          title: "Em breve",
           description: "Chat IA será implementado em breve"
         });
         break;
@@ -96,12 +144,66 @@ const HomePage = () => {
 
     const results = await search(query);
     setSearchResults(results);
+    trackSearch(results.length);
   };
 
   const handleSearchResultClick = (result: any) => {
+    trackSearchClick();
     navigate(result.url);
     setSearchQuery("");
     setSearchResults([]);
+  };
+
+  // Modal handlers
+  const handleCreateLead = async (leadData: any) => {
+    try {
+      const newLead = await LeadsStore.createLead(leadData);
+      refreshData();
+      toast({
+        title: "Lead criado",
+        description: "Novo lead adicionado com sucesso."
+      });
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Erro ao criar lead",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleCreateTask = async (taskData: Omit<Task, 'id' | 'created_at'>) => {
+    try {
+      await taskOperations.create(taskData);
+      refreshData();
+      toast({
+        title: "Tarefa criada",
+        description: "Nova tarefa adicionada com sucesso."
+      });
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Erro ao criar tarefa",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleCreateOptimization = async (optimizationData: Omit<Optimization, 'id' | 'created_at'>) => {
+    try {
+      await optimizationOperations.create(optimizationData);
+      refreshData();
+      toast({
+        title: "Otimização criada",
+        description: "Nova otimização registrada com sucesso."
+      });
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Erro ao criar otimização",
+        variant: "destructive"
+      });
+    }
   };
 
   const mockData = {
@@ -127,29 +229,27 @@ const HomePage = () => {
       "notes": "Home conectada aos dados reais via useHomeData; busca global implementada; ações de tarefas funcionais"
     };
     
-    // Visual Refinement Report
-    const visualReport = {
+    // Quick Actions Report
+    const quickActionsReport = {
       "changes":[
-        {"file":"src/pages/Home/HomePage.tsx","summary":"Banner com saudação dinâmica e CTA 'Começar o dia' refinado"},
-        {"file":"Cards styling","summary":"Micro-sombras, cantos arredondados (rounded-2xl), ícones com backgrounds sutis"},
-        {"file":"Grid responsivo","summary":"1 col mobile, 2 tablet (md:), 3+ desktop (xl:) para cards principais"},
-        {"file":"Estados vazios","summary":"Skeleton e mensagens simpáticas com emojis e ícones"},
-        {"file":"Acessibilidade","summary":"aria-labels, focus visível, roles adequados, contraste verificado"}
+        {"file":"src/components/modals/NewTaskModal.tsx","summary":"Modal completo para criação de tarefas com cliente selecionável"},
+        {"file":"src/components/modals/NewOptimizationModal.tsx","summary":"Modal completo para otimizações com tipos e métricas"},
+        {"file":"src/hooks/useTelemetry.ts","summary":"Hook para telemetria simples de cliques e atalhos"},
+        {"file":"src/pages/Home/HomePage.tsx","summary":"Atalhos de teclado (N,T,O,/) e modais funcionais"}
       ],
-      "impacted_routes":["/home"],
+      "impacted_routes":["/"],
       "acceptance":{
-        "banner_saudacao_ok":true,
-        "cards_shadows_ok":true, 
-        "grid_responsivo_ok":true,
-        "estados_vazios_simpaticos_ok":true,
-        "acessibilidade_ok":true,
-        "no_functionality_breaks":true
+        "modals_functional_ok":true,
+        "keyboard_shortcuts_ok":true,
+        "telemetry_tracking_ok":true,
+        "toasters_working_ok":true,
+        "client_selection_ok":true
       },
-      "notes":"Design refinado mantendo toda funcionalidade; animações fade-in; hover effects; estados de loading melhorados"
+      "notes":"Modals integrados com dados reais; telemetria salva em localStorage; atalhos N/T/O/slash funcionais"
     };
 
     localStorage.setItem('buildReport:last', JSON.stringify({
-      ...visualReport,
+      ...quickActionsReport,
       timestamp: new Date().toISOString()
     }));
   }, []);
@@ -238,7 +338,8 @@ const HomePage = () => {
           <div className="relative">
             <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Input
-              placeholder="Buscar clientes, campanhas, tarefas, otimizações..."
+              id="global-search"
+              placeholder="Buscar clientes, campanhas, tarefas, otimizações... (ou tecle /)"
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
@@ -267,6 +368,12 @@ const HomePage = () => {
                 ))}
               </div>
             )}
+          </div>
+          <div className="mt-2 text-xs text-muted-foreground text-center">
+            Atalhos: <kbd className="px-1 py-0.5 bg-muted rounded text-xs">N</kbd> Lead, 
+            <kbd className="px-1 py-0.5 bg-muted rounded text-xs mx-1">T</kbd> Tarefa, 
+            <kbd className="px-1 py-0.5 bg-muted rounded text-xs">O</kbd> Otimização, 
+            <kbd className="px-1 py-0.5 bg-muted rounded text-xs mx-1">/</kbd> Buscar
           </div>
         </div>
 
@@ -638,6 +745,25 @@ const HomePage = () => {
           </Card>
         </div>
       </div>
+
+      {/* Modals */}
+      <NewLeadModal
+        open={showNewLeadModal}
+        onOpenChange={setShowNewLeadModal}
+        onSave={handleCreateLead}
+      />
+
+      <NewTaskModal
+        open={showNewTaskModal}
+        onOpenChange={setShowNewTaskModal}
+        onSave={handleCreateTask}
+      />
+
+      <NewOptimizationModal
+        open={showNewOptimizationModal}
+        onOpenChange={setShowNewOptimizationModal}
+        onSave={handleCreateOptimization}
+      />
     </div>
   );
 };

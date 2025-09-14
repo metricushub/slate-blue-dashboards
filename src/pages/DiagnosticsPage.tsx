@@ -2,8 +2,10 @@ import React from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle, XCircle, Activity } from "lucide-react";
+import { useTelemetry } from "@/hooks/useTelemetry";
 
 export default function DiagnosticsPage() {
+  const { getTelemetryData } = useTelemetry();
   // Get funnel modal diagnostics data
   const getFunnelModalDiagnostics = () => {
     try {
@@ -33,6 +35,7 @@ export default function DiagnosticsPage() {
 
   const funnelDiagnostics = getFunnelModalDiagnostics();
   const buildReport = getBuildReport();
+  const telemetryData = getTelemetryData();
 
   const renderStatus = (pass: boolean | null) => {
     if (pass === null) return <Badge variant="secondary">N/A</Badge>;
@@ -633,6 +636,115 @@ export default function DiagnosticsPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Telemetria - Ações Rápidas */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between text-xl">
+            Telemetria - Ações Rápidas
+            <Badge variant="outline">Home Dashboard</Badge>
+          </CardTitle>
+          <CardDescription>
+            Contadores de uso das ações rápidas e atalhos de teclado
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* Quick Actions */}
+            <div>
+              <h4 className="font-medium mb-3 flex items-center gap-2">
+                <Activity className="h-4 w-4" />
+                Ações por Botão
+              </h4>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between items-center">
+                  <span>Novo Lead</span>
+                  <Badge variant="secondary">{telemetryData.quickActions.newLead}</Badge>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span>Criar Tarefa</span>
+                  <Badge variant="secondary">{telemetryData.quickActions.newTask}</Badge>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span>Registrar Otimização</span>
+                  <Badge variant="secondary">{telemetryData.quickActions.newOptimization}</Badge>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span>Chat IA</span>
+                  <Badge variant="secondary">{telemetryData.quickActions.chatIA}</Badge>
+                </div>
+              </div>
+            </div>
+
+            {/* Keyboard Shortcuts */}
+            <div>
+              <h4 className="font-medium mb-3 flex items-center gap-2">
+                <kbd className="px-1 py-0.5 bg-muted rounded text-xs">⌨</kbd>
+                Atalhos Teclado
+              </h4>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between items-center">
+                  <span>N (Lead)</span>
+                  <Badge variant="secondary">{telemetryData.keyboardShortcuts.newLead}</Badge>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span>T (Tarefa)</span>
+                  <Badge variant="secondary">{telemetryData.keyboardShortcuts.newTask}</Badge>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span>O (Otimização)</span>
+                  <Badge variant="secondary">{telemetryData.keyboardShortcuts.newOptimization}</Badge>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span>/ (Busca)</span>
+                  <Badge variant="secondary">{telemetryData.keyboardShortcuts.searchFocus}</Badge>
+                </div>
+              </div>
+            </div>
+
+            {/* Global Search */}
+            <div>
+              <h4 className="font-medium mb-3 flex items-center gap-2">
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="11" cy="11" r="8"/>
+                  <path d="m21 21-4.35-4.35"/>
+                </svg>
+                Busca Global
+              </h4>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between items-center">
+                  <span>Buscas realizadas</span>
+                  <Badge variant="secondary">{telemetryData.globalSearch.searches}</Badge>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span>Resultados retornados</span>
+                  <Badge variant="secondary">{telemetryData.globalSearch.results}</Badge>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span>Cliques em resultados</span>
+                  <Badge variant="secondary">{telemetryData.globalSearch.clicks}</Badge>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span>Taxa de clique</span>
+                  <Badge variant="outline">
+                    {telemetryData.globalSearch.searches > 0 
+                      ? `${Math.round((telemetryData.globalSearch.clicks / telemetryData.globalSearch.searches) * 100)}%`
+                      : '0%'
+                    }
+                  </Badge>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6 pt-4 border-t">
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>Dados salvos automaticamente no localStorage</span>
+              <span>Última atualização: {new Date().toLocaleString()}</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
