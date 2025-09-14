@@ -12,12 +12,13 @@ interface NewTaskModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSave: (task: Omit<Task, 'id' | 'created_at'>) => void;
+  initialData?: Task;
 }
 
 const TASK_PRIORITIES: TaskPriority[] = ["Baixa", "Média", "Alta"];
 const TASK_STATUS: TaskStatus[] = ["Aberta", "Em progresso", "Concluída"];
 
-export function NewTaskModal({ open, onOpenChange, onSave }: NewTaskModalProps) {
+export function NewTaskModal({ open, onOpenChange, onSave, initialData }: NewTaskModalProps) {
   const { dataSource } = useDataSource();
   const [loading, setLoading] = useState(false);
   const [clients, setClients] = useState<any[]>([]);
@@ -30,6 +31,21 @@ export function NewTaskModal({ open, onOpenChange, onSave }: NewTaskModalProps) 
     status: 'Aberta' as TaskStatus,
     client_id: '',
   });
+
+  // Load initial data if editing
+  useEffect(() => {
+    if (initialData) {
+      setFormData({
+        title: initialData.title,
+        description: initialData.description || '',
+        due_date: initialData.due_date || '',
+        owner: initialData.owner || '',
+        priority: initialData.priority,
+        status: initialData.status,
+        client_id: initialData.client_id || '',
+      });
+    }
+  }, [initialData]);
 
   // Carregar clientes quando o modal abre
   useEffect(() => {
@@ -89,7 +105,7 @@ export function NewTaskModal({ open, onOpenChange, onSave }: NewTaskModalProps) 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Nova Tarefa</DialogTitle>
+          <DialogTitle>{initialData ? 'Editar Tarefa' : 'Nova Tarefa'}</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -219,7 +235,7 @@ export function NewTaskModal({ open, onOpenChange, onSave }: NewTaskModalProps) 
               type="submit"
               disabled={loading || !formData.title.trim()}
             >
-              {loading ? 'Salvando...' : 'Criar Tarefa'}
+              {loading ? 'Salvando...' : (initialData ? 'Atualizar' : 'Criar Tarefa')}
             </Button>
           </div>
         </form>

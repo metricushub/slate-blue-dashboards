@@ -170,6 +170,17 @@ export interface Task {
   updated_at?: string;
 }
 
+export interface Note {
+  id: string;
+  client_id?: string;  // Optional - notes can be general or client-specific
+  title: string;
+  content: string;
+  tags?: string[];     // Array of tag strings
+  pinned: boolean;     // For pinning to top
+  created_at: string;
+  updated_at?: string;
+}
+
 export interface AlertRule {
   id: string; 
   client_id: string;
