@@ -7,6 +7,7 @@ import {
   FileText, 
   Settings,
   ChevronRight,
+  CheckSquare,
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 
@@ -25,6 +26,7 @@ import {
 const navigationItems = [
   { title: "Home", url: "/", icon: Home },
   { title: "Leads (CRM Kanban)", url: "/leads", icon: Users },
+  { title: "Tarefas & Anotações", url: "/tarefas-anotacoes", icon: CheckSquare },
   { title: "Otimizações", url: "/otimizacoes", icon: TrendingUp },
   { title: "Analytics", url: "/analytics", icon: BarChart3 },
   { title: "Relatórios", url: "/relatorios", icon: FileText },

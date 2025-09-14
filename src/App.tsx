@@ -17,6 +17,7 @@ import { SettingsPage } from "./pages/SettingsPage";
 import { IntegrationsPage } from "./pages/IntegrationsPage";
 import { ClientOverview } from "./pages/client-dashboard/overview/ClientOverview";
 import NotFound from "./pages/NotFound";
+import DiagnosticsPage from "./pages/DiagnosticsPage";
 
 // WIP Pages - Global
 import CalendarioWip from "./pages/wip/CalendarioWip";
@@ -60,6 +61,7 @@ const App = () => (
                 <Route path="/relatorios" element={<ReportsPage />} />
                 <Route path="/integracoes" element={<IntegrationsPage />} />
                 <Route path="/configuracoes" element={<SettingsPage />} />
+                <Route path="/diagnosticos" element={<DiagnosticsPage />} />
                 
                 {/* Client Routes */}
                 <Route path="/cliente/:clientId/overview" element={<ClientOverview />} />
