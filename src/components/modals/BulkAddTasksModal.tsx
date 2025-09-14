@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useDataSource } from "@/hooks/useDataSource";
@@ -32,6 +34,7 @@ export function BulkAddTasksModal({ open, onOpenChange, onTasksCreated }: BulkAd
   const [inputText, setInputText] = useState('');
   const [parsedTasks, setParsedTasks] = useState<ParsedTask[]>([]);
   const [defaultClient, setDefaultClient] = useState<string>('');
+  const [defaultDueDate, setDefaultDueDate] = useState<string>('');
   const [clients, setClients] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -52,8 +55,8 @@ export function BulkAddTasksModal({ open, onOpenChange, onTasksCreated }: BulkAd
     }
   };
 
-  const parseInput = () => {
-    const lines = inputText.split('\n').filter(line => line.trim());
+  const parseInput = (text: string) => {
+    const lines = text.split('\n').filter(line => line.trim());
     const tasks: ParsedTask[] = [];
 
     lines.forEach(line => {
@@ -65,51 +68,51 @@ export function BulkAddTasksModal({ open, onOpenChange, onTasksCreated }: BulkAd
       let priority: TaskPriority | undefined;
       let tags: string[] = [];
 
-      // Parse @data (formato DD/MM/YYYY ou DD/MM)
-      const dateMatch = title.match(/@(\d{1,2}\/\d{1,2}(?:\/\d{4})?)/);
+      // Extract due date (@YYYY-MM-DD or @DD/MM/YYYY or @DD/MM)
+      const dateMatch = title.match(/@(\d{4}-\d{2}-\d{2}|\d{1,2}\/\d{1,2}\/\d{4}|\d{1,2}\/\d{1,2})/);
       if (dateMatch) {
-        const dateStr = dateMatch[1];
-        let parsedDate = dateStr;
+        let dateStr = dateMatch[1];
         
-        // Add current year if not provided
-        if (!dateStr.includes('/')) {
-          // Just day/month
+        // Convert DD/MM format to current year
+        if (dateStr.match(/^\d{1,2}\/\d{1,2}$/)) {
           const currentYear = new Date().getFullYear();
-          parsedDate = `${dateStr}/${currentYear}`;
-        } else if (dateStr.split('/').length === 2) {
-          // Day/month without year
-          const currentYear = new Date().getFullYear();
-          parsedDate = `${dateStr}/${currentYear}`;
+          dateStr = dateStr + '/' + currentYear;
         }
         
-        // Convert to ISO format
-        const [day, month, year] = parsedDate.split('/');
-        due_date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day)).toISOString().split('T')[0];
+        // Convert DD/MM/YYYY to YYYY-MM-DD
+        if (dateStr.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/)) {
+          const parts = dateStr.split('/');
+          due_date = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+        } else if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+          due_date = dateStr;
+        }
+        
         title = title.replace(dateMatch[0], '').trim();
       }
 
-      // Parse !prioridade
-      const priorityMatch = title.match(/!(alta|média|media|baixa)/i);
+      // Extract priority (!alta, !media, !baixa)
+      const priorityMatch = title.match(/!(alta|media|média|baixa)/i);
       if (priorityMatch) {
         const p = priorityMatch[1].toLowerCase();
-        priority = p === 'alta' ? 'Alta' : p === 'média' || p === 'media' ? 'Média' : 'Baixa';
+        priority = p === 'alta' ? 'Alta' : p === 'media' || p === 'média' ? 'Média' : 'Baixa';
         title = title.replace(priorityMatch[0], '').trim();
       }
 
-      // Parse #tags
-      const tagMatches = title.matchAll(/#(\w+)/g);
-      for (const match of tagMatches) {
-        tags.push(match[1]);
-        title = title.replace(match[0], '').trim();
+      // Extract tags (#tag1 #tag2)
+      const tagMatches = title.match(/#\w+/g);
+      if (tagMatches) {
+        tags = tagMatches.map(tag => tag.substring(1));
+        tagMatches.forEach(tag => {
+          title = title.replace(tag, '').trim();
+        });
       }
 
       if (title) {
         tasks.push({
-          title,
+          title: title.replace(/\s+/g, ' ').trim(),
           due_date,
           priority,
           tags: tags.length > 0 ? tags : undefined,
-          client_id: defaultClient || undefined
         });
       }
     });
@@ -117,47 +120,35 @@ export function BulkAddTasksModal({ open, onOpenChange, onTasksCreated }: BulkAd
     setParsedTasks(tasks);
   };
 
-  React.useEffect(() => {
-    if (inputText.trim()) {
-      parseInput();
-    } else {
-      setParsedTasks([]);
-    }
-  }, [inputText, defaultClient]);
-
   const handleCreateTasks = async () => {
     if (parsedTasks.length === 0) return;
-
+    
     setLoading(true);
     try {
       const createdTasks: Task[] = [];
       
       for (const parsedTask of parsedTasks) {
-        const taskData = {
+        const task = await taskOperations.create({
           title: parsedTask.title,
-          description: parsedTask.tags?.length ? `Tags: ${parsedTask.tags.join(', ')}` : undefined,
-          client_id: parsedTask.client_id,
-          status: 'Aberta' as TaskStatus,
-          priority: parsedTask.priority || 'Média' as TaskPriority,
-          due_date: parsedTask.due_date
-        };
-        
-        const newTask = await taskOperations.create(taskData);
-        createdTasks.push(newTask);
+          priority: parsedTask.priority || 'Média',
+          status: 'Aberta',
+          client_id: parsedTask.client_id || defaultClient || undefined,
+          due_date: parsedTask.due_date || defaultDueDate || undefined,
+          tags: parsedTask.tags || undefined
+        });
+        createdTasks.push(task);
       }
-
+      
       onTasksCreated(createdTasks);
       
       toast({
         title: "Tarefas criadas",
-        description: `${createdTasks.length} tarefa(s) criada(s) com sucesso`
+        description: `${createdTasks.length} tarefa${createdTasks.length !== 1 ? 's' : ''} criada${createdTasks.length !== 1 ? 's' : ''} com sucesso`
       });
-
-      // Reset form
-      setInputText('');
-      setParsedTasks([]);
-      onOpenChange(false);
+      
+      handleClose();
     } catch (error) {
+      console.error('Error creating tasks:', error);
       toast({
         title: "Erro",
         description: "Erro ao criar tarefas",
@@ -168,17 +159,26 @@ export function BulkAddTasksModal({ open, onOpenChange, onTasksCreated }: BulkAd
     }
   };
 
+  const handleClose = () => {
+    onOpenChange(false);
+    setInputText('');
+    setParsedTasks([]);
+    setDefaultClient('');
+    setDefaultDueDate('');
+  };
+
   const removeTask = (index: number) => {
     setParsedTasks(prev => prev.filter((_, i) => i !== index));
-    // Also update input text
-    const lines = inputText.split('\n');
-    const filteredLines = lines.filter((_, i) => i !== index);
-    setInputText(filteredLines.join('\n'));
+  };
+
+  const getClientName = (clientId: string) => {
+    const client = clients.find(c => c.id === clientId);
+    return client ? client.name : 'Cliente não encontrado';
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Plus className="h-5 w-5" />
@@ -186,146 +186,156 @@ export function BulkAddTasksModal({ open, onOpenChange, onTasksCreated }: BulkAd
           </DialogTitle>
         </DialogHeader>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 flex-1 min-h-0">
-          {/* Input Section */}
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium mb-2 block">
-                Cliente Padrão (opcional)
-              </label>
-              <Select value={defaultClient} onValueChange={setDefaultClient}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecionar cliente..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {clients.map(client => (
-                    <SelectItem key={client.id} value={client.id}>
-                      {client.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+        <form className="space-y-4">
+          {/* Default Settings */}
+          <Card className="p-4 bg-muted/30">
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 mb-2">
+                <Calendar className="h-4 w-4" />
+                <Label className="text-sm font-medium">Configurações Padrão</Label>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3">
+                {/* Default Due Date */}
+                <div className="space-y-2">
+                  <Label htmlFor="defaultDueDate" className="text-xs">Data padrão (opcional)</Label>
+                  <Input
+                    id="defaultDueDate"
+                    type="date"
+                    value={defaultDueDate}
+                    onChange={(e) => setDefaultDueDate(e.target.value)}
+                    className="text-sm"
+                  />
+                </div>
+
+                {/* Default Client */}
+                {clients.length > 0 && (
+                  <div className="space-y-2">
+                    <Label htmlFor="defaultClient" className="text-xs">Cliente padrão (opcional)</Label>
+                    <Select value={defaultClient} onValueChange={setDefaultClient}>
+                      <SelectTrigger className="text-sm">
+                        <SelectValue placeholder="Selecionar cliente" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Nenhum cliente</SelectItem>
+                        {clients.map(client => (
+                          <SelectItem key={client.id} value={client.id}>
+                            {client.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+
+              <p className="text-xs text-muted-foreground">
+                As configurações padrão serão aplicadas às tarefas que não especificarem esses campos.
+              </p>
             </div>
+          </Card>
 
-            <div className="flex-1 flex flex-col">
-              <label className="text-sm font-medium mb-2 block">
-                Tarefas (uma por linha)
-              </label>
-              <Textarea
-                placeholder={`Digite suas tarefas, uma por linha:
-
-Revisar campanhas de Black Friday @25/11 !alta #marketing
-Configurar tracking #analytics
-Otimizar landing pages !média
-Análise de concorrência @30/11 #pesquisa
-
-Formato:
-@DD/MM ou @DD/MM/YYYY = data
-!alta, !média, !baixa = prioridade
-#tag = tags`}
-                value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
-                className="flex-1 min-h-[200px] resize-none font-mono text-sm"
-              />
+          {/* Input */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="taskInput">Tarefas (uma por linha)</Label>
+              {inputText && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => parseInput(inputText)}
+                >
+                  <Eye className="h-4 w-4 mr-1" />
+                  Visualizar ({inputText.split('\n').filter(l => l.trim()).length})
+                </Button>
+              )}
+            </div>
+            
+            <Textarea
+              id="taskInput"
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              placeholder="Digite uma tarefa por linha. Exemplo:&#10;Revisar proposta @25/12 !alta #urgente&#10;Ligar para cliente @amanha&#10;Preparar apresentação !media"
+              rows={8}
+              className="font-mono text-sm"
+            />
+            
+            <div className="text-xs text-muted-foreground space-y-1">
+              <div><strong>Formatação:</strong></div>
+              <div>• <code>@25/12</code> ou <code>@2024-12-25</code> = data de vencimento</div>
+              <div>• <code>!alta</code>, <code>!media</code>, <code>!baixa</code> = prioridade</div>
+              <div>• <code>#tag1 #tag2</code> = etiquetas</div>
             </div>
           </div>
 
-          {/* Preview Section */}
-          <div className="flex flex-col">
-            <div className="flex items-center gap-2 mb-2">
-              <Eye className="h-4 w-4" />
-              <span className="text-sm font-medium">
-                Preview ({parsedTasks.length} tarefa(s))
-              </span>
-            </div>
-            
-            <div className="flex-1 border rounded-lg p-3 overflow-y-auto">
-              {parsedTasks.length === 0 ? (
-                <div className="text-center text-muted-foreground py-8">
-                  <Plus className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">Digite tarefas à esquerda</p>
-                  <p className="text-xs">Use @data, !prioridade, #tags</p>
+          {/* Preview */}
+          {parsedTasks.length > 0 && (
+            <Card className="p-4">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Eye className="h-4 w-4" />
+                    <Label className="font-medium">Preview - {parsedTasks.length} tarefa{parsedTasks.length !== 1 ? 's' : ''} será{parsedTasks.length !== 1 ? 'm' : ''} criada{parsedTasks.length !== 1 ? 's' : ''}</Label>
+                  </div>
+                  <Badge variant="secondary">{parsedTasks.length}</Badge>
                 </div>
-              ) : (
-                <div className="space-y-2">
+                
+                <div className="space-y-2 max-h-48 overflow-y-auto">
                   {parsedTasks.map((task, index) => (
-                    <Card key={index} className="p-3 relative">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => removeTask(index)}
-                        className="absolute top-1 right-1 h-6 w-6 p-0"
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
-                      
-                      <CardContent className="p-0">
-                        <div className="font-medium text-sm mb-2">{task.title}</div>
-                        
-                        <div className="flex flex-wrap gap-1 text-xs">
-                          {task.due_date && (
-                            <Badge variant="outline" className="gap-1">
-                              <Calendar className="h-3 w-3" />
-                              {new Date(task.due_date).toLocaleDateString('pt-BR')}
-                            </Badge>
-                          )}
-                          
+                    <div key={index} className="flex items-start justify-between p-3 bg-muted/50 rounded-md">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-medium text-sm">{task.title}</span>
                           {task.priority && (
-                            <Badge 
-                              variant={
-                                task.priority === 'Alta' ? 'destructive' :
-                                task.priority === 'Média' ? 'default' : 'secondary'
-                              }
-                              className="gap-1"
-                            >
-                              <Flag className="h-3 w-3" />
+                            <Badge variant={task.priority === 'Alta' ? 'destructive' : 'secondary'} className="text-xs">
                               {task.priority}
                             </Badge>
                           )}
-                          
-                          {task.tags?.map(tag => (
-                            <Badge key={tag} variant="secondary" className="gap-1">
-                              <Hash className="h-3 w-3" />
-                              {tag}
-                            </Badge>
-                          ))}
-                          
-                          {task.client_id && (
-                            <Badge variant="outline">
-                              {clients.find(c => c.id === task.client_id)?.name || 'Cliente'}
-                            </Badge>
+                        </div>
+                        
+                        <div className="text-xs text-muted-foreground space-y-1">
+                          <div>📅 Vencimento: {task.due_date || defaultDueDate || 'Sem prazo'}</div>
+                          {(task.client_id || defaultClient) && (
+                            <div>👤 Cliente: {getClientName(task.client_id || defaultClient)}</div>
+                          )}
+                          <div>⚡ Prioridade: {task.priority || 'Média'}</div>
+                          {task.tags && task.tags.length > 0 && (
+                            <div>🏷️ Tags: {task.tags.join(', ')}</div>
                           )}
                         </div>
-                      </CardContent>
-                    </Card>
+                      </div>
+                      
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeTask(index)}
+                        className="text-muted-foreground hover:text-destructive"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
                   ))}
                 </div>
-              )}
-            </div>
-          </div>
-        </div>
+              </div>
+            </Card>
+          )}
 
-        <div className="flex items-center justify-between pt-4 border-t">
-          <div className="text-sm text-muted-foreground">
-            {parsedTasks.length > 0 && `${parsedTasks.length} tarefa(s) pronta(s) para criar`}
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <Button 
-              variant="outline" 
-              onClick={() => onOpenChange(false)}
-              disabled={loading}
-            >
+          {/* Actions */}
+          <div className="flex justify-end gap-3 pt-4">
+            <Button type="button" variant="outline" onClick={handleClose}>
               Cancelar
             </Button>
             <Button 
+              type="button" 
               onClick={handleCreateTasks}
               disabled={parsedTasks.length === 0 || loading}
             >
-              {loading ? 'Criando...' : `Criar ${parsedTasks.length} Tarefa(s)`}
+              {loading ? "Criando..." : `Criar ${parsedTasks.length} tarefa${parsedTasks.length !== 1 ? 's' : ''}`}
             </Button>
           </div>
-        </div>
+        </form>
       </DialogContent>
     </Dialog>
   );

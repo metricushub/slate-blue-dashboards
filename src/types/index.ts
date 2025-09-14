@@ -168,6 +168,7 @@ export interface Task {
   status: TaskStatus;
   completed_at?: string;  // ISO date when task was completed
   archived_at?: string;   // ISO date when task was archived
+  tags?: string[];        // Tags/labels for the task
   created_at: string; 
   updated_at?: string;
 }

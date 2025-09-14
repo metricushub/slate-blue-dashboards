@@ -51,6 +51,7 @@ export default function TarefasAnotacoesPage() {
   const [showNewTaskModal, setShowNewTaskModal] = useState(false);
   const [showNewNoteModal, setShowNewNoteModal] = useState(false);
   const [showBulkAddModal, setShowBulkAddModal] = useState(false);
+  const [showTaskEditModal, setShowTaskEditModal] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [editingNote, setEditingNote] = useState<Note | null>(null);
   
@@ -222,7 +223,44 @@ export default function TarefasAnotacoesPage() {
     }
   };
 
-  const handleDeleteTask = async (taskId: string) => {
+  const handleTaskEdit = (task: Task) => {
+    setEditingTask(task);
+    setShowTaskEditModal(true);
+  };
+
+  const handleTaskSave = async (updatedTask: Task) => {
+    try {
+      await taskOperations.update(updatedTask.id, {
+        title: updatedTask.title,
+        description: updatedTask.description,
+        due_date: updatedTask.due_date,
+        owner: updatedTask.owner,
+        priority: updatedTask.priority,
+        status: updatedTask.status,
+        client_id: updatedTask.client_id,
+        tags: updatedTask.tags,
+        updated_at: updatedTask.updated_at
+      });
+      
+      setTasks(prev => prev.map(t => 
+        t.id === updatedTask.id ? updatedTask : t
+      ));
+      
+      toast({
+        title: "Tarefa atualizada",
+        description: "Alterações salvas com sucesso"
+      });
+      
+      setShowTaskEditModal(false);
+      setEditingTask(null);
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Erro ao atualizar tarefa",
+        variant: "destructive"
+      });
+    }
+  };
     try {
       await taskOperations.delete(taskId);
       setTasks(prev => prev.filter(t => t.id !== taskId));
@@ -477,6 +515,7 @@ export default function TarefasAnotacoesPage() {
           <TaskKanban 
             tasks={filteredTasks}
             onTaskMove={handleTaskMove}
+            onTaskEdit={handleTaskEdit}
             clients={clients}
           />
         </TabsContent>
@@ -635,6 +674,13 @@ export default function TarefasAnotacoesPage() {
         open={showBulkAddModal}
         onOpenChange={setShowBulkAddModal}
         onTasksCreated={handleCreateTasksBulk}
+      />
+
+      <TaskEditModal
+        open={showTaskEditModal}
+        onOpenChange={setShowTaskEditModal}
+        onSave={handleTaskSave}
+        task={editingTask}
       />
     </div>
   );
