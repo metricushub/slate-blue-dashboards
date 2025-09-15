@@ -15,14 +15,50 @@ export interface OnboardingCard {
   updated_at: string;
 }
 
+export interface OnboardingStage {
+  id: string;
+  title: string;
+  hasSubStage?: boolean;
+  order: number;
+}
+
+export interface OnboardingSubStage {
+  id: string;
+  stageId: string;
+  title: string;
+  order: number;
+}
+
 export interface OnboardingDatabase extends Dexie {
   onboardingCards: Table<OnboardingCard>;
+  onboardingStages: Table<OnboardingStage>;
+  onboardingSubStages: Table<OnboardingSubStage>;
 }
 
 const db = new Dexie('OnboardingDatabase') as OnboardingDatabase;
 
 db.version(1).stores({
-  onboardingCards: '++id, clientId, stage, subStage, responsavel, vencimento, created_at'
+  onboardingCards: '++id, clientId, stage, subStage, responsavel, vencimento, created_at',
+  onboardingStages: '++id, order',
+  onboardingSubStages: '++id, stageId, order'
+});
+
+// Initialize default stages and substages
+db.on('ready', async () => {
+  const stageCount = await db.onboardingStages.count();
+  if (stageCount === 0) {
+    await db.onboardingStages.bulkAdd([
+      { id: 'dados-gerais', title: 'Dados gerais', order: 1 },
+      { id: 'financeiro', title: 'Financeiro', hasSubStage: true, order: 2 },
+      { id: 'implementacao', title: 'Implementação Cliente', order: 3 },
+      { id: 'briefing', title: 'Briefing & 1º Contato/Reuniões', order: 4 },
+      { id: 'configuracao', title: 'Reunião de Configuração — Informações Necessárias', order: 5 },
+    ]);
+    
+    await db.onboardingSubStages.bulkAdd([
+      { id: '2.1-cadastrar-financeiro', stageId: 'financeiro', title: '2.1 Cadastrar no financeiro', order: 1 }
+    ]);
+  }
 });
 
 // Operations
@@ -69,6 +105,36 @@ export const onboardingCardOperations = {
       subStage: stage === 'financeiro' ? subStage : undefined,
       updated_at: new Date().toISOString(),
     });
+  }
+};
+
+// Stage operations
+export const onboardingStageOperations = {
+  async getAllStages(): Promise<OnboardingStage[]> {
+    return await db.onboardingStages.orderBy('order').toArray();
+  },
+
+  async updateStage(stageId: string, data: Partial<OnboardingStage>): Promise<void> {
+    await db.onboardingStages.update(stageId, data);
+  },
+
+  async getSubStagesByStage(stageId: string): Promise<OnboardingSubStage[]> {
+    return await db.onboardingSubStages.where('stageId').equals(stageId).toArray()
+      .then(subStages => subStages.sort((a, b) => a.order - b.order));
+  },
+
+  async updateSubStage(subStageId: string, data: Partial<OnboardingSubStage>): Promise<void> {
+    await db.onboardingSubStages.update(subStageId, data);
+  },
+
+  async deleteSubStage(subStageId: string): Promise<void> {
+    // First move all cards from this substage to main stage
+    const cardsInSubStage = await db.onboardingCards.where('subStage').equals(subStageId).toArray();
+    for (const card of cardsInSubStage) {
+      await db.onboardingCards.update(card.id, { subStage: undefined });
+    }
+    
+    await db.onboardingSubStages.delete(subStageId);
   }
 };
 

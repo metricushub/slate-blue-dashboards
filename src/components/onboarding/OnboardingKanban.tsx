@@ -17,8 +17,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Users, Filter } from 'lucide-react';
-import { OnboardingCard, onboardingCardOperations } from '@/shared/db/onboardingStore';
+import { Plus, Users, Filter, Edit2, X } from 'lucide-react';
+import { OnboardingCard, OnboardingStage, OnboardingSubStage, onboardingCardOperations, onboardingStageOperations } from '@/shared/db/onboardingStore';
 import { OnboardingCardComponent } from './OnboardingCardComponent';
 import { OnboardingCardModal } from './OnboardingCardModal';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -31,26 +31,17 @@ interface OnboardingKanbanProps {
   clientId?: string; // If provided, filter by client
 }
 
-const STAGES = [
-  { id: 'dados-gerais', title: 'Dados gerais' },
-  { id: 'financeiro', title: 'Financeiro', hasSubStage: true },
-  { id: 'implementacao', title: 'Implementação Cliente' },
-  { id: 'briefing', title: 'Briefing & 1º Contato/Reuniões' },
-  { id: 'configuracao', title: 'Reunião de Configuração — Informações Necessárias' },
-] as const;
-
-const SUB_STAGES = {
-  'financeiro': [
-    { id: '2.1-cadastrar-financeiro', title: '2.1 Cadastrar no financeiro' }
-  ]
-} as const;
 
 export function OnboardingKanban({ clientId }: OnboardingKanbanProps) {
   const [cards, setCards] = useState<OnboardingCard[]>([]);
+  const [stages, setStages] = useState<OnboardingStage[]>([]);
+  const [subStages, setSubStages] = useState<{ [stageId: string]: OnboardingSubStage[] }>({});
   const [loading, setLoading] = useState(true);
   const [activeCard, setActiveCard] = useState<OnboardingCard | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCard, setEditingCard] = useState<OnboardingCard | null>(null);
+  const [editingStageId, setEditingStageId] = useState<string | null>(null);
+  const [editingSubStageId, setEditingSubStageId] = useState<string | null>(null);
   const [filters, setFilters] = useState({
     search: '',
     responsavel: '',
@@ -67,19 +58,33 @@ export function OnboardingKanban({ clientId }: OnboardingKanbanProps) {
   );
 
   useEffect(() => {
-    loadCards();
+    loadData();
   }, [clientId]);
 
-  const loadCards = async () => {
+  const loadData = async () => {
     try {
-      const allCards = clientId 
-        ? await onboardingCardOperations.getByClient(clientId)
-        : await onboardingCardOperations.getAll();
+      const [allCards, allStages] = await Promise.all([
+        clientId 
+          ? onboardingCardOperations.getByClient(clientId)
+          : onboardingCardOperations.getAll(),
+        onboardingStageOperations.getAllStages()
+      ]);
+      
       setCards(allCards);
+      setStages(allStages);
+      
+      // Load substages for each stage
+      const subStagesMap: { [stageId: string]: OnboardingSubStage[] } = {};
+      for (const stage of allStages) {
+        if (stage.hasSubStage) {
+          subStagesMap[stage.id] = await onboardingStageOperations.getSubStagesByStage(stage.id);
+        }
+      }
+      setSubStages(subStagesMap);
     } catch (error) {
       toast({
         title: "Erro",
-        description: "Erro ao carregar cards do onboarding.",
+        description: "Erro ao carregar dados do onboarding.",
         variant: "destructive",
       });
     } finally {
@@ -192,6 +197,77 @@ export function OnboardingKanban({ clientId }: OnboardingKanbanProps) {
     }
   };
 
+  const handleUpdateStageTitle = async (stageId: string, newTitle: string) => {
+    try {
+      await onboardingStageOperations.updateStage(stageId, { title: newTitle });
+      setStages(prev => prev.map(stage => 
+        stage.id === stageId ? { ...stage, title: newTitle } : stage
+      ));
+      setEditingStageId(null);
+      toast({
+        title: "Sucesso",
+        description: "Título da etapa atualizado.",
+      });
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Erro ao atualizar título da etapa.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleUpdateSubStageTitle = async (subStageId: string, newTitle: string) => {
+    try {
+      await onboardingStageOperations.updateSubStage(subStageId, { title: newTitle });
+      setSubStages(prev => {
+        const newSubStages = { ...prev };
+        Object.keys(newSubStages).forEach(stageId => {
+          newSubStages[stageId] = newSubStages[stageId].map(subStage => 
+            subStage.id === subStageId ? { ...subStage, title: newTitle } : subStage
+          );
+        });
+        return newSubStages;
+      });
+      setEditingSubStageId(null);
+      toast({
+        title: "Sucesso",
+        description: "Título da sub-etapa atualizado.",
+      });
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Erro ao atualizar título da sub-etapa.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteSubStage = async (subStageId: string) => {
+    try {
+      await onboardingStageOperations.deleteSubStage(subStageId);
+      setSubStages(prev => {
+        const newSubStages = { ...prev };
+        Object.keys(newSubStages).forEach(stageId => {
+          newSubStages[stageId] = newSubStages[stageId].filter(subStage => subStage.id !== subStageId);
+        });
+        return newSubStages;
+      });
+      // Reload cards to update any that were moved
+      loadData();
+      toast({
+        title: "Sucesso",
+        description: "Sub-etapa excluída com sucesso.",
+      });
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Erro ao excluir sub-etapa.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const getFilteredCards = () => {
     return cards.filter(card => {
       const searchMatch = !filters.search || 
@@ -293,11 +369,33 @@ export function OnboardingKanban({ clientId }: OnboardingKanbanProps) {
         onDragEnd={handleDragEnd}
       >
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-          {STAGES.map((stage) => (
+          {stages.map((stage) => (
             <Card key={stage.id} className="h-fit">
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-medium flex items-center justify-between">
-                  {stage.title}
+                  {editingStageId === stage.id ? (
+                    <Input
+                      defaultValue={stage.title}
+                      className="h-6 text-sm"
+                      onBlur={(e) => handleUpdateStageTitle(stage.id, e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          handleUpdateStageTitle(stage.id, e.currentTarget.value);
+                        } else if (e.key === 'Escape') {
+                          setEditingStageId(null);
+                        }
+                      }}
+                      autoFocus
+                    />
+                  ) : (
+                    <span 
+                      className="cursor-pointer hover:text-primary flex items-center gap-1"
+                      onClick={() => setEditingStageId(stage.id)}
+                    >
+                      {stage.title}
+                      <Edit2 className="h-3 w-3 opacity-50" />
+                    </span>
+                  )}
                   <Badge variant="secondary" className="text-xs">
                     {getCardsForStage(stage.id).length}
                   </Badge>
@@ -326,15 +424,47 @@ export function OnboardingKanban({ clientId }: OnboardingKanbanProps) {
                 </SortableContext>
 
                 {/* Sub-stage swimlane */}
-                {stage.id === 'financeiro' && SUB_STAGES[stage.id] && (
+                {stage.hasSubStage && subStages[stage.id] && subStages[stage.id].length > 0 && (
                   <div className="mt-4 border border-dashed border-border rounded-lg p-3">
-                    {SUB_STAGES[stage.id].map((subStage) => (
+                    {subStages[stage.id].map((subStage) => (
                       <div key={subStage.id}>
                         <h4 className="text-xs font-medium text-muted-foreground mb-2 flex items-center justify-between">
-                          {subStage.title}
-                          <Badge variant="outline" className="text-xs">
-                            {getCardsForStage(stage.id, subStage.id).length}
-                          </Badge>
+                          {editingSubStageId === subStage.id ? (
+                            <Input
+                              defaultValue={subStage.title}
+                              className="h-5 text-xs"
+                              onBlur={(e) => handleUpdateSubStageTitle(subStage.id, e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  handleUpdateSubStageTitle(subStage.id, e.currentTarget.value);
+                                } else if (e.key === 'Escape') {
+                                  setEditingSubStageId(null);
+                                }
+                              }}
+                              autoFocus
+                            />
+                          ) : (
+                            <span 
+                              className="cursor-pointer hover:text-primary flex items-center gap-1"
+                              onClick={() => setEditingSubStageId(subStage.id)}
+                            >
+                              {subStage.title}
+                              <Edit2 className="h-2 w-2 opacity-50" />
+                            </span>
+                          )}
+                          <div className="flex items-center gap-1">
+                            <Badge variant="outline" className="text-xs">
+                              {getCardsForStage(stage.id, subStage.id).length}
+                            </Badge>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-4 w-4 p-0 text-destructive hover:text-destructive"
+                              onClick={() => handleDeleteSubStage(subStage.id)}
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
                         </h4>
                         <SortableContext
                           items={getCardsForStage(stage.id, subStage.id).map(card => card.id)}
