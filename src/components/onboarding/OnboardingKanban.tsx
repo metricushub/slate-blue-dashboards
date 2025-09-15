@@ -260,23 +260,23 @@ export function OnboardingKanban({ clientId }: OnboardingKanbanProps) {
             onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
             className="max-w-xs"
           />
-          <Select value={filters.responsavel} onValueChange={(value) => setFilters(prev => ({ ...prev, responsavel: value }))}>
+          <Select value={filters.responsavel} onValueChange={(value) => setFilters(prev => ({ ...prev, responsavel: value === '__all__' ? '' : value }))}>
             <SelectTrigger className="w-48">
               <SelectValue placeholder="Filtrar por responsável" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Todos os responsáveis</SelectItem>
+              <SelectItem value="__all__">Todos os responsáveis</SelectItem>
               {uniqueResponsaveis.map(responsavel => (
                 <SelectItem key={responsavel} value={responsavel}>{responsavel}</SelectItem>
               ))}
             </SelectContent>
           </Select>
-          <Select value={filters.cliente} onValueChange={(value) => setFilters(prev => ({ ...prev, cliente: value }))}>
+          <Select value={filters.cliente} onValueChange={(value) => setFilters(prev => ({ ...prev, cliente: value === '__all__' ? '' : value }))}>
             <SelectTrigger className="w-48">
               <SelectValue placeholder="Filtrar por cliente" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Todos os clientes</SelectItem>
+              <SelectItem value="__all__">Todos os clientes</SelectItem>
               {uniqueClientes.map(cliente => (
                 <SelectItem key={cliente} value={cliente}>{cliente}</SelectItem>
               ))}

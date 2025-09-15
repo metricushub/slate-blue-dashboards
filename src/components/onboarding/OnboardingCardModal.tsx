@@ -226,12 +226,12 @@ export function OnboardingCardModal({
           {formData.stage === 'financeiro' && (
             <div className="space-y-2">
               <Label htmlFor="subStage">Sub-etapa</Label>
-              <Select value={formData.subStage || ''} onValueChange={(value) => setFormData(prev => ({ ...prev, subStage: value as OnboardingCard['subStage'] }))}>
+              <Select value={formData.subStage ?? 'none'} onValueChange={(value) => setFormData(prev => ({ ...prev, subStage: value === 'none' ? undefined : (value as OnboardingCard['subStage']) }))}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione a sub-etapa" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Etapa principal</SelectItem>
+                  <SelectItem value="none">Etapa principal</SelectItem>
                   <SelectItem value="2.1-cadastrar-financeiro">2.1 Cadastrar no financeiro</SelectItem>
                 </SelectContent>
               </Select>
