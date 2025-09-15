@@ -144,7 +144,7 @@ export function TemplateApplicator({ open, onOpenChange, clientId, onApplied }: 
               <Checkbox
                 id="create-blocks"
                 checked={createMissingBlocks}
-                onCheckedChange={setCreateMissingBlocks}
+                onCheckedChange={(checked) => setCreateMissingBlocks(checked === true)}
               />
               <Label htmlFor="create-blocks">Criar blocos que não existirem</Label>
             </div>
@@ -153,7 +153,7 @@ export function TemplateApplicator({ open, onOpenChange, clientId, onApplied }: 
               <Checkbox
                 id="merge-existing"
                 checked={mergeWithExisting}
-                onCheckedChange={setMergeWithExisting}
+                onCheckedChange={(checked) => setMergeWithExisting(checked === true)}
               />
               <Label htmlFor="merge-existing">Mesclar com blocos existentes</Label>
             </div>
@@ -162,7 +162,7 @@ export function TemplateApplicator({ open, onOpenChange, clientId, onApplied }: 
               <Checkbox
                 id="avoid-duplicates"
                 checked={avoidDuplicateCards}
-                onCheckedChange={setAvoidDuplicateCards}
+                onCheckedChange={(checked) => setAvoidDuplicateCards(checked === true)}
               />
               <Label htmlFor="avoid-duplicates">Evitar duplicar cards</Label>
             </div>

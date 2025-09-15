@@ -23,6 +23,8 @@ import { BulkAddOnboardingCardsModal } from '@/components/modals/BulkAddOnboardi
 import { OnboardingCardEditDrawer } from '@/components/modals/OnboardingCardEditDrawer';
 import { TemplateEditor } from './TemplateEditor';
 import { TemplateApplicator } from './TemplateApplicator';
+import { SaveTemplateModal } from './SaveTemplateModal';
+import { ManageTemplatesModal } from './ManageTemplatesModal';
 import { 
   Plus, 
   Calendar, 
@@ -473,11 +475,11 @@ export function NewOnboardingKanban({
       <SaveTemplateModal
         open={showSaveTemplate}
         onOpenChange={setShowSaveTemplate}
-        cards={cards}
+        clientId={clientId}
         onSaved={() => onCardsReload?.()}
       />
 
-      <ApplyTemplateModal
+      <TemplateApplicator
         open={showApplyTemplate}
         onOpenChange={setShowApplyTemplate}
         clientId={clientId}
