@@ -21,10 +21,32 @@ import { Badge } from '@/components/ui/badge';
 import { OnboardingCard } from '@/shared/db/onboardingStore';
 import { BulkAddOnboardingCardsModal } from '@/components/modals/BulkAddOnboardingCardsModal';
 import { OnboardingCardEditDrawer } from '@/components/modals/OnboardingCardEditDrawer';
-import { Plus, Calendar, User, Clock, PackagePlus, FileText, CreditCard, Settings, MessageSquare, Rocket, Edit } from 'lucide-react';
+import { SaveTemplateModal } from './SaveTemplateModal';
+import { ApplyTemplateModal } from './ApplyTemplateModal';
+import { ManageTemplatesModal } from './ManageTemplatesModal';
+import { 
+  Plus, 
+  Calendar, 
+  User, 
+  Clock, 
+  PackagePlus, 
+  FileText, 
+  CreditCard, 
+  Settings, 
+  MessageSquare, 
+  Rocket, 
+  Edit,
+  ChevronDown
+} from 'lucide-react';
 import { format, isToday, isPast } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface NewOnboardingKanbanProps {
   clientId?: string;
@@ -251,6 +273,9 @@ export function NewOnboardingKanban({
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [showEditDrawer, setShowEditDrawer] = useState(false);
   const [editingCard, setEditingCard] = useState<OnboardingCard | null>(null);
+  const [showSaveTemplate, setShowSaveTemplate] = useState(false);
+  const [showApplyTemplate, setShowApplyTemplate] = useState(false);
+  const [showManageTemplates, setShowManageTemplates] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -352,6 +377,28 @@ export function NewOnboardingKanban({
                 <PackagePlus className="h-4 w-4" />
                 Adicionar em Lote
               </Button>
+              
+              {/* Templates Menu */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    Templates
+                    <ChevronDown className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setShowSaveTemplate(true)}>
+                    Salvar como template
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setShowApplyTemplate(true)}>
+                    Aplicar template
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setShowManageTemplates(true)}>
+                    Gerenciar templates
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
 
@@ -422,6 +469,25 @@ export function NewOnboardingKanban({
         onSave={handleSaveCard}
         onDelete={handleDeleteCard}
         onDuplicate={handleDuplicateCard}
+      />
+
+      <SaveTemplateModal
+        open={showSaveTemplate}
+        onOpenChange={setShowSaveTemplate}
+        cards={cards}
+        onSaved={() => onCardsReload?.()}
+      />
+
+      <ApplyTemplateModal
+        open={showApplyTemplate}
+        onOpenChange={setShowApplyTemplate}
+        clientId={clientId}
+        onApplied={() => onCardsReload?.()}
+      />
+
+      <ManageTemplatesModal
+        open={showManageTemplates}
+        onOpenChange={setShowManageTemplates}
       />
     </>
   );

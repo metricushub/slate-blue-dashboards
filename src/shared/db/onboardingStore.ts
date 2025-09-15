@@ -78,11 +78,31 @@ export interface OnboardingSubStage {
   order: number;
 }
 
+export interface OnboardingTemplate {
+  id: string;
+  name: string;
+  description?: string;
+  isDefault?: boolean;
+  stages: {
+    stageId: string;
+    cards: {
+      title: string;
+      description?: string;
+      responsavel?: string;
+      vencimentoOffset?: string; // e.g., "+2d", "+1w", "+3w"
+      tags?: string[];
+    }[];
+  }[];
+  created_at: string;
+  updated_at: string;
+}
+
 export interface OnboardingDatabase extends Dexie {
   onboardingCards: Table<OnboardingCard>;
   onboardingStages: Table<OnboardingStage>;
   onboardingSubStages: Table<OnboardingSubStage>;
   onboardingFichas: Table<OnboardingFicha>;
+  onboardingTemplates: Table<OnboardingTemplate>;
 }
 
 const db = new Dexie('OnboardingDatabase') as OnboardingDatabase;
@@ -91,7 +111,8 @@ db.version(1).stores({
   onboardingCards: '++id, clientId, stage, subStage, responsavel, vencimento, created_at',
   onboardingStages: '++id, order',
   onboardingSubStages: '++id, stageId, order',
-  onboardingFichas: '++id, clientId, created_at'
+  onboardingFichas: '++id, clientId, created_at',
+  onboardingTemplates: '++id, name, isDefault, created_at'
 });
 
 // Initialize default stages and substages
@@ -248,6 +269,148 @@ export const onboardingFichaOperations = {
     };
 
     await db.onboardingFichas.put(updated);
+  }
+};
+
+// Template operations
+export const onboardingTemplateOperations = {
+  async create(template: Omit<OnboardingTemplate, 'id' | 'created_at' | 'updated_at'>): Promise<OnboardingTemplate> {
+    const now = new Date().toISOString();
+    const newTemplate: OnboardingTemplate = {
+      ...template,
+      id: crypto.randomUUID(),
+      created_at: now,
+      updated_at: now,
+    };
+    
+    await db.onboardingTemplates.add(newTemplate);
+    return newTemplate;
+  },
+
+  async getAll(): Promise<OnboardingTemplate[]> {
+    return await db.onboardingTemplates.orderBy('created_at').reverse().toArray();
+  },
+
+  async getDefault(): Promise<OnboardingTemplate | undefined> {
+    return await db.onboardingTemplates.where('isDefault').equals(1).first();
+  },
+
+  async update(id: string, updates: Partial<OnboardingTemplate>): Promise<void> {
+    await db.onboardingTemplates.update(id, {
+      ...updates,
+      updated_at: new Date().toISOString(),
+    });
+  },
+
+  async delete(id: string): Promise<void> {
+    await db.onboardingTemplates.delete(id);
+  },
+
+  async setDefault(id: string): Promise<void> {
+    // Remove default from all templates
+    const allTemplates = await db.onboardingTemplates.toArray();
+    await Promise.all(allTemplates.map(t => 
+      db.onboardingTemplates.update(t.id, { isDefault: false })
+    ));
+    
+    // Set new default
+    await db.onboardingTemplates.update(id, { isDefault: true });
+  },
+
+  async applyTemplate(templateId: string, clientId: string, anchorDate?: Date, variables?: Record<string, string>): Promise<{ created: number; skipped: number; summary: string[] }> {
+    const template = await db.onboardingTemplates.get(templateId);
+    if (!template) throw new Error('Template not found');
+
+    const existingCards = await db.onboardingCards.where('clientId').equals(clientId).toArray();
+    const anchor = anchorDate || new Date();
+    let created = 0;
+    let skipped = 0;
+    const summary: string[] = [];
+
+    for (const stage of template.stages) {
+      for (const cardTemplate of stage.cards) {
+        // Check for duplicates in the same stage
+        const isDuplicate = existingCards.some(card => 
+          card.stage === stage.stageId && card.title === this.replaceVariables(cardTemplate.title, variables)
+        );
+
+        if (isDuplicate) {
+          skipped++;
+          summary.push(`Pulado: "${cardTemplate.title}" (duplicado em ${stage.stageId})`);
+          continue;
+        }
+
+        // Calculate due date from offset
+        let vencimento: string | undefined;
+        if (cardTemplate.vencimentoOffset) {
+          vencimento = this.calculateDateFromOffset(anchor, cardTemplate.vencimentoOffset);
+        }
+
+        // Create card
+        const newCard: Omit<OnboardingCard, 'id' | 'created_at' | 'updated_at'> = {
+          title: this.replaceVariables(cardTemplate.title, variables),
+          notas: cardTemplate.description ? this.replaceVariables(cardTemplate.description, variables) : '',
+          responsavel: cardTemplate.responsavel || '',
+          vencimento,
+          checklist: [],
+          clientId,
+          stage: stage.stageId as OnboardingCard['stage'],
+        };
+
+        await onboardingCardOperations.create(newCard);
+        created++;
+        summary.push(`Criado: "${newCard.title}" em ${stage.stageId}`);
+      }
+    }
+
+    // Save build report
+    const buildReport = {
+      templateId,
+      clientId,
+      created,
+      skipped,
+      summary,
+      timestamp: new Date().toISOString(),
+    };
+    localStorage.setItem('buildReport:last', JSON.stringify(buildReport));
+
+    return { created, skipped, summary };
+  },
+
+  replaceVariables(text: string, variables?: Record<string, string>): string {
+    if (!variables) return text;
+    
+    let result = text;
+    Object.entries(variables).forEach(([key, value]) => {
+      result = result.replace(new RegExp(`{{${key}}}`, 'g'), value);
+    });
+    
+    return result;
+  },
+
+  calculateDateFromOffset(baseDate: Date, offset: string): string {
+    const match = offset.match(/^([+-])(\d+)([dwm])$/);
+    if (!match) return baseDate.toISOString().split('T')[0];
+
+    const [, sign, amount, unit] = match;
+    const multiplier = sign === '+' ? 1 : -1;
+    const days = parseInt(amount) * multiplier;
+
+    const result = new Date(baseDate);
+    
+    switch (unit) {
+      case 'd':
+        result.setDate(result.getDate() + days);
+        break;
+      case 'w':
+        result.setDate(result.getDate() + (days * 7));
+        break;
+      case 'm':
+        result.setMonth(result.getMonth() + days);
+        break;
+    }
+
+    return result.toISOString().split('T')[0];
   }
 };
 
