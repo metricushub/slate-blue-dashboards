@@ -70,13 +70,13 @@ export function OnboardingCardModal({
     if (initialData) {
       const selectedClient = MOCK_CLIENTS.find(c => c.id === initialData.clientId);
       setFormData({
-        title: initialData.title,
+        title: initialData.title || '',
         clientId: initialData.clientId || clientId || '',
         clientName: initialData.clientName || selectedClient?.name || '',
-        responsavel: initialData.responsavel,
+        responsavel: initialData.responsavel || '',
         vencimento: initialData.vencimento || '',
         checklist: [...initialData.checklist],
-        notas: initialData.notas,
+        notas: initialData.notas || '',
         stage: initialData.stage,
         subStage: initialData.subStage,
       });
@@ -100,7 +100,7 @@ export function OnboardingCardModal({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.title.trim()) return;
+    if (!formData.title?.trim()) return;
 
     onSave({
       ...formData,
@@ -119,7 +119,7 @@ export function OnboardingCardModal({
   };
 
   const addChecklistItem = () => {
-    if (newChecklistItem.trim()) {
+    if (newChecklistItem?.trim()) {
       setFormData(prev => ({
         ...prev,
         checklist: [...prev.checklist, newChecklistItem.trim()],
@@ -336,7 +336,7 @@ export function OnboardingCardModal({
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={!formData.title.trim()}>
+            <Button type="submit" disabled={!formData.title?.trim()}>
               {initialData ? 'Atualizar' : 'Criar'}
             </Button>
           </div>
