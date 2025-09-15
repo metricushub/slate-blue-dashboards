@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { CheckCircle, Circle, ChevronLeft, ChevronRight, User, DollarSign, Layers } from 'lucide-react';
 import { Client, Lead } from '@/types';
 import { toast } from '@/hooks/use-toast';
+import { getAllTemplateOptions } from '@/shared/data/onboardingTemplates';
 
 interface ClientCreationWizardProps {
   open: boolean;
@@ -40,11 +41,7 @@ const PLATFORMS = [
   { id: 'tiktok', name: 'TikTok Ads' }
 ];
 
-const ONBOARDING_TEMPLATES = [
-  { id: 'padrao', name: 'Padrão', description: 'Template completo com todas as etapas' },
-  { id: 'express', name: 'Express', description: 'Versão simplificada para clientes urgentes' },
-  { id: 'premium', name: 'Premium', description: 'Template avançado com etapas extras' }
-];
+  const ONBOARDING_TEMPLATES = getAllTemplateOptions();
 
 export function ClientCreationWizard({ open, onOpenChange, onComplete, leadData }: ClientCreationWizardProps) {
   const [currentStep, setCurrentStep] = useState(1);

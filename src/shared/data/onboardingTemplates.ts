@@ -96,5 +96,74 @@ export function createCardFromTemplate(
 
 // Função para obter template por etapa
 export function getTemplateByStage(stage: string): OnboardingTemplate | undefined {
-  return ONBOARDING_TEMPLATES.find(template => template.stage === stage);
+  // Get templates from localStorage with updated structure
+  const getStoredTemplates = () => {
+    try {
+      const stored = localStorage.getItem('onboarding:templates');
+      if (stored) {
+        const templates = JSON.parse(stored);
+        return templates.find((t: any) => t.stage === stage && t.isDefault) || 
+               templates.find((t: any) => t.stage === stage) ||
+               ONBOARDING_TEMPLATES.find(t => t.stage === stage);
+      }
+    } catch (error) {
+      console.warn('Error loading stored templates:', error);
+    }
+    return ONBOARDING_TEMPLATES.find(t => t.stage === stage);
+  };
+
+  const template = getStoredTemplates();
+  return template;
+}
+
+// Get all available templates for a stage (including custom ones)
+export function getTemplatesByStage(stage: string): OnboardingTemplate[] {
+  const templates: OnboardingTemplate[] = [];
+  
+  // Add stored custom templates
+  try {
+    const stored = localStorage.getItem('onboarding:templates');
+    if (stored) {
+      const customTemplates = JSON.parse(stored);
+      templates.push(...customTemplates.filter((t: any) => t.stage === stage));
+    }
+  } catch (error) {
+    console.warn('Error loading stored templates:', error);
+  }
+  
+  // Add default templates if no custom ones exist for this stage
+  if (templates.length === 0) {
+    const defaultTemplate = ONBOARDING_TEMPLATES.find(t => t.stage === stage);
+    if (defaultTemplate) {
+      templates.push(defaultTemplate);
+    }
+  }
+  
+  return templates;
+}
+
+// Get all templates for wizard selection
+export function getAllTemplateOptions() {
+  try {
+    const stored = localStorage.getItem('onboarding:templates');
+    if (stored) {
+      const customTemplates = JSON.parse(stored);
+      return customTemplates.map((t: any) => ({
+        id: t.id,
+        name: t.name, 
+        description: t.description,
+        stage: t.stage,
+        isDefault: t.isDefault
+      }));
+    }
+  } catch (error) {
+    console.warn('Error loading stored templates:', error);
+  }
+  
+  // Return default template options
+  return [
+    { id: 'padrao', name: 'Padrão', description: 'Template completo com todas as etapas', isDefault: true },
+    { id: 'express', name: 'Express', description: 'Versão simplificada para clientes urgentes', isDefault: false },
+    { id: 'premium', name: 'Premium', description: 'Template avançado com etapas extras', isDefault: false }
+  ];
 }

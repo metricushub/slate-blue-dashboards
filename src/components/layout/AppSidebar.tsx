@@ -27,7 +27,8 @@ import {
 const navigationItems = [
   { title: "Home", url: "/", icon: Home },
   { title: "Leads (CRM Kanban)", url: "/leads", icon: Users },
-  { title: "Onboarding", url: "/onboarding", icon: ClipboardCheck },
+    { title: "Onboarding", url: "/onboarding", icon: ClipboardCheck },
+    { title: "Templates Onboarding", url: "/onboarding/templates", icon: Settings },
   { title: "Tarefas & Anotações", url: "/tarefas-anotacoes", icon: CheckSquare },
   { title: "Otimizações", url: "/otimizacoes", icon: TrendingUp },
   { title: "Analytics", url: "/analytics", icon: BarChart3 },
