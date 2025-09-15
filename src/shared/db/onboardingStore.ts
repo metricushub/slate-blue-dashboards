@@ -731,14 +731,20 @@ export const onboardingTemplateV2Operations = {
   mapBlockToStage(blockName: string): string {
     console.log('Mapping block name:', blockName);
     
-    // Create a slug-friendly ID from the block name
-    const stageId = blockName.toLowerCase()
-      .replace(/[^a-z0-9\s]/g, '') // Remove special characters
-      .replace(/\s+/g, '-') // Replace spaces with hyphens
-      .replace(/^-+|-+$/g, ''); // Remove leading/trailing hyphens
+    // Normalize (remove diacritics) and create a clean, slug-friendly ID from the block name
+    const normalized = blockName
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // strip accents
+      .toLowerCase();
+
+    const stageId = normalized
+      .replace(/[^a-z0-9\s-]/g, '') // keep letters, numbers, spaces and hyphens
+      .replace(/[\s_]+/g, '-') // spaces/underscores -> hyphen
+      .replace(/-+/g, '-') // collapse multiple hyphens
+      .replace(/^-+|-+$/g, ''); // trim hyphens
     
-    console.log('Mapped to stage ID:', stageId);
-    return stageId;
+    console.log('Mapped to stage ID:', stageId || 'geral');
+    return stageId || 'geral';
   },
 
   async createStageFromBlock(blockName: string, icon?: string, color?: string): Promise<OnboardingStage> {
