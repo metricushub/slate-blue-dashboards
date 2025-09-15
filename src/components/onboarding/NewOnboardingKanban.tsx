@@ -227,62 +227,6 @@ function SortableOnboardingCard({ card, onClick, draggable = false }: SortableOn
     </div>
   );
 }
-      <Card className={`${isOverdue ? 'border-red-300 bg-red-50/50' : ''} group hover:shadow-md transition-shadow`}>
-        <CardContent className="p-3 space-y-2">
-          <div className="flex items-start gap-2">
-            <h4 
-              className="font-medium text-sm leading-tight cursor-pointer hover:text-primary hover:underline transition-all flex-1 group-hover:text-primary"
-              onClick={handleCardClick}
-              onPointerDown={(e) => e.stopPropagation()}
-              title="Clique para editar"
-            >
-              {card.title}
-            </h4>
-            <div 
-              className="flex-shrink-0 mt-0.5 cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
-              onClick={handleCardClick}
-              onPointerDown={(e) => e.stopPropagation()}
-              title="Editar card"
-            >
-              <Edit className="h-3 w-3 text-muted-foreground/50 hover:text-primary" />
-            </div>
-          </div>
-          
-          {card.notas && (
-            <p className="text-xs text-muted-foreground line-clamp-2">{card.notas}</p>
-          )}
-          
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1">
-              {getStatusBadge()}
-            </div>
-            
-            {card.vencimento && (
-              <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                <Calendar className="h-3 w-3" />
-                {new Date(card.vencimento).toLocaleDateString('pt-BR')}
-              </div>
-            )}
-          </div>
-          
-          {card.responsavel && (
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <User className="h-3 w-3" />
-              <span className="truncate">{card.responsavel}</span>
-            </div>
-          )}
-
-          {card.checklist && card.checklist.length > 0 && (
-            <div className="text-xs text-muted-foreground">
-              <Clock className="h-3 w-3 inline mr-1" />
-              {card.checklist.filter(item => item.includes('✓')).length}/{card.checklist.length} itens
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
 
 function OnboardingCardComponent({ card, isDragging }: { card: OnboardingCard; isDragging?: boolean }) {
   return (
