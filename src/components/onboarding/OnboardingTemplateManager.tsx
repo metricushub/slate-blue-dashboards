@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -518,12 +518,15 @@ export function OnboardingTemplateManager() {
               Novo Template
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>
-                {editingTemplate ? 'Editar Template' : 'Novo Template'}
-              </DialogTitle>
-            </DialogHeader>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>
+                  {editingTemplate ? 'Editar Template' : 'Novo Template'}
+                </DialogTitle>
+                <DialogDescription>
+                  Defina nome, etapa e os itens do checklist do template.
+                </DialogDescription>
+              </DialogHeader>
             <TemplateForm
               template={editingTemplate || undefined}
               onSave={saveTemplate}
