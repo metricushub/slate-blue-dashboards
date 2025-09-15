@@ -4,7 +4,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Edit, Trash2, Calendar, User, CheckSquare } from 'lucide-react';
+import { Edit, Trash2, Calendar, User, CheckSquare, FileText } from 'lucide-react';
 import { OnboardingCard } from '@/shared/db/onboardingStore';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -14,6 +14,7 @@ interface OnboardingCardComponentProps {
   badge?: React.ReactNode;
   onEdit: (card: OnboardingCard) => void;
   onDelete: (cardId: string) => void;
+  onOpenInFicha?: (stage: string) => void;
   isDragging?: boolean;
   isSubStage?: boolean;
 }
@@ -23,6 +24,7 @@ export function OnboardingCardComponent({
   badge,
   onEdit,
   onDelete,
+  onOpenInFicha,
   isDragging = false,
   isSubStage = false,
 }: OnboardingCardComponentProps) {
@@ -96,6 +98,20 @@ export function OnboardingCardComponent({
 
           {/* Actions */}
           <div className="flex items-center justify-end gap-1 pt-1">
+            {onOpenInFicha && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 w-6 p-0"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenInFicha(card.stage);
+                }}
+                title="Abrir na Ficha"
+              >
+                <FileText className="h-3 w-3" />
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="sm"

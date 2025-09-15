@@ -15,6 +15,55 @@ export interface OnboardingCard {
   updated_at: string;
 }
 
+export interface OnboardingFicha {
+  id: string;
+  clientId: string;
+  'dados-gerais': {
+    razaoSocial?: string;
+    cnpj?: string;
+    contatoComercial?: string;
+    contatoTecnico?: string;
+    responsavel?: string;
+    prazo?: string;
+    observacoes?: string;
+  };
+  financeiro: {
+    dadosBancarios?: string;
+    cicloCobranca?: string;
+    limiteInvestimento?: string;
+    responsavel?: string;
+    prazo?: string;
+    observacoes?: string;
+    '2.1-cadastrar-financeiro'?: {
+      responsavel?: string;
+      prazo?: string;
+      observacoes?: string;
+    };
+  };
+  implementacao: {
+    responsavel?: string;
+    prazo?: string;
+    observacoes?: string;
+  };
+  briefing: {
+    responsavel?: string;
+    prazo?: string;
+    observacoes?: string;
+  };
+  configuracao: {
+    responsavel?: string;
+    prazo?: string;
+    observacoes?: string;
+  };
+  attachments: {
+    id: string;
+    url: string;
+    name: string;
+  }[];
+  created_at: string;
+  updated_at: string;
+}
+
 export interface OnboardingStage {
   id: string;
   title: string;
@@ -33,6 +82,7 @@ export interface OnboardingDatabase extends Dexie {
   onboardingCards: Table<OnboardingCard>;
   onboardingStages: Table<OnboardingStage>;
   onboardingSubStages: Table<OnboardingSubStage>;
+  onboardingFichas: Table<OnboardingFicha>;
 }
 
 const db = new Dexie('OnboardingDatabase') as OnboardingDatabase;
@@ -40,7 +90,8 @@ const db = new Dexie('OnboardingDatabase') as OnboardingDatabase;
 db.version(1).stores({
   onboardingCards: '++id, clientId, stage, subStage, responsavel, vencimento, created_at',
   onboardingStages: '++id, order',
-  onboardingSubStages: '++id, stageId, order'
+  onboardingSubStages: '++id, stageId, order',
+  onboardingFichas: '++id, clientId, created_at'
 });
 
 // Initialize default stages and substages
@@ -135,6 +186,68 @@ export const onboardingStageOperations = {
     }
     
     await db.onboardingSubStages.delete(subStageId);
+  }
+};
+
+// Ficha operations
+export const onboardingFichaOperations = {
+  async create(ficha: Omit<OnboardingFicha, 'id' | 'created_at' | 'updated_at'>): Promise<OnboardingFicha> {
+    const now = new Date().toISOString();
+    const newFicha: OnboardingFicha = {
+      ...ficha,
+      id: crypto.randomUUID(),
+      created_at: now,
+      updated_at: now,
+    };
+    
+    await db.onboardingFichas.add(newFicha);
+    return newFicha;
+  },
+
+  async getByClient(clientId: string): Promise<OnboardingFicha | undefined> {
+    return await db.onboardingFichas
+      .where('clientId')
+      .equals(clientId)
+      .first();
+  },
+
+  async updateSection(fichaId: string, sectionId: string, data: any): Promise<void> {
+    const current = await db.onboardingFichas.get(fichaId);
+    if (!current) return;
+
+    const updated = {
+      ...current,
+      [sectionId]: { ...current[sectionId], ...data },
+      updated_at: new Date().toISOString(),
+    };
+
+    await db.onboardingFichas.put(updated);
+  },
+
+  async addAttachment(fichaId: string, attachment: { id: string; url: string; name: string }): Promise<void> {
+    const current = await db.onboardingFichas.get(fichaId);
+    if (!current) return;
+
+    const updated = {
+      ...current,
+      attachments: [...current.attachments, attachment],
+      updated_at: new Date().toISOString(),
+    };
+
+    await db.onboardingFichas.put(updated);
+  },
+
+  async removeAttachment(fichaId: string, attachmentId: string): Promise<void> {
+    const current = await db.onboardingFichas.get(fichaId);
+    if (!current) return;
+
+    const updated = {
+      ...current,
+      attachments: current.attachments.filter(att => att.id !== attachmentId),
+      updated_at: new Date().toISOString(),
+    };
+
+    await db.onboardingFichas.put(updated);
   }
 };
 

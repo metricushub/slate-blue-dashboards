@@ -20,6 +20,7 @@ import { Badge } from '@/components/ui/badge';
 import { Plus, Users, Filter, Edit2, X } from 'lucide-react';
 import { OnboardingCard, OnboardingStage, OnboardingSubStage, onboardingCardOperations, onboardingStageOperations } from '@/shared/db/onboardingStore';
 import { OnboardingCardComponent } from './OnboardingCardComponent';
+import { useSearchParams } from 'react-router-dom';
 import { OnboardingCardModal } from './OnboardingCardModal';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
@@ -49,6 +50,7 @@ export function OnboardingKanban({ clientId }: OnboardingKanbanProps) {
     cliente: '',
   });
   const { toast } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
   
   // Inicializar dados de demonstração
   useOnboardingDemo();
@@ -182,6 +184,13 @@ export function OnboardingKanban({ clientId }: OnboardingKanbanProps) {
         variant: "destructive",
       });
     }
+  };
+
+  const handleOpenInFicha = (stage: string) => {
+    const params = new URLSearchParams(searchParams);
+    params.set('tab', 'ficha');
+    params.set('section', stage);
+    setSearchParams(params);
   };
 
   const handleDeleteCard = async (cardId: string) => {

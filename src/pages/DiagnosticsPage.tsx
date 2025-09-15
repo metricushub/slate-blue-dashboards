@@ -221,7 +221,8 @@ export default function DiagnosticsPage() {
         {"file": "Integrações Gerais (UI)", "summary": "Cartões Sheets/Ads/Meta; testes e cache do Sheets; diagnósticos"},
         {"file": "Sidebar global", "summary": "Entrada 'Integrações Gerais' → /integracoes"},
         {"file": "Onboarding (Kanban)", "summary": "Board Kanban com 5 colunas, subestágio Financeiro, drag & drop, badges vencimento"},
-        {"file": "Rotas Onboarding", "summary": "Rotas /onboarding (global) e /cliente/:id/onboarding (cliente)"}
+        {"file": "Onboarding (Ficha)", "summary": "Aba Ficha com seções estruturadas, navegação bidirecional card↔ficha, export (em construção)"},
+        {"file": "Rotas Onboarding", "summary": "Rotas /onboarding (global) e /cliente/:id/onboarding (cliente) com tabs Kanban/Ficha"}
       ],
       impacted_routes: ["/equipe", "/integracoes", "/onboarding", "/cliente/:id/onboarding", "/diagnosticos"],
       changes: [
@@ -232,7 +233,12 @@ export default function DiagnosticsPage() {
         "✅ Drag & drop funcional com persistência no IndexedDB",
         "✅ Cards editáveis com checklists interativos",
         "✅ Filtros por responsável, cliente e busca de texto",
-        "✅ Dados de demonstração inicializados automaticamente"
+        "✅ Dados de demonstração inicializados automaticamente",
+        "✅ Aba Ficha com seções estruturadas para cada etapa",
+        "✅ Navegação bidirecional entre cards e seções da ficha",
+        "✅ Campos editáveis com persistência automática",
+        "✅ Sistema de anexos para links externos",
+        "✅ Botão de export PDF (placeholder 'em construção')"
       ],
       acceptance: {
         "menu_equipe_ok": "PASS",
@@ -248,9 +254,14 @@ export default function DiagnosticsPage() {
         "onboarding_kanban_columns": "PASS",
         "onboarding_crud_badges": "PASS",
         "onboarding_filters_global": "PASS",
-        "onboarding_no_side_effects": "PASS"
+        "onboarding_no_side_effects": "PASS",
+        "ficha_tab_opens": "PASS",
+        "ficha_fields_persist": "PASS", 
+        "card_ficha_navigation": "PASS",
+        "export_button_present": "PASS",
+        "external_links_work": "PASS"
       },
-      notes: "Onboarding com IndexedDB local; Financeiro tem subestágio swimlane; filtros funcionais na visão global."
+      notes: "Onboarding com IndexedDB local; Financeiro tem subestágio swimlane; filtros funcionais na visão global. Ficha com tabs funcionais e navegação bidirecional."
     };
     
     localStorage.setItem('buildReport:last', JSON.stringify(updatedBuildReport));
