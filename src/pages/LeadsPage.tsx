@@ -9,7 +9,7 @@ import {
   useSensors 
 } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { Lead, LeadStage } from '@/types';
+import { Lead, LeadStage, Client } from '@/types';
 import { LeadsStore } from '@/shared/db/leadsStore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,11 +17,13 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Plus, Search, Filter, Download, RotateCcw, Users } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useDataSource } from '@/hooks/useDataSource';
 import { LeadCard } from '@/components/leads/LeadCard';
 import { LeadColumn } from '@/components/leads/LeadColumn';
 import { NewLeadModal } from '@/components/leads/NewLeadModal';
 import { LeadDrawer } from '@/components/leads/LeadDrawer';
 import { LeadFilters } from '@/components/leads/LeadFilters';
+import { ClientPreCadastroModal } from '@/components/modals/ClientPreCadastroModal';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -36,6 +38,8 @@ export default function LeadsPage() {
   const [showDrawer, setShowDrawer] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [showPreCadastroModal, setShowPreCadastroModal] = useState(false);
+  const [leadToConvert, setLeadToConvert] = useState<Lead | null>(null);
   const [filters, setFilters] = useState({
     stages: [] as string[],
     owner: '',
@@ -44,6 +48,7 @@ export default function LeadsPage() {
   });
 
   const { toast } = useToast();
+  const { dataSource } = useDataSource();
   const sensors = useSensors(useSensor(PointerSensor));
 
   // Carregar leads ao montar
@@ -177,6 +182,13 @@ export default function LeadsPage() {
     const lead = leads.find(l => l.id === leadId);
     if (!lead || lead.stage === newStage) return;
 
+    // Se moveu para "Fechado", abrir modal de pré-cadastro
+    if (newStage === 'Fechado' && lead.stage !== 'Fechado') {
+      setLeadToConvert(lead);
+      setShowPreCadastroModal(true);
+      return; // Não atualizar o stage ainda
+    }
+
     try {
       await LeadsStore.updateLead(leadId, { stage: newStage });
       
@@ -285,7 +297,66 @@ export default function LeadsPage() {
     }
   };
 
-  const handleResetFilters = () => {
+  const handleClientCreated = async (client: Client) => {
+    if (!leadToConvert) return;
+
+    try {
+      // Add client to data source
+      if (dataSource && dataSource.addClient) {
+        await dataSource.addClient(client);
+      }
+
+      // Create onboarding card automatically
+      const { onboardingCardOperations } = await import('@/shared/db/onboardingStore');
+      const initialCard = {
+        clientId: client.id,
+        clientName: client.name,
+        title: 'Formulário enviado',
+        stage: 'dados-gerais' as const,
+        responsavel: client.owner,
+        vencimento: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 7 days from now
+        checklist: ['Aguardando preenchimento do formulário'],
+        notas: 'Aguardando preenchimento do formulário',
+      };
+      
+      await onboardingCardOperations.create(initialCard);
+
+      // Update lead to mark as converted and move to Fechado
+      await LeadsStore.updateLead(leadToConvert.id, { 
+        stage: 'Fechado',
+        client_id: client.id 
+      });
+
+      setLeads(prev => prev.map(l => 
+        l.id === leadToConvert.id 
+          ? { ...l, stage: 'Fechado' as LeadStage, client_id: client.id, updated_at: new Date().toISOString() } 
+          : l
+      ));
+
+      setShowPreCadastroModal(false);
+      setLeadToConvert(null);
+
+      toast({
+        title: "Cliente criado!",
+        description: `${leadToConvert.name} foi convertido em cliente com sucesso.`,
+      });
+
+      // Redirect to client onboarding
+      window.location.href = `/cliente/${client.id}/onboarding`;
+    } catch (error) {
+      console.error("Error creating client:", error);
+      toast({
+        title: "Erro",
+        description: "Falha ao criar cliente",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleLeadConverted = (lead: Lead) => {
+    setLeadToConvert(lead);
+    setShowPreCadastroModal(true);
+  };
     setFilters({ stages: [], owner: '', dateFrom: '', dateTo: '' });
     setSearchQuery('');
     localStorage.removeItem('leads:ui:filters');
@@ -420,6 +491,7 @@ export default function LeadsPage() {
               stats={stats.byStage[stage]}
               onLeadClick={openLeadDrawer}
               onNewLead={() => setShowNewLeadModal(true)}
+              onLeadConverted={handleLeadConverted}
             />
           ))}
         </div>
@@ -449,6 +521,16 @@ export default function LeadsPage() {
         onSave={handleUpdateLead}
         onDelete={handleDeleteLead}
       />
+
+      {/* Modal de Pré-cadastro */}
+      {leadToConvert && (
+        <ClientPreCadastroModal
+          open={showPreCadastroModal}
+          onOpenChange={setShowPreCadastroModal}
+          onComplete={handleClientCreated}
+          leadData={leadToConvert}
+        />
+      )}
     </div>
   );
 }

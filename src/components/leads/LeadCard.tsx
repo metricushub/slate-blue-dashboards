@@ -11,9 +11,10 @@ interface LeadCardProps {
   lead: Lead;
   onClick: (lead: Lead) => void;
   isDragging?: boolean;
+  onConverted?: (lead: Lead) => void;
 }
 
-export function LeadCard({ lead, onClick, isDragging }: LeadCardProps) {
+export function LeadCard({ lead, onClick, isDragging, onConverted }: LeadCardProps) {
   const {
     attributes,
     listeners,
