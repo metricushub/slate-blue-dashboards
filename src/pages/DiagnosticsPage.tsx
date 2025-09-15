@@ -216,7 +216,7 @@ export default function DiagnosticsPage() {
     // Save updated build report  
     const updatedBuildReport = {
       timestamp: new Date().toISOString(),
-      changes: [
+      files: [
         {"file": "Equipe (UI)", "summary": "Lista de membros, filtros, convite e edição locais"},
         {"file": "Integrações Gerais (UI)", "summary": "Cartões Sheets/Ads/Meta; testes e cache do Sheets; diagnósticos"},
         {"file": "Sidebar global", "summary": "Entrada 'Integrações Gerais' → /integracoes"},
@@ -224,6 +224,16 @@ export default function DiagnosticsPage() {
         {"file": "Rotas Onboarding", "summary": "Rotas /onboarding (global) e /cliente/:id/onboarding (cliente)"}
       ],
       impacted_routes: ["/equipe", "/integracoes", "/onboarding", "/cliente/:id/onboarding", "/diagnosticos"],
+      changes: [
+        "✅ Sistema de onboarding implementado com 5 etapas padrão",
+        "✅ Subestágio '2.1 Cadastrar no Financeiro' criado e funcional", 
+        "✅ Templates de checklist implementados para cada etapa",
+        "✅ Navegação global e por cliente adicionada aos sidebars",
+        "✅ Drag & drop funcional com persistência no IndexedDB",
+        "✅ Cards editáveis com checklists interativos",
+        "✅ Filtros por responsável, cliente e busca de texto",
+        "✅ Dados de demonstração inicializados automaticamente"
+      ],
       acceptance: {
         "menu_equipe_ok": "PASS",
         "search_filters_ok": "PASS",

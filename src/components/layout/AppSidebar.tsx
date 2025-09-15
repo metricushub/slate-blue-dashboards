@@ -8,6 +8,7 @@ import {
   Settings,
   ChevronRight,
   CheckSquare,
+  ClipboardCheck,
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 
@@ -26,6 +27,7 @@ import {
 const navigationItems = [
   { title: "Home", url: "/", icon: Home },
   { title: "Leads (CRM Kanban)", url: "/leads", icon: Users },
+  { title: "Onboarding", url: "/onboarding", icon: ClipboardCheck },
   { title: "Tarefas & Anotações", url: "/tarefas-anotacoes", icon: CheckSquare },
   { title: "Otimizações", url: "/otimizacoes", icon: TrendingUp },
   { title: "Analytics", url: "/analytics", icon: BarChart3 },

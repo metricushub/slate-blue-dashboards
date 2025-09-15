@@ -26,6 +26,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { format, isToday, isPast } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useOnboardingDemo } from '@/hooks/useOnboardingDemo';
 
 interface OnboardingKanbanProps {
   clientId?: string; // If provided, filter by client
@@ -48,6 +49,9 @@ export function OnboardingKanban({ clientId }: OnboardingKanbanProps) {
     cliente: '',
   });
   const { toast } = useToast();
+  
+  // Inicializar dados de demonstração
+  useOnboardingDemo();
 
   const sensors = useSensors(
     useSensor(PointerSensor, {

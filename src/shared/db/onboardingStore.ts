@@ -48,7 +48,7 @@ db.on('ready', async () => {
   const stageCount = await db.onboardingStages.count();
   if (stageCount === 0) {
     await db.onboardingStages.bulkAdd([
-      { id: 'dados-gerais', title: 'Dados gerais', order: 1 },
+      { id: 'dados-gerais', title: 'Dados Gerais', order: 1 },
       { id: 'financeiro', title: 'Financeiro', hasSubStage: true, order: 2 },
       { id: 'implementacao', title: 'Implementação Cliente', order: 3 },
       { id: 'briefing', title: 'Briefing & 1º Contato/Reuniões', order: 4 },
@@ -56,7 +56,7 @@ db.on('ready', async () => {
     ]);
     
     await db.onboardingSubStages.bulkAdd([
-      { id: '2.1-cadastrar-financeiro', stageId: 'financeiro', title: '2.1 Cadastrar no financeiro', order: 1 }
+      { id: '2.1-cadastrar-financeiro', stageId: 'financeiro', title: '2.1 Cadastrar no Financeiro', order: 1 }
     ]);
   }
 });

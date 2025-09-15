@@ -17,7 +17,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { OnboardingCard } from '@/shared/db/onboardingStore';
-import { Plus, X } from 'lucide-react';
+import { Plus, X, FileText } from 'lucide-react';
+import { ONBOARDING_TEMPLATES, getTemplateByStage } from '@/shared/data/onboardingTemplates';
 
 interface OnboardingCardModalProps {
   open: boolean;
@@ -124,6 +125,18 @@ export function OnboardingCardModal({
         checklist: [...prev.checklist, newChecklistItem.trim()],
       }));
       setNewChecklistItem('');
+    }
+  };
+
+  const loadTemplate = () => {
+    const template = getTemplateByStage(formData.stage);
+    if (template) {
+      setFormData(prev => ({
+        ...prev,
+        title: template.title,
+        checklist: [...template.checklist],
+        notas: prev.notas || `Template aplicado para ${template.stage}`,
+      }));
     }
   };
 
@@ -251,7 +264,21 @@ export function OnboardingCardModal({
 
           {/* Checklist */}
           <div className="space-y-2">
-            <Label>Checklist</Label>
+            <div className="flex items-center justify-between">
+              <Label>Checklist</Label>
+              {!initialData && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={loadTemplate}
+                  className="text-xs"
+                >
+                  <FileText className="h-3 w-3 mr-1" />
+                  Usar Template
+                </Button>
+              )}
+            </div>
             <div className="space-y-2">
               {formData.checklist.map((item, index) => (
                 <div key={index} className="flex items-center gap-2">
