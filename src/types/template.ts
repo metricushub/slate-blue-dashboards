@@ -33,6 +33,7 @@ export interface ApplyTemplateOptions {
   createMissingBlocks: boolean;
   mergeWithExisting: boolean;
   avoidDuplicateCards: boolean;
+  resetBeforeApply?: boolean;
   selectedBlockIds?: string[];
   variables?: Record<string, string>;
 }

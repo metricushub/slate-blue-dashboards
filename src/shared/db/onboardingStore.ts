@@ -619,6 +619,7 @@ export const onboardingTemplateV2Operations = {
       createMissingBlocks: boolean;
       mergeWithExisting: boolean;
       avoidDuplicateCards: boolean;
+      resetBeforeApply?: boolean;
       selectedBlockIds?: string[];
       variables?: Record<string, string>;
     }
@@ -650,9 +651,20 @@ export const onboardingTemplateV2Operations = {
     const created: OnboardingCard[] = [];
     const skipped: string[] = [];
 
-    // Get existing cards to check for duplicates
-    const existingCards = await onboardingCardOperations.getByClient(clientId);
-    console.log('Existing cards:', existingCards.length);
+    // Reset existing onboarding for client if requested
+    if (options.resetBeforeApply) {
+      const oldCards = await onboardingCardOperations.getByClient(clientId);
+      console.log('Deleting existing cards for client:', oldCards.length);
+      for (const c of oldCards) {
+        await onboardingCardOperations.delete(c.id);
+      }
+    }
+
+    // Get existing cards to check for duplicates (empty if reset)
+    const existingCards = options.resetBeforeApply
+      ? []
+      : await onboardingCardOperations.getByClient(clientId);
+    console.log('Existing cards after reset check:', existingCards.length);
 
     for (const block of blocksToProcess) {
       console.log('Processing block:', block.name, 'with', block.cards.length, 'cards');

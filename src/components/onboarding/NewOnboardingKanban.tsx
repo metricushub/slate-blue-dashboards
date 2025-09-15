@@ -294,7 +294,7 @@ export function NewOnboardingKanban({
     const loadStages = async () => {
       try {
         const allStages = await onboardingStageOperations.getAllStages();
-        setStages(allStages);
+        setStages(allStages.filter(s => cards.some(c => c.stage === s.id)));
       } catch (error) {
         console.error('Error loading stages:', error);
       } finally {
@@ -309,7 +309,7 @@ export function NewOnboardingKanban({
   const handleCardsReload = () => {
     const reloadStages = async () => {
       const allStages = await onboardingStageOperations.getAllStages();
-      setStages(allStages);
+      setStages(allStages.filter(s => cards.some(c => c.stage === s.id)));
     };
     
     reloadStages();

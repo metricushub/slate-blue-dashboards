@@ -26,6 +26,7 @@ export function TemplateApplicator({ open, onOpenChange, clientId, onApplied }: 
   const [createMissingBlocks, setCreateMissingBlocks] = useState(true);
   const [mergeWithExisting, setMergeWithExisting] = useState(true);
   const [avoidDuplicateCards, setAvoidDuplicateCards] = useState(true);
+  const [resetBeforeApply, setResetBeforeApply] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [isApplying, setIsApplying] = useState(false);
   const { toast } = useToast();
@@ -83,7 +84,8 @@ export function TemplateApplicator({ open, onOpenChange, clientId, onApplied }: 
         anchorDate,
         createMissingBlocks,
         mergeWithExisting,
-        avoidDuplicateCards
+        avoidDuplicateCards,
+        resetBeforeApply
       });
 
       const result = await onboardingTemplateV2Operations.applyToClient(selectedTemplateId, clientId, {
@@ -91,6 +93,7 @@ export function TemplateApplicator({ open, onOpenChange, clientId, onApplied }: 
         createMissingBlocks,
         mergeWithExisting,
         avoidDuplicateCards,
+        resetBeforeApply,
         variables: {} // Could be extended later
       });
 
@@ -165,6 +168,15 @@ export function TemplateApplicator({ open, onOpenChange, clientId, onApplied }: 
           <div className="space-y-3">
             <Label>Opções de Aplicação</Label>
             
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="reset-before-apply"
+                checked={resetBeforeApply}
+                onCheckedChange={(checked) => setResetBeforeApply(checked === true)}
+              />
+              <Label htmlFor="reset-before-apply">Zerar onboarding do cliente antes de aplicar</Label>
+            </div>
+
             <div className="flex items-center space-x-2">
               <Checkbox
                 id="create-blocks"
