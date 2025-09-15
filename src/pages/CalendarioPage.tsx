@@ -337,6 +337,104 @@ export default function CalendarioPage() {
     return [...new Set(tasks.map(task => task.owner).filter(owner => owner && owner.trim() !== ''))];
   };
 
+  const renderWeekView = () => {
+    const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
+    const weekEnd = endOfWeek(currentDate, { weekStartsOn: 1 });
+
+    const days = [];
+    let day = weekStart;
+    while (day <= weekEnd) {
+      days.push(day);
+      day = addDays(day, 1);
+    }
+
+    return (
+      <div className="space-y-4">
+        <div className="grid grid-cols-7 gap-2">
+          {['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'].map(dayName => (
+            <div key={dayName} className="text-center font-medium text-sm p-2">
+              {dayName}
+            </div>
+          ))}
+          
+          {days.map(day => (
+            <div key={day.toString()} className="min-h-[200px]">
+              <DroppableDay
+                date={day}
+                tasks={filteredTasks}
+                clients={clients}
+                onTaskClick={handleTaskClick}
+                onDayDoubleClick={handleDayDoubleClick}
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  const renderDayView = () => {
+    const dayTasks = filteredTasks.filter(task => 
+      task.due_date && isSameDay(new Date(task.due_date), currentDate)
+    );
+
+    return (
+      <div className="space-y-4">
+        <div className="text-center p-4 bg-card rounded-lg">
+          <h2 className="text-lg font-semibold">
+            {format(currentDate, 'EEEE, dd MMMM yyyy', { locale: ptBR })}
+          </h2>
+        </div>
+        
+        <div className="grid gap-2">
+          {dayTasks.length === 0 ? (
+            <div 
+              className="text-center text-muted-foreground p-8 border-2 border-dashed border-border rounded-lg cursor-pointer hover:bg-accent"
+              onDoubleClick={() => handleDayDoubleClick(currentDate)}
+            >
+              Nenhuma tarefa para hoje. Duplo clique para criar uma nova.
+            </div>
+          ) : (
+            dayTasks.map(task => {
+              const client = clients.find(c => c.id === task.client_id);
+              return (
+                <div
+                  key={task.id}
+                  onClick={() => handleTaskClick(task)}
+                  className={`p-4 rounded-lg cursor-pointer hover:shadow-md transition-shadow ${statusColors[task.status]} text-white`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <h3 className="font-medium">{task.title}</h3>
+                      {task.description && (
+                        <p className="text-sm opacity-90 mt-1">{task.description}</p>
+                      )}
+                      <div className="flex items-center gap-2 mt-2">
+                        <span className="text-xs bg-white/20 px-2 py-1 rounded">
+                          {task.priority}
+                        </span>
+                        {client && (
+                          <span className="text-xs bg-white/20 px-2 py-1 rounded">
+                            {client.name}
+                          </span>
+                        )}
+                        {task.owner && (
+                          <span className="text-xs bg-white/20 px-2 py-1 rounded">
+                            {task.owner}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+    );
+  };
+
   const renderMonthView = () => {
     const monthStart = startOfMonth(currentDate);
     const monthEnd = endOfMonth(currentDate);
@@ -546,15 +644,11 @@ export default function CalendarioPage() {
           </TabsContent>
           
           <TabsContent value="week" className="mt-6">
-            <div className="text-center text-muted-foreground">
-              Vista semanal em desenvolvimento
-            </div>
+            {renderWeekView()}
           </TabsContent>
           
           <TabsContent value="day" className="mt-6">
-            <div className="text-center text-muted-foreground">
-              Vista diária em desenvolvimento
-            </div>
+            {renderDayView()}
           </TabsContent>
           
           <TabsContent value="list" className="mt-6">
