@@ -8,7 +8,8 @@ import { OnboardingCardModal } from '@/components/onboarding/OnboardingCardModal
 import { toast } from '@/hooks/use-toast';
 
 export default function OnboardingClientPage() {
-  const { clientId } = useParams<{ clientId: string }>();
+  const { clientId: routeClientId } = useParams<{ clientId: string }>();
+  const resolvedClientId = routeClientId && routeClientId !== 'undefined' && routeClientId !== 'null' ? routeClientId : undefined;
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') || 'kanban';
   const focusSection = searchParams.get('section');
@@ -19,17 +20,17 @@ export default function OnboardingClientPage() {
   const [editingCard, setEditingCard] = useState<OnboardingCard | null>(null);
 
   useEffect(() => {
-    if (clientId) {
+    if (resolvedClientId) {
       loadCards();
     }
-  }, [clientId]);
+  }, [resolvedClientId]);
 
   const loadCards = async () => {
-    if (!clientId) return;
+    if (!resolvedClientId) return;
     
     try {
       setLoading(true);
-      const clientCards = await onboardingCardOperations.getByClient(clientId);
+      const clientCards = await onboardingCardOperations.getByClient(resolvedClientId);
       setCards(clientCards);
     } catch (error) {
       console.error('Error loading cards:', error);
@@ -89,7 +90,7 @@ export default function OnboardingClientPage() {
       if (editingCard) {
         await onboardingCardOperations.update(editingCard.id, cardData);
       } else {
-        await onboardingCardOperations.create({ ...cardData, clientId });
+        await onboardingCardOperations.create({ ...cardData, clientId: resolvedClientId });
       }
       await loadCards();
       setShowCardModal(false);
@@ -107,6 +108,10 @@ export default function OnboardingClientPage() {
     return <div className="p-6">Carregando...</div>;
   }
 
+  if (!resolvedClientId) {
+    return <div className="p-6 text-destructive">Cliente não identificado. Abra o Onboarding a partir de um cliente válido em Clientes.</div>;
+  }
+
   return (
     <div className="h-full">
       <Tabs value={activeTab} onValueChange={handleTabChange} className="h-full">
@@ -119,7 +124,7 @@ export default function OnboardingClientPage() {
         
         <TabsContent value="kanban" className="h-full mt-0 p-6">
           <NewOnboardingKanban 
-            clientId={clientId}
+            clientId={resolvedClientId as string}
             cards={cards}
             onCardMove={handleCardMove}
             onCardClick={handleCardClick}
@@ -129,7 +134,7 @@ export default function OnboardingClientPage() {
         </TabsContent>
         
         <TabsContent value="ficha" className="h-full mt-0 p-6">
-          <NewClientFicha clientId={clientId} focusSection={focusSection} />
+          <NewClientFicha clientId={resolvedClientId as string} focusSection={focusSection} />
         </TabsContent>
       </Tabs>
 
@@ -138,7 +143,7 @@ export default function OnboardingClientPage() {
         onOpenChange={setShowCardModal}
         onSave={handleSaveCard}
         initialData={editingCard || undefined}
-        clientId={clientId}
+        clientId={resolvedClientId as string}
       />
     </div>
   );

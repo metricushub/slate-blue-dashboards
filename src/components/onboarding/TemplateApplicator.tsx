@@ -67,7 +67,7 @@ export function TemplateApplicator({ open, onOpenChange, clientId, onApplied }: 
       return;
     }
 
-    if (!clientId) {
+    if (!clientId || clientId === 'undefined' || clientId === 'null') {
       toast({
         title: "Cliente não identificado",
         description: "ID do cliente não foi fornecido",
