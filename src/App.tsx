@@ -21,7 +21,7 @@ import DiagnosticsPage from "./pages/DiagnosticsPage";
 
 // Pages - Global
 import CalendarioPage from "./pages/CalendarioPage";
-import EquipeWip from "./pages/wip/EquipeWip";
+import EquipePage from "./pages/EquipePage";
 import TarefasAnotacoesPage from "./pages/TarefasAnotacoesPage";
 
 // WIP Pages - Cliente
@@ -55,7 +55,7 @@ const App = () => (
                 <Route path="/leads" element={<LeadsPage />} />
                 <Route path="/tarefas-anotacoes" element={<TarefasAnotacoesPage />} />
                 <Route path="/calendario" element={<CalendarioPage />} />
-                <Route path="/equipe" element={<EquipeWip />} />
+                <Route path="/equipe" element={<EquipePage />} />
                 <Route path="/otimizacoes" element={<OptimizationsPage />} />
                 <Route path="/analytics" element={<AnalyticsPage />} />
                 <Route path="/relatorios" element={<ReportsPage />} />
