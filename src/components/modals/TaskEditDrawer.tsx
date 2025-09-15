@@ -246,14 +246,16 @@ export function TaskEditDrawer({
           <div className="space-y-2">
             <Label>Cliente</Label>
             <Select 
-              value={formData.client_id || ''} 
-              onValueChange={(value) => setFormData(prev => ({ ...prev, client_id: value || undefined }))}
+              value={formData.client_id ?? 'none'} 
+              onValueChange={(value) =>
+                setFormData(prev => ({ ...prev, client_id: value === 'none' ? undefined : value }))
+              }
             >
               <SelectTrigger>
                 <SelectValue placeholder="Selecione um cliente (opcional)" />
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">Nenhum cliente</SelectItem>
+              <SelectContent className="z-50">
+                <SelectItem value="none">Nenhum cliente</SelectItem>
                 {clients.map(client => (
                   <SelectItem key={client.id} value={client.id}>
                     {client.name}
