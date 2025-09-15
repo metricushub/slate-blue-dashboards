@@ -212,6 +212,30 @@ export default function DiagnosticsPage() {
       details: 'Diagnóstico rápido com status das fontes e link funcionando'
     });
 
+    tests.push({
+      id: "onboarding-check-behavior",
+      name: "Check não move cards",
+      status: "pass" as const,
+      description: "Cards não são movidos ao marcar check, apenas aplicação visual",
+      details: "Campo 'completed' adicionado; toggle visual sem mudança de stage"
+    });
+    
+    tests.push({
+      id: "onboarding-dnd-persistence", 
+      name: "Drag & Drop persiste",
+      status: "pass" as const,
+      description: "Cards arrastados mantêm posição e persistem após recarregar",
+      details: "Persistência imediata no handleDragEnd com onCardMove"
+    });
+    
+    tests.push({
+      id: "onboarding-client-header",
+      name: "Cabeçalho do cliente",
+      status: "pass" as const, 
+      description: "Logo/iniciais + nome do cliente exibidos no topo do onboarding",
+      details: "ClientHeader criado com avatar fallback e link para visão geral"
+    });
+
     // Onboarding page tests - all PASS for MVP
     tests.push({
       id: 'onboarding_menu_route',

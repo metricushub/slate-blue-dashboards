@@ -11,6 +11,7 @@ export interface OnboardingCard {
   notas: string;
   stage: string; // Changed from fixed union to dynamic string
   subStage?: string; // Changed from fixed union to dynamic string
+  completed?: boolean; // Added for visual completion without moving stages
   created_at: string;
   updated_at: string;
 }

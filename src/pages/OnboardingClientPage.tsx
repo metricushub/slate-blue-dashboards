@@ -2,38 +2,52 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { NewOnboardingKanban } from '@/components/onboarding/NewOnboardingKanban';
 import { NewClientFicha } from '@/components/client/NewClientFicha';
+import { ClientHeader } from '@/components/onboarding/ClientHeader';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { OnboardingCard, onboardingCardOperations } from '@/shared/db/onboardingStore';
 import { OnboardingCardModal } from '@/components/onboarding/OnboardingCardModal';
+import { useDataSource } from '@/hooks/useDataSource';
+import { Client } from '@/types';
 import { toast } from '@/hooks/use-toast';
 
 export default function OnboardingClientPage() {
   const { clientId: routeClientId } = useParams<{ clientId: string }>();
   const resolvedClientId = routeClientId && routeClientId !== 'undefined' && routeClientId !== 'null' ? routeClientId : undefined;
+  const { dataSource } = useDataSource();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') || 'kanban';
   const focusSection = searchParams.get('section');
 
   const [cards, setCards] = useState<OnboardingCard[]>([]);
+  const [client, setClient] = useState<Client | null>(null);
   const [loading, setLoading] = useState(true);
   const [showCardModal, setShowCardModal] = useState(false);
   const [editingCard, setEditingCard] = useState<OnboardingCard | null>(null);
 
   useEffect(() => {
     if (resolvedClientId) {
-      loadCards();
+      loadData();
     }
   }, [resolvedClientId]);
 
-  const loadCards = async () => {
+  const loadData = async () => {
     if (!resolvedClientId) return;
     
     try {
       setLoading(true);
-      const clientCards = await onboardingCardOperations.getByClient(resolvedClientId);
+      
+      // Load client data and cards in parallel
+      const [clientCards, clients] = await Promise.all([
+        onboardingCardOperations.getByClient(resolvedClientId),
+        dataSource.getClients()
+      ]);
+      
+      const foundClient = clients.find(c => c.id === resolvedClientId);
+      
       setCards(clientCards);
+      setClient(foundClient || null);
     } catch (error) {
-      console.error('Error loading cards:', error);
+      console.error('Error loading data:', error);
       toast({
         title: "Erro",
         description: "Não foi possível carregar os dados do onboarding.",
@@ -56,7 +70,7 @@ export default function OnboardingClientPage() {
   const handleCardMove = async (cardId: string, newStage: string) => {
     try {
       await onboardingCardOperations.moveCard(cardId, newStage as any);
-      await loadCards();
+      await loadData();
     } catch (error) {
       toast({
         title: "Erro",
@@ -70,7 +84,7 @@ export default function OnboardingClientPage() {
     // Handle card updates from the drawer
     try {
       await onboardingCardOperations.update(cardData.id, cardData);
-      await loadCards();
+      await loadData();
     } catch (error) {
       toast({
         title: "Erro",
@@ -92,7 +106,7 @@ export default function OnboardingClientPage() {
       } else {
         await onboardingCardOperations.create({ ...cardData, clientId: resolvedClientId });
       }
-      await loadCards();
+      await loadData();
       setShowCardModal(false);
       setEditingCard(null);
     } catch (error) {
@@ -114,6 +128,8 @@ export default function OnboardingClientPage() {
 
   return (
     <div className="h-full">
+      {client && <ClientHeader client={client} />}
+      
       <Tabs value={activeTab} onValueChange={handleTabChange} className="h-full">
         <div className="border-b">
           <TabsList className="grid w-full grid-cols-2 max-w-md">
@@ -129,7 +145,7 @@ export default function OnboardingClientPage() {
             onCardMove={handleCardMove}
             onCardClick={handleCardClick}
             onCreateCard={handleCreateCard}
-            onCardsReload={loadCards}
+            onCardsReload={loadData}
           />
         </TabsContent>
         

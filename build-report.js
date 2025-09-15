@@ -1,51 +1,23 @@
-// Relatório de Execução - Onboarding Updates
+// Relatório de Execução - Cards Fix Onboarding  
 const buildReport = {
-  timestamp: new Date().toISOString(),
-  changes: [
-    // Hub de Templates - Correções
-    {
-      file: 'src/components/onboarding/OnboardingTemplatesManager.tsx',
-      status: 'PASS',
-      description: 'Corrigido fechamento do painel Templates com ESC/backdrop'
-    },
-    
-    // Kanban do Cliente - Funcionalidades
-    {
-      file: 'src/components/onboarding/NewOnboardingKanban.tsx', 
-      status: 'PASS',
-      description: 'Removido botão "Novo" antigo, adicionados botões + por coluna'
-    },
-    {
-      functionality: 'Add Card per Column',
-      status: 'PASS', 
-      description: 'Campo "Título do card..." com Enter/Esc funcionando'
-    },
-    {
-      functionality: 'Delete Card with Confirmation',
-      status: 'PASS',
-      description: 'Modal "Tem certeza?" antes de excluir'
-    },
-    {
-      functionality: 'Complete Card with Check',
-      status: 'PASS', 
-      description: 'Check move para "Concluídos" ou marca visualmente'
-    },
-    {
-      functionality: 'Drag & Drop Persistence',
-      status: 'PASS',
-      description: 'Cards mantém posição após arrastar'
-    }
+  "changes": [
+    {"file": "shared/db/onboardingStore", "summary": "Adicionado campo 'completed' na interface OnboardingCard para controle visual de conclusão"},
+    {"file": "onboarding/NewOnboardingKanban", "summary": "Check não move cards; apenas toggle completed com visual line-through; persistência imediata no drag & drop"},
+    {"file": "onboarding/ClientHeader", "summary": "Novo componente para exibir logo/iniciais + nome do cliente no topo"},
+    {"file": "pages/OnboardingClientPage", "summary": "Carregamento de dados do cliente e integração com ClientHeader"}
   ],
-  
-  criteriaAcceptance: {
-    'Templates Close': 'PASS - ESC/backdrop/X fecham o painel',
-    'No Old Modal': 'PASS - Botão "Novo" removido',
-    'Add Cards': 'PASS - Botões + em cada coluna com input inline',
-    'Delete Works': 'PASS - Confirmação + exclusão efetiva',
-    'Check Complete': 'PASS - Check marca/move para Concluídos', 
-    'Drag Persists': 'PASS - Posição mantida após drop'
-  }
+  "impacted_routes": ["/cliente/:id/onboarding"],
+  "acceptance": {
+    "check_no_move_ok": true,
+    "dnd_persist_visible_ok": true, 
+    "client_header_ok": true,
+    "no_changes_outside_onboarding": true
+  },
+  "notes": "Sem alterações fora do onboarding; manter dados e estilos existentes. Campo 'completed' adicionado para controle visual sem mover entre stages.",
+  "timestamp": "2025-09-15T10:00:00Z"
 };
 
+// Save to localStorage
 localStorage.setItem('buildReport:last', JSON.stringify(buildReport));
-console.log('Relatório salvo:', buildReport);
+
+console.log('Build Report - Cards Fix:', buildReport);

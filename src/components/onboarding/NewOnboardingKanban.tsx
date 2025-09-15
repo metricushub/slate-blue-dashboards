@@ -139,7 +139,7 @@ function SortableOnboardingCard({ card, onClick, onComplete, onDelete, draggable
       return null;
     };
 
-    const isCompleted = card.stage === 'concluidos';
+    const isCompleted = card.completed;
 
     return (
       <div className="mb-3">
@@ -258,7 +258,7 @@ function SortableOnboardingCard({ card, onClick, onComplete, onDelete, draggable
     return null;
   };
 
-  const isCompleted = card.stage === 'concluidos';
+  const isCompleted = card.completed;
 
   return (
     <div
@@ -437,6 +437,7 @@ export function NewOnboardingKanban({
     
     if (over && active.id !== over.id) {
       const stageId = over.id as string;
+      // Immediate persistence - update the card in the database
       onCardMove(active.id as string, stageId);
     }
     
@@ -488,15 +489,13 @@ export function NewOnboardingKanban({
       const card = cards.find(c => c.id === cardId);
       if (!card) return;
 
-      // Check if there's a "Concluídos" stage
-      const concludedStage = stages.find(s => s.id === 'concluidos' || s.title.toLowerCase().includes('concluído'));
+      // Toggle completed status without moving stages
+      await onboardingCardOperations.update(cardId, {
+        completed: !card.completed
+      });
       
-      if (concludedStage) {
-        // Move to concluded stage
-        onCardMove(cardId, concludedStage.id);
-      } else {
-        // Just mark visually as completed by changing stage to 'concluidos'
-        onCardMove(cardId, 'concluidos');
+      if (onCardsReload) {
+        onCardsReload();
       }
     } catch (error) {
       console.error('Error completing card:', error);
