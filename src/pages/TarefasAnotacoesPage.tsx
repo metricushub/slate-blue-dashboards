@@ -527,12 +527,12 @@ export default function TarefasAnotacoesPage() {
           />
           
           {/* Kanban */}
-              <TaskKanban 
-                tasks={filteredTasks} 
-                onTaskMove={handleTaskMove}
-                onTaskClick={handleTaskClick}
-                clients={clients}
-              />
+          <TaskKanban 
+            tasks={filteredTasks} 
+            onTaskMove={handleTaskMove}
+            onTaskClick={handleTaskClick}
+            clients={clients}
+          />
         </TabsContent>
 
         {/* Notes Tab */}
