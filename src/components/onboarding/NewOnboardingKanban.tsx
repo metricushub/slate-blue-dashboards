@@ -1,28 +1,30 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
-import { DndContext, DragEndEvent, DragStartEvent, closestCorners, DragOverlay, useDroppable } from '@dnd-kit/core';
-import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { useSortable } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+import React, { useState } from 'react';
 import {
-  FileText,
-  CreditCard,
-  Settings,
-  MessageSquare,
-  Rocket,
-  CheckCircle,
-  Clock,
-  User,
-  Calendar,
-  Edit,
-  Flag,
-  Plus
-} from "lucide-react";
+  DndContext,
+  DragEndEvent,
+  DragOverlay,
+  DragStartEvent,
+  closestCenter,
+  useSensor,
+  useSensors,
+  PointerSensor,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { OnboardingCard } from '@/shared/db/onboardingStore';
-import { toast } from '@/hooks/use-toast';
+import { BulkAddOnboardingCardsModal } from '@/components/modals/BulkAddOnboardingCardsModal';
+import { OnboardingCardEditDrawer } from '@/components/modals/OnboardingCardEditDrawer';
+import { Plus, Calendar, User, Clock, PackagePlus, FileText, CreditCard, Settings, MessageSquare, Rocket, Edit } from 'lucide-react';
+import { format, isToday, isPast } from 'date-fns';
+import { pt } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 
 interface NewOnboardingKanbanProps {
   clientId?: string;
@@ -39,35 +41,28 @@ interface DroppableColumnProps {
 }
 
 function DroppableColumn({ column, children }: DroppableColumnProps) {
-  const { setNodeRef, isOver } = useDroppable({
-    id: column.id,
-  });
-
   return (
-    <Card 
-      ref={setNodeRef}
-      className={`${column.color} flex flex-col ${isOver ? 'ring-2 ring-primary' : ''}`}
-    >
+    <Card className={`${column.color} flex flex-col h-fit`}>
       {children}
     </Card>
   );
 }
 
 const ONBOARDING_COLUMNS = [
-  { id: 'pre-cadastro', title: 'Pré-cadastro', icon: FileText, color: 'bg-blue-50 border-blue-200' },
-  { id: 'formulario-documentos', title: 'Formulário & Documentos', icon: FileText, color: 'bg-yellow-50 border-yellow-200' },
+  { id: 'dados-gerais', title: 'Pré-cadastro', icon: FileText, color: 'bg-blue-50 border-blue-200' },
+  { id: 'implementacao', title: 'Formulário & Docs', icon: FileText, color: 'bg-yellow-50 border-yellow-200' },
   { id: 'financeiro', title: 'Financeiro', icon: CreditCard, color: 'bg-orange-50 border-orange-200' },
-  { id: 'acessos-setup', title: 'Acessos & Setup', icon: Settings, color: 'bg-purple-50 border-purple-200' },
-  { id: 'briefing-estrategia', title: 'Briefing & Estratégia', icon: MessageSquare, color: 'bg-indigo-50 border-indigo-200' },
+  { id: 'configuracao', title: 'Acessos & Setup', icon: Settings, color: 'bg-purple-50 border-purple-200' },
+  { id: 'briefing', title: 'Briefing & Estratégia', icon: MessageSquare, color: 'bg-indigo-50 border-indigo-200' },
   { id: 'go-live', title: 'Go-Live', icon: Rocket, color: 'bg-green-50 border-green-200' }
 ] as const;
 
 interface SortableOnboardingCardProps {
   card: OnboardingCard;
-  onCardClick?: (card: OnboardingCard) => void;
+  onClick: (card: OnboardingCard) => void;
 }
 
-function SortableOnboardingCard({ card, onCardClick }: SortableOnboardingCardProps) {
+function SortableOnboardingCard({ card, onClick }: SortableOnboardingCardProps) {
   const {
     attributes,
     listeners,
@@ -90,7 +85,7 @@ function SortableOnboardingCard({ card, onCardClick }: SortableOnboardingCardPro
   const handleCardClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
-    onCardClick?.(card);
+    onClick(card);
   };
 
   const getStatusBadge = () => {
@@ -152,16 +147,26 @@ function SortableOnboardingCard({ card, onCardClick }: SortableOnboardingCardPro
             </div>
           )}
 
-          {/* Checklist Progress */}
           {card.checklist && card.checklist.length > 0 && (
             <div className="text-xs text-muted-foreground">
-              <CheckCircle className="h-3 w-3 inline mr-1" />
+              <Clock className="h-3 w-3 inline mr-1" />
               {card.checklist.filter(item => item.includes('✓')).length}/{card.checklist.length} itens
             </div>
           )}
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function OnboardingCardComponent({ card, isDragging }: { card: OnboardingCard; isDragging?: boolean }) {
+  return (
+    <Card className={`${isDragging ? 'opacity-75 rotate-2' : ''} shadow-lg`}>
+      <CardContent className="p-3">
+        <h4 className="font-medium text-sm">{card.title}</h4>
+        {card.notas && <p className="text-xs text-muted-foreground mt-1">{card.notas}</p>}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -174,27 +179,21 @@ export function NewOnboardingKanban({
   onCardsReload
 }: NewOnboardingKanbanProps) {
   const [activeCard, setActiveCard] = useState<OnboardingCard | null>(null);
+  const [showBulkModal, setShowBulkModal] = useState(false);
+  const [showEditDrawer, setShowEditDrawer] = useState(false);
+  const [editingCard, setEditingCard] = useState<OnboardingCard | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    })
+  );
   
   // Organize cards by columns
   const getCardsForColumn = (columnId: string) => {
-    return cards.filter(card => {
-      switch (columnId) {
-        case 'pre-cadastro':
-          return card.stage === 'dados-gerais';
-        case 'formulario-documentos':
-          return card.stage === 'implementacao';
-        case 'financeiro':
-          return card.stage === 'financeiro';
-        case 'acessos-setup':
-          return card.stage === 'configuracao';
-        case 'briefing-estrategia':
-          return card.stage === 'briefing';
-        case 'go-live':
-          return card.stage === 'briefing'; // Temporary until we add go-live stage
-        default:
-          return false;
-      }
-    });
+    return cards.filter(card => card.stage === columnId);
   };
 
   const handleDragStart = (event: DragStartEvent) => {
@@ -203,106 +202,158 @@ export function NewOnboardingKanban({
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
-    setActiveCard(null);
-    
     const { active, over } = event;
-    if (!over) return;
-
-    const cardId = String(active.id);
-    const targetId = String(over.id);
     
-    // Map column IDs to stages
-    const stageMapping: Record<string, string> = {
-      'pre-cadastro': 'dados-gerais',
-      'formulario-documentos': 'implementacao',
-      'financeiro': 'financeiro',
-      'acessos-setup': 'configuracao',
-      'briefing-estrategia': 'briefing',
-      'go-live': 'go-live'
-    };
+    if (over && active.id !== over.id) {
+      const stageId = over.id as string;
+      onCardMove(active.id as string, stageId);
+    }
+    
+    setActiveCard(null);
+  };
 
-    const newStage = stageMapping[targetId];
-    if (newStage) {
-      onCardMove(cardId, newStage);
-      toast({
-        title: "Card movido",
-        description: `Card movido para ${ONBOARDING_COLUMNS.find(c => c.id === targetId)?.title}`,
-      });
+  const handleCardClick = (card: OnboardingCard) => {
+    setEditingCard(card);
+    setShowEditDrawer(true);
+  };
+
+  const handleSaveCard = async (cardId: string, updates: Partial<OnboardingCard>) => {
+    // This will be handled by the parent component
+    if (onCardClick) {
+      await onCardClick({ ...updates, id: cardId } as OnboardingCard);
+    }
+    if (onCardsReload) {
+      onCardsReload();
+    }
+    setShowEditDrawer(false);
+  };
+
+  const handleDeleteCard = async (cardId: string) => {
+    // This will be handled by the parent component - we'll need to add a delete handler
+    console.log('Delete card:', cardId);
+    if (onCardsReload) {
+      onCardsReload();
+    }
+    setShowEditDrawer(false);
+  };
+
+  const handleDuplicateCard = async (card: OnboardingCard) => {
+    // This will be handled by the parent component - we'll need to add a duplicate handler
+    console.log('Duplicate card:', card);
+    if (onCardsReload) {
+      onCardsReload();
+    }
+    setShowEditDrawer(false);
+  };
+
+  const handleBulkCardsCreated = (newCards: OnboardingCard[]) => {
+    if (onCardsReload) {
+      onCardsReload();
     }
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">Onboarding do Cliente</h3>
-        {onCreateCard && (
-          <Button onClick={onCreateCard} size="sm">
-            <Plus className="h-4 w-4 mr-2" />
-            Novo Card
-          </Button>
-        )}
-      </div>
-
-      {/* Kanban Board */}
+    <>
       <DndContext
-        collisionDetection={closestCorners}
+        sensors={sensors}
+        collisionDetection={closestCenter}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 min-h-96">
-          {ONBOARDING_COLUMNS.map(column => {
-            const columnCards = getCardsForColumn(column.id);
-            const Icon = column.icon;
-            
-            return (
-              <DroppableColumn key={column.id} column={column}>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium flex items-center gap-2">
-                    <Icon className="h-4 w-4" />
-                    <span className="text-xs leading-tight">{column.title}</span>
-                    <Badge variant="secondary" className="ml-auto">
-                      {columnCards.length}
-                    </Badge>
-                  </CardTitle>
-                </CardHeader>
-                
-                <CardContent className="flex-1 pt-0">
-                  <SortableContext
-                    items={columnCards.map(c => c.id)}
-                    strategy={verticalListSortingStrategy}
-                  >
-                    <div className="space-y-2 min-h-20">
-                      {columnCards.length === 0 ? (
-                        <div className="text-center py-8 text-muted-foreground">
-                          <Icon className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                          <p className="text-xs">Nenhum card</p>
-                        </div>
-                      ) : (
-                        columnCards.map(card => (
-                          <SortableOnboardingCard
-                            key={card.id}
-                            card={card}
-                            onCardClick={onCardClick}
-                          />
-                        ))
-                      )}
+        <div className="h-full flex flex-col">
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <h1 className="text-2xl font-bold">Onboarding do Cliente</h1>
+              <p className="text-muted-foreground">
+                Acompanhe o progresso do onboarding através das etapas
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              {onCreateCard && (
+                <Button onClick={onCreateCard} className="flex items-center gap-2">
+                  <Plus className="h-4 w-4" />
+                  Novo
+                </Button>
+              )}
+              <Button 
+                onClick={() => setShowBulkModal(true)} 
+                variant="outline"
+                className="flex items-center gap-2"
+              >
+                <PackagePlus className="h-4 w-4" />
+                Adicionar em Lote
+              </Button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 flex-1">
+            {ONBOARDING_COLUMNS.map(column => {
+              const columnCards = getCardsForColumn(column.id);
+              const Icon = column.icon;
+              
+              return (
+                <DroppableColumn key={column.id} column={column}>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Icon className="h-4 w-4" />
+                        <span className="text-sm font-medium">{column.title}</span>
+                      </div>
+                      <Badge variant="secondary">{columnCards.length}</Badge>
                     </div>
-                  </SortableContext>
-                </CardContent>
-              </DroppableColumn>
-            );
-          })}
+                  </CardHeader>
+                  
+                  <CardContent className="flex-1 pt-0">
+                    <SortableContext
+                      items={columnCards.map(c => c.id)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      <div className="space-y-2 min-h-20">
+                        {columnCards.length === 0 ? (
+                          <div className="text-center py-8 text-muted-foreground">
+                            <Icon className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                            <p className="text-xs">Nenhum card</p>
+                          </div>
+                        ) : (
+                          columnCards.map(card => (
+                            <SortableOnboardingCard
+                              key={card.id}
+                              card={card}
+                              onClick={handleCardClick}
+                            />
+                          ))
+                        )}
+                      </div>
+                    </SortableContext>
+                  </CardContent>
+                </DroppableColumn>
+              );
+            })}
+          </div>
         </div>
 
-        <DragOverlay>
-          {activeCard && (
-            <SortableOnboardingCard 
-              card={activeCard}
-              onCardClick={onCardClick}
-            />
-          )}
-        </DragOverlay>
+        {activeCard && (
+          <DragOverlay>
+            <OnboardingCardComponent card={activeCard} isDragging />
+          </DragOverlay>
+        )}
       </DndContext>
-    </div>
+
+      <BulkAddOnboardingCardsModal
+        open={showBulkModal}
+        onOpenChange={setShowBulkModal}
+        onCardsCreated={handleBulkCardsCreated}
+        clientId={clientId}
+      />
+
+      <OnboardingCardEditDrawer
+        open={showEditDrawer}
+        onOpenChange={setShowEditDrawer}
+        card={editingCard}
+        onSave={handleSaveCard}
+        onDelete={handleDeleteCard}
+        onDuplicate={handleDuplicateCard}
+      />
+    </>
   );
 }

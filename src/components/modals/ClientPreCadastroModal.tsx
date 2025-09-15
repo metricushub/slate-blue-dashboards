@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import { useDataSource } from "@/hooks/useDataSource";
 import { onboardingCardOperations } from "@/shared/db/onboardingStore";
+import { Client } from "@/types";
 
 interface ClientPreCadastroModalProps {
   open: boolean;
@@ -69,10 +70,15 @@ export function ClientPreCadastroModal({
     setLoading(true);
     try {
       // Criar cliente
-      const newClient = await dataSource.addClient({
+      const clientId = crypto.randomUUID();
+      const newClient: Client = {
+        id: clientId,
         name: formData.nomeEmpresa,
-        phone: formData.telefone,
         status: 'onboarding' as any,
+        stage: 'Setup inicial',
+        owner: 'Sistema',
+        lastUpdate: new Date().toISOString().split('T')[0],
+        budgetMonth: 0,
         segment: formData.nicho,
         contacts: [{
           id: crypto.randomUUID(),
@@ -82,13 +88,15 @@ export function ClientPreCadastroModal({
           role: 'Principal',
           isPrimary: true
         }]
-      });
+      };
+
+      const result = await dataSource.addClient(newClient);
 
       // Criar card automático "Formulário enviado"
       try {
         await onboardingCardOperations.create({
           title: "Formulário enviado",
-          clientId: (newClient as any)?.id || 'temp',
+          clientId: clientId,
           responsavel: '',
           vencimento: '',
           checklist: [],

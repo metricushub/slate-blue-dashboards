@@ -529,7 +529,7 @@ export default function LeadsPage() {
         <ClientPreCadastroModal
           open={showPreCadastroModal}
           onOpenChange={setShowPreCadastroModal}
-          onComplete={handleClientCreated}
+          onSave={handleClientCreated}
           leadData={leadToConvert}
         />
       )}
