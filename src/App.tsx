@@ -23,13 +23,14 @@ import DiagnosticsPage from "./pages/DiagnosticsPage";
 import CalendarioPage from "./pages/CalendarioPage";
 import EquipePage from "./pages/EquipePage";
 import TarefasAnotacoesPage from "./pages/TarefasAnotacoesPage";
+import OnboardingPage from "./pages/OnboardingPage";
 
 // WIP Pages - Cliente
 import CentralOtimizacoesWip from "./pages/wip/CentralOtimizacoesWip";
 import TarefasAlertasWip from "./pages/wip/TarefasAlertasWip";
 import ChatIaConfigWip from "./pages/wip/ChatIaConfigWip";
 import AnotacoesClienteWip from "./pages/wip/AnotacoesClienteWip";
-import OnboardingClienteWip from "./pages/wip/OnboardingClienteWip";
+import OnboardingClientPage from "./pages/OnboardingClientPage";
 import RelatoriosClienteWip from "./pages/wip/RelatoriosClienteWip";
 import AnalyticsClienteWip from "./pages/wip/AnalyticsClienteWip";
 import ObjetivosClienteWip from "./pages/wip/ObjetivosClienteWip";
@@ -53,6 +54,7 @@ const App = () => (
                 <Route path="/" element={<HomePage />} />
                 <Route path="/clientes" element={<ClientsPage />} />
                 <Route path="/leads" element={<LeadsPage />} />
+                <Route path="/onboarding" element={<OnboardingPage />} />
                 <Route path="/tarefas-anotacoes" element={<TarefasAnotacoesPage />} />
                 <Route path="/calendario" element={<CalendarioPage />} />
                 <Route path="/equipe" element={<EquipePage />} />
@@ -69,7 +71,7 @@ const App = () => (
                 <Route path="/cliente/:clientId/tarefas-alertas" element={<TarefasAlertasWip />} />
                 <Route path="/cliente/:clientId/chat" element={<ChatIaConfigWip />} />
                 <Route path="/cliente/:clientId/anotacoes" element={<AnotacoesClienteWip />} />
-                <Route path="/cliente/:clientId/onboarding" element={<OnboardingClienteWip />} />
+                <Route path="/cliente/:clientId/onboarding" element={<OnboardingClientPage />} />
                 <Route path="/cliente/:clientId/relatorios" element={<RelatoriosClienteWip />} />
                 <Route path="/cliente/:clientId/analytics" element={<AnalyticsClienteWip />} />
                 <Route path="/cliente/:clientId/objetivos" element={<ObjetivosClienteWip />} />
