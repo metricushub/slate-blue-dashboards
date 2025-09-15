@@ -337,10 +337,19 @@ export default function TarefasAnotacoesPage() {
     setShowEditTaskDrawer(true);
   };
 
-  const handleEditTask = async (taskId: string, updates: Partial<Task>) => {
+  const handleSaveEditTask = async (taskId: string, updates: Partial<Task>) => {
     try {
-      await taskOperations.update(taskId, updates);
-      await loadAllData();
+      await taskOperations.update(taskId, {
+        ...updates,
+        updated_at: new Date().toISOString()
+      });
+      setTasks(prev => prev.map(t => 
+        t.id === taskId 
+          ? { ...t, ...updates, updated_at: new Date().toISOString() }
+          : t
+      ));
+      setEditingTask(null);
+      setShowEditTaskDrawer(false);
       toast({
         title: "Tarefa atualizada",
         description: "Tarefa atualizada com sucesso"
@@ -355,19 +364,20 @@ export default function TarefasAnotacoesPage() {
     }
   };
 
-  const handleDuplicateTask = async (task: Task) => {
+  const handleDuplicateTaskForDrawer = async (task: Task) => {
     try {
       const duplicatedTask = {
         title: `${task.title} (cópia)`,
         description: task.description,
-        status: task.status,
+        status: 'Aberta' as TaskStatus,
         priority: task.priority,
         due_date: task.due_date,
         client_id: task.client_id,
         owner: task.owner,
       };
-      await taskOperations.create(duplicatedTask);
-      await loadAllData();
+      const newTask = await taskOperations.create(duplicatedTask);
+      setTasks(prev => [newTask, ...prev]);
+      setShowEditTaskDrawer(false);
       toast({
         title: "Tarefa duplicada",
         description: "Tarefa duplicada com sucesso"
@@ -696,9 +706,9 @@ export default function TarefasAnotacoesPage() {
         open={showEditTaskDrawer}
         onOpenChange={setShowEditTaskDrawer}
         task={editingTask}
-        onSave={handleEditTask}
+        onSave={handleSaveEditTask}
         onDelete={handleDeleteTask}
-        onDuplicate={handleDuplicateTask}
+        onDuplicate={handleDuplicateTaskForDrawer}
         clients={clients}
       />
     </div>

@@ -88,15 +88,21 @@ function SortableTaskCard({ task, clients, onTaskClick }: SortableTaskCardProps)
       {...attributes}
       className="mb-3"
     >
-      <Card className={`${isOverdue ? 'border-red-300 bg-red-50/50' : ''}`}>
+      <Card className={`${isOverdue ? 'border-red-300 bg-red-50/50' : ''} group`}>
         <CardContent className="p-3 space-y-2">
-          <h4 
-            className="font-medium text-sm leading-tight cursor-pointer hover:text-primary transition-colors"
-            onClick={handleTitleClick}
-            {...listeners}
-          >
-            {task.title}
-          </h4>
+          <div className="flex items-start gap-2">
+            <div 
+              className="flex-shrink-0 w-2 h-4 bg-muted-foreground/20 rounded-sm cursor-grab active:cursor-grabbing hover:bg-muted-foreground/40 transition-colors mt-0.5"
+              {...listeners}
+              title="Arrastar tarefa"
+            />
+            <h4 
+              className="font-medium text-sm leading-tight cursor-pointer hover:text-primary transition-colors flex-1"
+              onClick={handleTitleClick}
+            >
+              {task.title}
+            </h4>
+          </div>
           
           {task.description && (
             <p className="text-xs text-muted-foreground line-clamp-2">{task.description}</p>
