@@ -105,10 +105,6 @@ function SortableTaskCard({ task, clients, onTaskClick, onStatusChange }: Sortab
     onTaskClick?.(task);
   };
 
-  const handleTitleMouseDown = (e: React.MouseEvent) => {
-    e.stopPropagation();
-  };
-
   const handleStatusChange = (newStatus: string) => {
     onStatusChange?.(task.id, newStatus as TaskStatus);
   };
@@ -127,7 +123,6 @@ function SortableTaskCard({ task, clients, onTaskClick, onStatusChange }: Sortab
             <h4 
               className="font-medium text-sm leading-tight cursor-pointer hover:text-primary hover:underline transition-all flex-1 group-hover:text-primary"
               onClick={handleTitleClick}
-              onMouseDown={handleTitleMouseDown}
               title="Clique para editar"
             >
               {task.title}
