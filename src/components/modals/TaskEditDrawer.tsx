@@ -138,7 +138,7 @@ export function TaskEditDrawer({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-96 sm:max-w-md">
+      <SheetContent side="right" className="w-96 sm:max-w-md max-h-[90vh] overflow-y-auto flex flex-col">
         <SheetHeader>
           <SheetTitle>Editar Tarefa</SheetTitle>
           <SheetDescription>
@@ -146,7 +146,7 @@ export function TaskEditDrawer({
           </SheetDescription>
         </SheetHeader>
 
-        <div className="space-y-4 py-4">
+        <div className="space-y-4 py-4 flex-1 min-h-0 overflow-y-auto">
           {/* Título */}
           <div className="space-y-2">
             <Label htmlFor="title">Título *</Label>
@@ -285,7 +285,7 @@ export function TaskEditDrawer({
         </div>
 
         {/* Ações */}
-        <div className="flex flex-col gap-2 pt-4">
+        <div className="flex flex-col gap-2 pt-4 border-t bg-background mt-auto shrink-0">
           <div className="flex gap-2">
             <Button 
               onClick={handleSave}
