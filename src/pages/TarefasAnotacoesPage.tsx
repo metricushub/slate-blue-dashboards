@@ -16,6 +16,7 @@ import { TaskEditDrawer } from '@/components/modals/TaskEditDrawer';
 import { TaskDashboardCards } from "@/components/dashboard/TaskDashboardCards";
 import { TaskAlertsBanner } from "@/components/dashboard/TaskAlertsBanner";
 import { TaskKanban } from "@/components/dashboard/TaskKanban";
+import { TaskCalendar } from "@/components/dashboard/TaskCalendar";
 import { TaskFiltersAndViews, TaskFilters } from "@/components/dashboard/TaskFiltersAndViews";
 import { Task, Note, TaskPriority, TaskStatus } from "@/types";
 import { 
@@ -364,6 +365,30 @@ export default function TarefasAnotacoesPage() {
     }
   };
 
+  const handleTaskDateChange = async (taskId: string, newDate: string) => {
+    try {
+      await taskOperations.update(taskId, { 
+        due_date: newDate,
+        updated_at: new Date().toISOString()
+      });
+      setTasks(prev => prev.map(t => 
+        t.id === taskId 
+          ? { ...t, due_date: newDate, updated_at: new Date().toISOString() }
+          : t
+      ));
+      toast({
+        title: "Data atualizada",
+        description: "Data de vencimento atualizada com sucesso"
+      });
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Erro ao atualizar data",
+        variant: "destructive"
+      });
+    }
+  };
+
   const handleDuplicateTaskForDrawer = async (task: Task) => {
     try {
       const duplicatedTask = {
@@ -477,7 +502,7 @@ export default function TarefasAnotacoesPage() {
 
         <div className="flex items-center gap-3">
           {/* Bulk Add Button (only for tasks) */}
-          {activeTab === "tarefas" && (
+          {(activeTab === "tarefas" || activeTab === "calendario") && (
             <Button 
               variant="outline"
               onClick={() => setShowBulkAddModal(true)}
@@ -490,7 +515,7 @@ export default function TarefasAnotacoesPage() {
           {/* New Button */}
           <Button 
             onClick={() => {
-              if (activeTab === "tarefas") {
+              if (activeTab === "tarefas" || activeTab === "calendario") {
                 setShowNewTaskModal(true);
               } else {
                 setShowNewNoteModal(true);
@@ -505,10 +530,14 @@ export default function TarefasAnotacoesPage() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full max-w-md grid-cols-2">
+        <TabsList className="grid w-full max-w-lg grid-cols-3">
           <TabsTrigger value="tarefas" className="flex items-center gap-2">
             <CheckSquare className="h-4 w-4" />
             Tarefas
+          </TabsTrigger>
+          <TabsTrigger value="calendario" className="flex items-center gap-2">
+            <Calendar className="h-4 w-4" />
+            Calendário
           </TabsTrigger>
           <TabsTrigger value="anotacoes" className="flex items-center gap-2">
             <StickyNote className="h-4 w-4" />
@@ -541,6 +570,16 @@ export default function TarefasAnotacoesPage() {
             tasks={filteredTasks} 
             onTaskMove={handleTaskMove}
             onTaskClick={handleTaskClick}
+            clients={clients}
+          />
+        </TabsContent>
+
+        {/* Calendar Tab */}
+        <TabsContent value="calendario" className="space-y-6">
+          <TaskCalendar 
+            tasks={filteredTasks}
+            onTaskClick={handleTaskClick}
+            onTaskDateChange={handleTaskDateChange}
             clients={clients}
           />
         </TabsContent>
