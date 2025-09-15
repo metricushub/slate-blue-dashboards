@@ -72,7 +72,7 @@ export function TrendChartMetricsModal({ isOpen, onClose, clientId }: TrendChart
 
   return (
     <Dialog open={isOpen} onOpenChange={handleCancel}>
-      <DialogContent className="mx-auto w-[92vw] max-w-md md:max-w-lg h-auto max-h-[72svh] overflow-hidden rounded-2xl bg-white shadow-xl [contain:size_layout_paint] p-0">
+      <DialogContent className="mx-auto w-[92vw] max-w-sm md:max-w-[400px] h-auto max-h-[72svh] overflow-hidden rounded-2xl bg-white shadow-xl [contain:size_layout_paint] p-0">
         <div className="flex flex-col h-full">
           {/* Header */}
           <div className="shrink-0 sticky top-0 z-10 border-b bg-white px-5 py-4 flex items-center justify-between">
