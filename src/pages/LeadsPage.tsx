@@ -357,6 +357,8 @@ export default function LeadsPage() {
     setLeadToConvert(lead);
     setShowPreCadastroModal(true);
   };
+
+  const handleResetFilters = () => {
     setFilters({ stages: [], owner: '', dateFrom: '', dateTo: '' });
     setSearchQuery('');
     localStorage.removeItem('leads:ui:filters');
