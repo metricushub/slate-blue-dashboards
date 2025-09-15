@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Copy, Trash2, Save, User, Mail, Phone, Calendar, DollarSign, Link, FileText } from 'lucide-react';
 import { ConvertLeadButton } from './ConvertLeadButton';
+import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useDataSource } from '@/hooks/useDataSource';
 import { useToast } from '@/hooks/use-toast';
