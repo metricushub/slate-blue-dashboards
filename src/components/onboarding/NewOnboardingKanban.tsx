@@ -21,9 +21,7 @@ import { Badge } from '@/components/ui/badge';
 import { OnboardingCard } from '@/shared/db/onboardingStore';
 import { BulkAddOnboardingCardsModal } from '@/components/modals/BulkAddOnboardingCardsModal';
 import { OnboardingCardEditDrawer } from '@/components/modals/OnboardingCardEditDrawer';
-import { Plus, Calendar, User, Clock, PackagePlus, FileText, CreditCard, Settings, MessageSquare, Rocket, Edit, Wand2 } from 'lucide-react';
-import { ONBOARDING_TEMPLATES, createCardFromTemplate } from '@/shared/data/onboardingTemplates';
-import { toast } from '@/hooks/use-toast';
+import { Plus, Calendar, User, Clock, PackagePlus, FileText, CreditCard, Settings, MessageSquare, Rocket, Edit } from 'lucide-react';
 import { format, isToday, isPast } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -323,33 +321,6 @@ export function NewOnboardingKanban({
     }
   };
 
-  const handleApplyTemplate = () => {
-    if (!clientId) {
-      toast({
-        title: "Erro",
-        description: "ID do cliente não encontrado",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Create cards from all templates
-    const templateCards = ONBOARDING_TEMPLATES.map(template => 
-      createCardFromTemplate(template, clientId, "Cliente", "")
-    );
-
-    // Here we would normally save these cards to the store
-    // For now, we'll just show a success message
-    toast({
-      title: "Template Aplicado",
-      description: `${templateCards.length} cards criados com sucesso!`,
-    });
-
-    if (onCardsReload) {
-      onCardsReload();
-    }
-  };
-
   return (
     <>
       <DndContext
@@ -380,14 +351,6 @@ export function NewOnboardingKanban({
               >
                 <PackagePlus className="h-4 w-4" />
                 Adicionar em Lote
-              </Button>
-              <Button 
-                onClick={handleApplyTemplate} 
-                variant="secondary"
-                className="flex items-center gap-2"
-              >
-                <Wand2 className="h-4 w-4" />
-                Criar Template
               </Button>
             </div>
           </div>
