@@ -55,6 +55,8 @@ export function TemplateApplicator({ open, onOpenChange, clientId, onApplied }: 
   };
 
   const handleApply = async () => {
+    console.log('Template application started:', { selectedTemplateId, clientId });
+    
     if (!selectedTemplateId) {
       toast({
         title: "Selecione um template",
@@ -64,8 +66,26 @@ export function TemplateApplicator({ open, onOpenChange, clientId, onApplied }: 
       return;
     }
 
+    if (!clientId) {
+      toast({
+        title: "Cliente não identificado",
+        description: "ID do cliente não foi fornecido",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsApplying(true);
     try {
+      console.log('Applying template with options:', {
+        templateId: selectedTemplateId,
+        clientId,
+        anchorDate,
+        createMissingBlocks,
+        mergeWithExisting,
+        avoidDuplicateCards
+      });
+
       const result = await onboardingTemplateV2Operations.applyToClient(selectedTemplateId, clientId, {
         anchorDate,
         createMissingBlocks,
@@ -73,6 +93,8 @@ export function TemplateApplicator({ open, onOpenChange, clientId, onApplied }: 
         avoidDuplicateCards,
         variables: {} // Could be extended later
       });
+
+      console.log('Template application result:', result);
 
       toast({
         title: "Template aplicado",
@@ -85,7 +107,7 @@ export function TemplateApplicator({ open, onOpenChange, clientId, onApplied }: 
       console.error('Error applying template:', error);
       toast({
         title: "Erro ao aplicar template",
-        description: "Não foi possível aplicar o template",
+        description: error instanceof Error ? error.message : "Não foi possível aplicar o template",
         variant: "destructive"
       });
     } finally {

@@ -592,8 +592,19 @@ export const onboardingTemplateV2Operations = {
       variables?: Record<string, string>;
     }
   ) {
+    console.log('applyToClient called with:', { templateId, clientId, options });
+    
+    if (!clientId) {
+      throw new Error('Client ID is required');
+    }
+    
     const template = await this.getById(templateId);
-    if (!template) throw new Error('Template not found');
+    if (!template) {
+      console.log('Template not found:', templateId);
+      throw new Error('Template not found');
+    }
+
+    console.log('Template found:', template);
 
     const { anchorDate, selectedBlockIds, variables = {} } = options;
     const baseDate = new Date(anchorDate);
@@ -603,14 +614,21 @@ export const onboardingTemplateV2Operations = {
       blocksToProcess = template.blocks.filter(block => selectedBlockIds.includes(block.id));
     }
 
+    console.log('Blocks to process:', blocksToProcess);
+
     const created: OnboardingCard[] = [];
     const skipped: string[] = [];
 
     // Get existing cards to check for duplicates
     const existingCards = await onboardingCardOperations.getByClient(clientId);
+    console.log('Existing cards:', existingCards.length);
 
     for (const block of blocksToProcess) {
+      console.log('Processing block:', block.name, 'with', block.cards.length, 'cards');
+      
       for (const templateCard of block.cards) {
+        console.log('Processing card:', templateCard.title);
+        
         // Check for duplicate titles if avoiding duplicates
         if (options.avoidDuplicateCards) {
           const titleWithVars = this.replaceVariables(templateCard.title, variables);
@@ -621,6 +639,7 @@ export const onboardingTemplateV2Operations = {
           
           if (isDuplicate) {
             skipped.push(`${block.name}: ${titleWithVars} (duplicado)`);
+            console.log('Skipping duplicate card:', titleWithVars);
             continue;
           }
         }
@@ -631,6 +650,9 @@ export const onboardingTemplateV2Operations = {
           dueDate = onboardingTemplateOperations.calculateDateFromOffset(baseDate, templateCard.prazoOffset);
         }
 
+        const mappedStage = this.mapBlockToStage(block.name);
+        console.log('Mapped stage for block', block.name, ':', mappedStage);
+
         // Create the card
         const newCard = await onboardingCardOperations.create({
           title: this.replaceVariables(templateCard.title, variables),
@@ -639,13 +661,15 @@ export const onboardingTemplateV2Operations = {
           vencimento: dueDate,
           checklist: templateCard.tags || [],
           notas: this.replaceVariables(templateCard.description || '', variables),
-          stage: this.mapBlockToStage(block.name) as OnboardingCard['stage']
+          stage: mappedStage as OnboardingCard['stage']
         });
 
+        console.log('Created card:', newCard);
         created.push(newCard);
       }
     }
 
+    console.log('Final result:', { created: created.length, skipped: skipped.length });
     return { created, skipped };
   },
 
@@ -671,6 +695,8 @@ export const onboardingTemplateV2Operations = {
   },
 
   mapBlockToStage(blockName: string): string {
+    console.log('Mapping block name:', blockName);
+    
     const blockToStage: Record<string, string> = {
       'Pré-cadastro': 'dados-gerais',
       'Formulário & Docs': 'implementacao',
@@ -680,7 +706,9 @@ export const onboardingTemplateV2Operations = {
       'Go-Live': 'go-live'
     };
     
-    return blockToStage[blockName] || 'dados-gerais';
+    const mappedStage = blockToStage[blockName] || 'dados-gerais';
+    console.log('Mapped to stage:', mappedStage);
+    return mappedStage;
   }
 };
 
