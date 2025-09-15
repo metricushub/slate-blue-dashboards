@@ -8,6 +8,7 @@ import {
   Puzzle,
   Settings,
   ClipboardCheck,
+  Layout,
   ChevronRight,
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
@@ -31,6 +32,7 @@ const navigationItems = [
   { title: "Leads (CRM Kanban)", url: "/leads", icon: Kanban },
   { title: "Clientes", url: "/clientes", icon: Users },
   { title: "Onboarding", url: "/onboarding", icon: ClipboardCheck },
+  { title: "Templates Onboarding", url: "/onboarding/templates", icon: Layout },
   { title: "Tarefas e Anotações", url: "/tarefas-anotacoes", icon: ClipboardList },
   { title: "Calendário", url: "/calendario", icon: Calendar },
   { title: "Equipe", url: "/equipe", icon: UserCog },
