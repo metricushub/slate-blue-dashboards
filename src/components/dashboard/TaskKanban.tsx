@@ -123,6 +123,7 @@ function SortableTaskCard({ task, clients, onTaskClick, onStatusChange }: Sortab
             <h4 
               className="font-medium text-sm leading-tight cursor-pointer hover:text-primary hover:underline transition-all flex-1 group-hover:text-primary"
               onClick={handleTitleClick}
+              onPointerDown={(e) => e.stopPropagation()}
               title="Clique para editar"
             >
               {task.title}
@@ -130,6 +131,7 @@ function SortableTaskCard({ task, clients, onTaskClick, onStatusChange }: Sortab
             <div 
               className="flex-shrink-0 mt-0.5 cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
               onClick={handleTitleClick}
+              onPointerDown={(e) => e.stopPropagation()}
               title="Editar tarefa"
             >
               <Edit className="h-3 w-3 text-muted-foreground/50 hover:text-primary" />
@@ -230,17 +232,35 @@ export function TaskKanban({ tasks, onTaskMove, onTaskClick, clients }: TaskKanb
     const { active, over } = event;
     if (!over) return;
 
-    const taskId = active.id as string;
-    const newColumnId = over.id as string;
-    
+    const taskId = String(active.id);
+    let targetId = String(over.id);
+
+    // If dropped over another task, infer that task's column
+    if (!KANBAN_COLUMNS.some(c => c.id === targetId)) {
+      const overTask = tasks.find(t => t.id === targetId);
+      if (overTask) {
+        if (overTask.archived_at) {
+          targetId = 'archived';
+        } else if (overTask.status === 'Concluída') {
+          targetId = 'Concluída';
+        } else if (overTask.due_date && overTask.due_date < today) {
+          targetId = 'overdue';
+        } else if (overTask.status === 'Em progresso') {
+          targetId = 'Em progresso';
+        } else {
+          targetId = 'Aberta';
+        }
+      }
+    }
+
     // Handle different column types
-    switch (newColumnId) {
+    switch (targetId) {
       case 'Aberta':
       case 'Em progresso':
-        onTaskMove(taskId, newColumnId as TaskStatus);
+        onTaskMove(taskId, targetId as TaskStatus);
         break;
       case 'overdue':
-        // Tasks in overdue keep their status but we could mark them as overdue
+        // Keep original status when dropped on "Atrasadas"
         break;
       case 'Concluída':
         onTaskMove(taskId, 'Concluída');
