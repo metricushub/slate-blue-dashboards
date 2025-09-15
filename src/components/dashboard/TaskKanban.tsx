@@ -17,7 +17,8 @@ import {
   User,
   Flag,
   Eye,
-  EyeOff
+  EyeOff,
+  Edit
 } from "lucide-react";
 
 interface TaskKanbanProps {
@@ -97,11 +98,19 @@ function SortableTaskCard({ task, clients, onTaskClick }: SortableTaskCardProps)
               title="Arrastar tarefa"
             />
             <h4 
-              className="font-medium text-sm leading-tight cursor-pointer hover:text-primary transition-colors flex-1"
+              className="font-medium text-sm leading-tight cursor-pointer hover:text-primary hover:underline transition-all flex-1 group-hover:text-primary"
               onClick={handleTitleClick}
+              title="Clique para editar"
             >
               {task.title}
             </h4>
+            <div 
+              className="flex-shrink-0 mt-0.5 cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
+              onClick={handleTitleClick}
+              title="Editar tarefa"
+            >
+              <Edit className="h-3 w-3 text-muted-foreground/50 hover:text-primary" />
+            </div>
           </div>
           
           {task.description && (
