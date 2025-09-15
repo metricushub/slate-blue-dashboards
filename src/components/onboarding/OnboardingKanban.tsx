@@ -226,7 +226,7 @@ export function OnboardingKanban({ clientId }: OnboardingKanbanProps) {
     return null;
   };
 
-  const uniqueResponsaveis = [...new Set(cards.map(card => card.responsavel))];
+  const uniqueResponsaveis = [...new Set(cards.map(card => card.responsavel).filter(Boolean))];
   const uniqueClientes = [...new Set(cards.map(card => card.clientName).filter(Boolean))];
 
   if (loading) {
