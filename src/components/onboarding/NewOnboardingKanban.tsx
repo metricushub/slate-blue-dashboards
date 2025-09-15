@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   DndContext,
   DragEndEvent,
@@ -18,7 +18,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { OnboardingCard } from '@/shared/db/onboardingStore';
+import { OnboardingCard, onboardingStageOperations, OnboardingStage } from '@/shared/db/onboardingStore';
 import { BulkAddOnboardingCardsModal } from '@/components/modals/BulkAddOnboardingCardsModal';
 import { OnboardingCardEditDrawer } from '@/components/modals/OnboardingCardEditDrawer';
 import { TemplateEditor } from './TemplateEditor';
@@ -37,7 +37,8 @@ import {
   MessageSquare, 
   Rocket, 
   Edit,
-  ChevronDown
+  ChevronDown,
+  CheckSquare
 } from 'lucide-react';
 import { format, isToday, isPast } from 'date-fns';
 import { pt } from 'date-fns/locale';
@@ -60,26 +61,34 @@ interface NewOnboardingKanbanProps {
 }
 
 interface DroppableColumnProps {
-  column: typeof ONBOARDING_COLUMNS[number];
+  column: OnboardingStage;
   children: React.ReactNode;
 }
 
 function DroppableColumn({ column, children }: DroppableColumnProps) {
   return (
-    <Card className={`${column.color} flex flex-col h-fit`}>
+    <Card className={`${column.color || 'bg-gray-50 border-gray-200'} flex flex-col h-fit`}>
       {children}
     </Card>
   );
 }
 
-const ONBOARDING_COLUMNS = [
-  { id: 'dados-gerais', title: 'Pré-cadastro', icon: FileText, color: 'bg-blue-50 border-blue-200' },
-  { id: 'implementacao', title: 'Formulário & Docs', icon: FileText, color: 'bg-yellow-50 border-yellow-200' },
-  { id: 'financeiro', title: 'Financeiro', icon: CreditCard, color: 'bg-orange-50 border-orange-200' },
-  { id: 'configuracao', title: 'Acessos & Setup', icon: Settings, color: 'bg-purple-50 border-purple-200' },
-  { id: 'briefing', title: 'Briefing & Estratégia', icon: MessageSquare, color: 'bg-indigo-50 border-indigo-200' },
-  { id: 'go-live', title: 'Go-Live', icon: Rocket, color: 'bg-green-50 border-green-200' }
-] as const;
+// Icon mapping function
+const getIconComponent = (iconName?: string) => {
+  const iconMap: Record<string, React.ComponentType<any>> = {
+    FileText,
+    CreditCard,
+    Settings,
+    MessageSquare,
+    Rocket,
+    CheckSquare,
+    User,
+    Calendar,
+    Clock
+  };
+  
+  return iconMap[iconName || 'CheckSquare'] || CheckSquare;
+};
 
 interface SortableOnboardingCardProps {
   card: OnboardingCard;
@@ -277,6 +286,35 @@ export function NewOnboardingKanban({
   const [showSaveTemplate, setShowSaveTemplate] = useState(false);
   const [showApplyTemplate, setShowApplyTemplate] = useState(false);
   const [showManageTemplates, setShowManageTemplates] = useState(false);
+  const [stages, setStages] = useState<OnboardingStage[]>([]);
+  const [isLoadingStages, setIsLoadingStages] = useState(true);
+
+  // Load stages from database
+  useEffect(() => {
+    const loadStages = async () => {
+      try {
+        const allStages = await onboardingStageOperations.getAllStages();
+        setStages(allStages);
+      } catch (error) {
+        console.error('Error loading stages:', error);
+      } finally {
+        setIsLoadingStages(false);
+      }
+    };
+
+    loadStages();
+  }, []);
+
+  // Reload stages when cards are reloaded (in case new stages were created)
+  const handleCardsReload = () => {
+    const reloadStages = async () => {
+      const allStages = await onboardingStageOperations.getAllStages();
+      setStages(allStages);
+    };
+    
+    reloadStages();
+    onCardsReload?.();
+  };
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -290,6 +328,10 @@ export function NewOnboardingKanban({
   const getCardsForColumn = (columnId: string) => {
     return cards.filter(card => card.stage === columnId);
   };
+
+  if (isLoadingStages) {
+    return <div className="flex items-center justify-center p-8">Carregando...</div>;
+  }
 
   const handleDragStart = (event: DragStartEvent) => {
     const card = cards.find(c => c.id === event.active.id);
@@ -404,17 +446,17 @@ export function NewOnboardingKanban({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 flex-1">
-            {ONBOARDING_COLUMNS.map(column => {
-              const columnCards = getCardsForColumn(column.id);
-              const Icon = column.icon;
+            {stages.map(stage => {
+              const columnCards = getCardsForColumn(stage.id);
+              const Icon = getIconComponent(stage.icon);
               
               return (
-                <DroppableColumn key={column.id} column={column}>
+                <DroppableColumn key={stage.id} column={stage}>
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Icon className="h-4 w-4" />
-                        <span className="text-sm font-medium">{column.title}</span>
+                        <span className="text-sm font-medium">{stage.title}</span>
                       </div>
                       <Badge variant="secondary">{columnCards.length}</Badge>
                     </div>
@@ -476,14 +518,14 @@ export function NewOnboardingKanban({
         open={showSaveTemplate}
         onOpenChange={setShowSaveTemplate}
         clientId={clientId}
-        onSaved={() => onCardsReload?.()}
+        onSaved={handleCardsReload}
       />
 
       <TemplateApplicator
         open={showApplyTemplate}
         onOpenChange={setShowApplyTemplate}
         clientId={clientId}
-        onApplied={() => onCardsReload?.()}
+        onApplied={handleCardsReload}
       />
 
       <ManageTemplatesModal

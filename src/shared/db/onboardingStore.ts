@@ -9,8 +9,8 @@ export interface OnboardingCard {
   vencimento?: string;
   checklist: string[];
   notas: string;
-  stage: 'dados-gerais' | 'financeiro' | 'implementacao' | 'briefing' | 'configuracao';
-  subStage?: '2.1-cadastrar-financeiro'; // Only for financeiro stage
+  stage: string; // Changed from fixed union to dynamic string
+  subStage?: string; // Changed from fixed union to dynamic string
   created_at: string;
   updated_at: string;
 }
@@ -67,6 +67,8 @@ export interface OnboardingFicha {
 export interface OnboardingStage {
   id: string;
   title: string;
+  icon?: string;
+  color?: string;
   hasSubStage?: boolean;
   order: number;
 }
@@ -157,11 +159,12 @@ db.on('ready', async () => {
   const stageCount = await db.onboardingStages.count();
   if (stageCount === 0) {
     await db.onboardingStages.bulkAdd([
-      { id: 'dados-gerais', title: 'Dados Gerais', order: 1 },
-      { id: 'financeiro', title: 'Financeiro', hasSubStage: true, order: 2 },
-      { id: 'implementacao', title: 'Implementação Cliente', order: 3 },
-      { id: 'briefing', title: 'Briefing & 1º Contato/Reuniões', order: 4 },
-      { id: 'configuracao', title: 'Reunião de Configuração — Informações Necessárias', order: 5 },
+      { id: 'dados-gerais', title: 'Pré-cadastro', icon: 'FileText', color: 'bg-blue-50 border-blue-200', order: 1 },
+      { id: 'implementacao', title: 'Formulário & Docs', icon: 'FileText', color: 'bg-yellow-50 border-yellow-200', order: 2 },
+      { id: 'financeiro', title: 'Financeiro', icon: 'CreditCard', color: 'bg-orange-50 border-orange-200', hasSubStage: true, order: 3 },
+      { id: 'configuracao', title: 'Acessos & Setup', icon: 'Settings', color: 'bg-purple-50 border-purple-200', order: 4 },
+      { id: 'briefing', title: 'Briefing & Estratégia', icon: 'MessageSquare', color: 'bg-indigo-50 border-indigo-200', order: 5 },
+      { id: 'go-live', title: 'Go-Live', icon: 'Rocket', color: 'bg-green-50 border-green-200', order: 6 }
     ]);
     
     await db.onboardingSubStages.bulkAdd([
@@ -219,6 +222,34 @@ export const onboardingCardOperations = {
 
 // Stage operations
 export const onboardingStageOperations = {
+  async createStage(stage: Omit<OnboardingStage, 'order'>): Promise<OnboardingStage> {
+    // Get highest order to append at the end
+    const stages = await this.getAllStages();
+    const maxOrder = stages.length > 0 ? Math.max(...stages.map(s => s.order)) : 0;
+    
+    const newStage: OnboardingStage = {
+      ...stage,
+      order: maxOrder + 1
+    };
+    
+    await db.onboardingStages.add(newStage);
+    return newStage;
+  },
+
+  async getOrCreateStage(stageId: string, stageTitle: string, icon?: string, color?: string): Promise<OnboardingStage> {
+    const existingStage = await db.onboardingStages.get(stageId);
+    if (existingStage) {
+      return existingStage;
+    }
+    
+    return this.createStage({
+      id: stageId,
+      title: stageTitle,
+      icon: icon || 'CheckSquare',
+      color: color || 'bg-gray-50 border-gray-200'
+    });
+  },
+
   async getAllStages(): Promise<OnboardingStage[]> {
     return await db.onboardingStages.orderBy('order').toArray();
   },
@@ -626,6 +657,9 @@ export const onboardingTemplateV2Operations = {
     for (const block of blocksToProcess) {
       console.log('Processing block:', block.name, 'with', block.cards.length, 'cards');
       
+      // Create or get stage for this block
+      await this.createStageFromBlock(block.name, block.icon, block.color);
+      
       for (const templateCard of block.cards) {
         console.log('Processing card:', templateCard.title);
         
@@ -661,7 +695,7 @@ export const onboardingTemplateV2Operations = {
           vencimento: dueDate,
           checklist: templateCard.tags || [],
           notas: this.replaceVariables(templateCard.description || '', variables),
-          stage: mappedStage as OnboardingCard['stage']
+          stage: mappedStage
         });
 
         console.log('Created card:', newCard);
@@ -697,18 +731,19 @@ export const onboardingTemplateV2Operations = {
   mapBlockToStage(blockName: string): string {
     console.log('Mapping block name:', blockName);
     
-    const blockToStage: Record<string, string> = {
-      'Pré-cadastro': 'dados-gerais',
-      'Formulário & Docs': 'implementacao',
-      'Financeiro': 'financeiro', 
-      'Acessos & Setup': 'configuracao',
-      'Briefing & Estratégia': 'briefing',
-      'Go-Live': 'go-live'
-    };
+    // Create a slug-friendly ID from the block name
+    const stageId = blockName.toLowerCase()
+      .replace(/[^a-z0-9\s]/g, '') // Remove special characters
+      .replace(/\s+/g, '-') // Replace spaces with hyphens
+      .replace(/^-+|-+$/g, ''); // Remove leading/trailing hyphens
     
-    const mappedStage = blockToStage[blockName] || 'dados-gerais';
-    console.log('Mapped to stage:', mappedStage);
-    return mappedStage;
+    console.log('Mapped to stage ID:', stageId);
+    return stageId;
+  },
+
+  async createStageFromBlock(blockName: string, icon?: string, color?: string): Promise<OnboardingStage> {
+    const stageId = this.mapBlockToStage(blockName);
+    return onboardingStageOperations.getOrCreateStage(stageId, blockName, icon, color);
   }
 };
 
