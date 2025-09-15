@@ -78,6 +78,7 @@ export interface OnboardingSubStage {
   order: number;
 }
 
+// Legacy template interface - keeping for backward compatibility
 export interface OnboardingTemplate {
   id: string;
   name: string;
@@ -97,12 +98,39 @@ export interface OnboardingTemplate {
   updated_at: string;
 }
 
+// New V2 template structure with blocks
+export interface OnboardingTemplateV2 {
+  id: string;
+  name: string;
+  description?: string;
+  isDefault?: boolean;
+  blocks: {
+    id: string;
+    name: string;
+    color: string;
+    icon: string;
+    order: number;
+    cards: {
+      id: string;
+      title: string;
+      description?: string;
+      responsavel?: string;
+      prazoOffset?: string; // "+2d", "+1w", "+3w"
+      tags?: string[];
+      order: number;
+    }[];
+  }[];
+  created_at: string;
+  updated_at: string;
+}
+
 export interface OnboardingDatabase extends Dexie {
   onboardingCards: Table<OnboardingCard>;
   onboardingStages: Table<OnboardingStage>;
   onboardingSubStages: Table<OnboardingSubStage>;
   onboardingFichas: Table<OnboardingFicha>;
   onboardingTemplates: Table<OnboardingTemplate>;
+  onboardingTemplatesV2: Table<OnboardingTemplateV2>;
 }
 
 const db = new Dexie('OnboardingDatabase') as OnboardingDatabase;
@@ -113,6 +141,15 @@ db.version(1).stores({
   onboardingSubStages: '++id, stageId, order',
   onboardingFichas: '++id, clientId, created_at',
   onboardingTemplates: '++id, name, isDefault, created_at'
+});
+
+db.version(2).stores({
+  onboardingCards: '++id, clientId, stage, subStage, responsavel, vencimento, created_at',
+  onboardingStages: '++id, order',
+  onboardingSubStages: '++id, stageId, order',
+  onboardingFichas: '++id, clientId, created_at',
+  onboardingTemplates: '++id, name, isDefault, created_at',
+  onboardingTemplatesV2: '++id, name, isDefault, created_at'
 });
 
 // Initialize default stages and substages
@@ -411,6 +448,239 @@ export const onboardingTemplateOperations = {
     }
 
     return result.toISOString().split('T')[0];
+  }
+};
+
+// Template V2 operations (New flexible template system)
+export const onboardingTemplateV2Operations = {
+  async create(template: Omit<OnboardingTemplateV2, 'id' | 'created_at' | 'updated_at'>): Promise<OnboardingTemplateV2> {
+    const now = new Date().toISOString();
+    const newTemplate: OnboardingTemplateV2 = {
+      ...template,
+      id: crypto.randomUUID(),
+      created_at: now,
+      updated_at: now,
+    };
+    
+    await db.onboardingTemplatesV2.add(newTemplate);
+    return newTemplate;
+  },
+
+  async getAll(): Promise<OnboardingTemplateV2[]> {
+    return await db.onboardingTemplatesV2.orderBy('created_at').reverse().toArray();
+  },
+
+  async getById(id: string): Promise<OnboardingTemplateV2 | undefined> {
+    return await db.onboardingTemplatesV2.get(id);
+  },
+
+  async getDefault(): Promise<OnboardingTemplateV2 | undefined> {
+    return await db.onboardingTemplatesV2.where('isDefault').equals(1).first();
+  },
+
+  async update(id: string, updates: Partial<OnboardingTemplateV2>): Promise<void> {
+    await db.onboardingTemplatesV2.update(id, {
+      ...updates,
+      updated_at: new Date().toISOString(),
+    });
+  },
+
+  async delete(id: string): Promise<void> {
+    await db.onboardingTemplatesV2.delete(id);
+  },
+
+  async setDefault(id: string): Promise<void> {
+    // First, remove default from all templates
+    const allTemplates = await db.onboardingTemplatesV2.toArray();
+    for (const template of allTemplates) {
+      if (template.isDefault) {
+        await db.onboardingTemplatesV2.update(template.id, { isDefault: false });
+      }
+    }
+    
+    // Set the new default
+    await db.onboardingTemplatesV2.update(id, { isDefault: true });
+  },
+
+  async duplicate(templateId: string): Promise<OnboardingTemplateV2> {
+    const template = await db.onboardingTemplatesV2.get(templateId);
+    if (!template) throw new Error('Template not found');
+
+    const duplicated = {
+      ...template,
+      name: `${template.name} (Cópia)`,
+      isDefault: false,
+      blocks: template.blocks.map(block => ({
+        ...block,
+        id: crypto.randomUUID(),
+        cards: block.cards.map(card => ({
+          ...card,
+          id: crypto.randomUUID()
+        }))
+      }))
+    };
+
+    return await this.create(duplicated);
+  },
+
+  // Convert current kanban cards to template
+  async createFromKanban(name: string, description: string, cards: OnboardingCard[]): Promise<OnboardingTemplateV2> {
+    // Group cards by stage and create blocks
+    const stageGroups = cards.reduce((acc, card) => {
+      if (!acc[card.stage]) {
+        acc[card.stage] = [];
+      }
+      acc[card.stage].push(card);
+      return acc;
+    }, {} as Record<string, OnboardingCard[]>);
+
+    // Map stages to blocks
+    const stageToBlock = {
+      'dados-gerais': { name: 'Pré-cadastro', color: 'bg-blue-50 border-blue-200', icon: 'FileText' },
+      'implementacao': { name: 'Formulário & Docs', color: 'bg-yellow-50 border-yellow-200', icon: 'FileText' },
+      'financeiro': { name: 'Financeiro', color: 'bg-orange-50 border-orange-200', icon: 'CreditCard' },
+      'configuracao': { name: 'Acessos & Setup', color: 'bg-purple-50 border-purple-200', icon: 'Settings' },
+      'briefing': { name: 'Briefing & Estratégia', color: 'bg-indigo-50 border-indigo-200', icon: 'MessageSquare' },
+      'go-live': { name: 'Go-Live', color: 'bg-green-50 border-green-200', icon: 'Rocket' }
+    };
+
+    const blocks = Object.entries(stageGroups).map(([stage, stageCards], index) => {
+      const blockInfo = stageToBlock[stage as keyof typeof stageToBlock] || { 
+        name: stage, 
+        color: 'bg-gray-50 border-gray-200', 
+        icon: 'CheckSquare' 
+      };
+
+      return {
+        id: crypto.randomUUID(),
+        name: blockInfo.name,
+        color: blockInfo.color,
+        icon: blockInfo.icon,
+        order: index + 1,
+        cards: stageCards.map((card, cardIndex) => ({
+          id: crypto.randomUUID(),
+          title: card.title,
+          description: card.notas,
+          responsavel: card.responsavel,
+          prazoOffset: this.convertDateToOffset(card.vencimento),
+          tags: card.checklist.length > 0 ? card.checklist : undefined,
+          order: cardIndex + 1
+        }))
+      };
+    });
+
+    const template = {
+      name,
+      description,
+      isDefault: false,
+      blocks
+    };
+
+    return await this.create(template);
+  },
+
+  // Apply template to client with merge options
+  async applyToClient(
+    templateId: string, 
+    clientId: string, 
+    options: {
+      anchorDate: string;
+      createMissingBlocks: boolean;
+      mergeWithExisting: boolean;
+      avoidDuplicateCards: boolean;
+      selectedBlockIds?: string[];
+      variables?: Record<string, string>;
+    }
+  ) {
+    const template = await this.getById(templateId);
+    if (!template) throw new Error('Template not found');
+
+    const { anchorDate, selectedBlockIds, variables = {} } = options;
+    const baseDate = new Date(anchorDate);
+    
+    let blocksToProcess = template.blocks;
+    if (selectedBlockIds && selectedBlockIds.length > 0) {
+      blocksToProcess = template.blocks.filter(block => selectedBlockIds.includes(block.id));
+    }
+
+    const created: OnboardingCard[] = [];
+    const skipped: string[] = [];
+
+    // Get existing cards to check for duplicates
+    const existingCards = await onboardingCardOperations.getByClient(clientId);
+
+    for (const block of blocksToProcess) {
+      for (const templateCard of block.cards) {
+        // Check for duplicate titles if avoiding duplicates
+        if (options.avoidDuplicateCards) {
+          const titleWithVars = this.replaceVariables(templateCard.title, variables);
+          const isDuplicate = existingCards.some(card => 
+            card.title.toLowerCase() === titleWithVars.toLowerCase() &&
+            this.mapBlockToStage(block.name) === card.stage
+          );
+          
+          if (isDuplicate) {
+            skipped.push(`${block.name}: ${titleWithVars} (duplicado)`);
+            continue;
+          }
+        }
+
+        // Calculate due date from offset
+        let dueDate: string | undefined;
+        if (templateCard.prazoOffset) {
+          dueDate = onboardingTemplateOperations.calculateDateFromOffset(baseDate, templateCard.prazoOffset);
+        }
+
+        // Create the card
+        const newCard = await onboardingCardOperations.create({
+          title: this.replaceVariables(templateCard.title, variables),
+          clientId,
+          responsavel: templateCard.responsavel || '',
+          vencimento: dueDate,
+          checklist: templateCard.tags || [],
+          notas: this.replaceVariables(templateCard.description || '', variables),
+          stage: this.mapBlockToStage(block.name) as OnboardingCard['stage']
+        });
+
+        created.push(newCard);
+      }
+    }
+
+    return { created, skipped };
+  },
+
+  convertDateToOffset(dateStr: string | undefined): string | undefined {
+    if (!dateStr) return undefined;
+    
+    const cardDate = new Date(dateStr);
+    const today = new Date();
+    const diffTime = cardDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) return '+0d';
+    if (diffDays > 0) return `+${diffDays}d`;
+    return `${diffDays}d`;
+  },
+
+  replaceVariables(text: string, variables: Record<string, string>): string {
+    let result = text;
+    Object.entries(variables).forEach(([key, value]) => {
+      result = result.replace(new RegExp(`{{${key}}}`, 'g'), value);
+    });
+    return result;
+  },
+
+  mapBlockToStage(blockName: string): string {
+    const blockToStage: Record<string, string> = {
+      'Pré-cadastro': 'dados-gerais',
+      'Formulário & Docs': 'implementacao',
+      'Financeiro': 'financeiro', 
+      'Acessos & Setup': 'configuracao',
+      'Briefing & Estratégia': 'briefing',
+      'Go-Live': 'go-live'
+    };
+    
+    return blockToStage[blockName] || 'dados-gerais';
   }
 };
 

@@ -21,9 +21,8 @@ import { Badge } from '@/components/ui/badge';
 import { OnboardingCard } from '@/shared/db/onboardingStore';
 import { BulkAddOnboardingCardsModal } from '@/components/modals/BulkAddOnboardingCardsModal';
 import { OnboardingCardEditDrawer } from '@/components/modals/OnboardingCardEditDrawer';
-import { SaveTemplateModal } from './SaveTemplateModal';
-import { ApplyTemplateModal } from './ApplyTemplateModal';
-import { ManageTemplatesModal } from './ManageTemplatesModal';
+import { TemplateEditor } from './TemplateEditor';
+import { TemplateApplicator } from './TemplateApplicator';
 import { 
   Plus, 
   Calendar, 
