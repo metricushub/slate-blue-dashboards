@@ -10,7 +10,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Copy, Trash2, Save, User, Mail, Phone, Calendar, DollarSign, Link, FileText } from 'lucide-react';
-import { format } from 'date-fns';
+import { ConvertLeadButton } from './ConvertLeadButton';
 import { ptBR } from 'date-fns/locale';
 import { useDataSource } from '@/hooks/useDataSource';
 import { useToast } from '@/hooks/use-toast';

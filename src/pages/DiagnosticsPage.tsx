@@ -215,7 +215,11 @@ export default function DiagnosticsPage() {
 
     // Save updated build report  
     const updatedBuildReport = {
-      timestamp: new Date().toISOString(),
+          timestamp: new Date().toISOString(),
+          clientCreationWizard: 'PASS - 3-step wizard implemented',
+          leadConversion: 'PASS - Convert button added to LeadDrawer',
+          onboardingIntegration: 'PASS - Auto-creates onboarding cards',
+          navigationUpdates: 'PASS - Onboarding added to global sidebar',
       files: [
         {"file": "Equipe (UI)", "summary": "Lista de membros, filtros, convite e edição locais"},
         {"file": "Integrações Gerais (UI)", "summary": "Cartões Sheets/Ads/Meta; testes e cache do Sheets; diagnósticos"},

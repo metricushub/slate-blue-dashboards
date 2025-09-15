@@ -7,7 +7,7 @@ import { Search, Plus, AlertTriangle, TrendingUp, Users, Clock, Target } from "l
 import { useDataSource } from "@/hooks/useDataSource";
 import { Client } from "@/types";
 import { ClientCard } from "@/components/home/ClientCard";
-import { EnhancedClientRegistrationModal } from "@/components/modals/EnhancedClientRegistrationModal";
+import { ClientCreationWizard } from "@/components/modals/ClientCreationWizard";
 import { toast } from "@/hooks/use-toast";
 
 const HomePage = () => {
@@ -81,10 +81,30 @@ const HomePage = () => {
       if (dataSource.addClient) {
         await dataSource.addClient(client);
         await loadClients(); // Refresh the list
+        
+        // Create onboarding automatically
+        const { onboardingCardOperations } = await import('@/shared/db/onboardingStore');
+        const { createCardFromTemplate, getTemplateByStage } = await import('@/shared/data/onboardingTemplates');
+        
+        // Create cards for all stages
+        const stages = ['dados-gerais', 'financeiro', 'implementacao', 'briefing', 'configuracao'];
+        for (const stage of stages) {
+          const template = getTemplateByStage(stage);
+          if (template) {
+            const card = createCardFromTemplate(template, client.id, client.name, client.owner);
+            await onboardingCardOperations.create(card);
+          }
+        }
+        
+        setShowRegistrationModal(false);
+        
         toast({
           title: "Sucesso",
-          description: "Cliente cadastrado com sucesso",
+          description: "Cliente cadastrado com sucesso! Onboarding criado automaticamente.",
         });
+        
+        // Redirect to client onboarding
+        window.location.href = `/cliente/${client.id}/onboarding`;
       }
     } catch (error) {
       console.error("Error adding client:", error);
@@ -271,10 +291,10 @@ const HomePage = () => {
       </div>
 
       {/* Registration Modal */}
-      <EnhancedClientRegistrationModal
+      <ClientCreationWizard
         open={showRegistrationModal}
         onOpenChange={setShowRegistrationModal}
-        onSave={handleClientRegistered}
+        onComplete={handleClientRegistered}
       />
     </div>
   );
