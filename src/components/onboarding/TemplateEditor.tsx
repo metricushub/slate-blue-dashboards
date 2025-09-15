@@ -396,27 +396,29 @@ export function TemplateEditor({
                 <CardTitle>Blocos do Template</CardTitle>
               </CardHeader>
               <CardContent>
-                <DndContext 
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragEnd={handleBlocksReorder}
-                >
-                  <SortableContext 
-                    items={selectedTemplate.blocks.map(b => b.id)}
-                    strategy={verticalListSortingStrategy}
+                <ScrollArea className="h-[400px]">
+                  <DndContext 
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleBlocksReorder}
                   >
-                    <div className="space-y-4">
-                      {selectedTemplate.blocks.map((block) => (
-                        <BlockEditor
-                          key={block.id}
-                          block={block}
-                          onUpdate={(updates) => handleUpdateBlock(block.id, updates)}
-                          onDelete={() => handleDeleteBlock(block.id)}
-                        />
-                      ))}
-                    </div>
-                  </SortableContext>
-                </DndContext>
+                    <SortableContext 
+                      items={selectedTemplate.blocks.map(b => b.id)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      <div className="space-y-4 pr-4">
+                        {selectedTemplate.blocks.map((block) => (
+                          <BlockEditor
+                            key={block.id}
+                            block={block}
+                            onUpdate={(updates) => handleUpdateBlock(block.id, updates)}
+                            onDelete={() => handleDeleteBlock(block.id)}
+                          />
+                        ))}
+                      </div>
+                    </SortableContext>
+                  </DndContext>
+                </ScrollArea>
                 
                 <Button 
                   onClick={handleAddBlock}
