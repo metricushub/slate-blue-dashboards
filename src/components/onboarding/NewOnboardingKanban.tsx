@@ -434,11 +434,24 @@ export function NewOnboardingKanban({
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
-    
-    if (over && active.id !== over.id) {
-      const stageId = over.id as string;
-      // Immediate persistence - update the card in the database
-      onCardMove(active.id as string, stageId);
+
+    if (!over) {
+      setActiveCard(null);
+      return;
+    }
+
+    // Determine the destination column (stage) correctly
+    const targetContainerId = (over.data?.current as any)?.sortable?.containerId as string | undefined;
+    const overId = over.id as string;
+    const validStageIds = new Set(stages.map(s => s.id));
+
+    const newStageId = (targetContainerId && validStageIds.has(targetContainerId))
+      ? targetContainerId
+      : (validStageIds.has(overId) ? overId : undefined);
+
+    if (newStageId) {
+      // Persist immediately so the card stays in the destination column
+      onCardMove(active.id as string, newStageId);
     }
     
     setActiveCard(null);
@@ -629,6 +642,7 @@ export function NewOnboardingKanban({
                   
                   <CardContent className="flex-1 pt-0">
                     <SortableContext
+                      id={stage.id}
                       items={columnCards.map(c => c.id)}
                       strategy={verticalListSortingStrategy}
                     >
