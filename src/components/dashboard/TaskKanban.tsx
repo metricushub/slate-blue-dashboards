@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Task, TaskStatus } from "@/types";
-import { DndContext, DragEndEvent, DragStartEvent, closestCorners, DragOverlay } from '@dnd-kit/core';
+import { DndContext, DragEndEvent, DragStartEvent, closestCorners, DragOverlay, useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -18,14 +18,36 @@ import {
   Flag,
   Eye,
   EyeOff,
-  Edit
+  Edit,
+  ChevronDown
 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface TaskKanbanProps {
   tasks: Task[];
   onTaskMove: (taskId: string, newStatus: TaskStatus, shouldArchive?: boolean) => void;
   onTaskClick?: (task: Task) => void;
   clients: any[];
+}
+
+interface DroppableColumnProps {
+  column: typeof KANBAN_COLUMNS[number];
+  children: React.ReactNode;
+}
+
+function DroppableColumn({ column, children }: DroppableColumnProps) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: column.id,
+  });
+
+  return (
+    <Card 
+      ref={setNodeRef}
+      className={`${column.color} flex flex-col ${isOver ? 'ring-2 ring-primary' : ''}`}
+    >
+      {children}
+    </Card>
+  );
 }
 
 const KANBAN_COLUMNS = [
@@ -40,9 +62,10 @@ interface SortableTaskCardProps {
   task: Task;
   clients: any[];
   onTaskClick?: (task: Task) => void;
+  onStatusChange?: (taskId: string, newStatus: TaskStatus) => void;
 }
 
-function SortableTaskCard({ task, clients, onTaskClick }: SortableTaskCardProps) {
+function SortableTaskCard({ task, clients, onTaskClick, onStatusChange }: SortableTaskCardProps) {
   const {
     attributes,
     listeners,
@@ -80,6 +103,10 @@ function SortableTaskCard({ task, clients, onTaskClick }: SortableTaskCardProps)
     e.stopPropagation();
     e.preventDefault();
     onTaskClick?.(task);
+  };
+
+  const handleStatusChange = (newStatus: string) => {
+    onStatusChange?.(task.id, newStatus as TaskStatus);
   };
 
   return (
@@ -130,6 +157,20 @@ function SortableTaskCard({ task, clients, onTaskClick }: SortableTaskCardProps)
                 {new Date(task.due_date).toLocaleDateString('pt-BR')}
               </div>
             )}
+          </div>
+          
+          {/* Status Selector */}
+          <div className="flex items-center gap-2">
+            <Select value={task.status} onValueChange={handleStatusChange}>
+              <SelectTrigger className="h-7 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="z-50">
+                <SelectItem value="Aberta">Aberta</SelectItem>
+                <SelectItem value="Em progresso">Em progresso</SelectItem>
+                <SelectItem value="Concluída">Concluída</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           
           {(task.client_id || task.owner) && (
@@ -253,7 +294,7 @@ export function TaskKanban({ tasks, onTaskMove, onTaskClick, clients }: TaskKanb
             const Icon = column.icon;
             
             return (
-              <Card key={column.id} className={`${column.color} flex flex-col`}>
+              <DroppableColumn key={column.id} column={column}>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm font-medium flex items-center gap-2">
                     <Icon className="h-4 w-4" />
@@ -269,7 +310,7 @@ export function TaskKanban({ tasks, onTaskMove, onTaskClick, clients }: TaskKanb
                     items={columnTasks.map(t => t.id)}
                     strategy={verticalListSortingStrategy}
                   >
-                    <div className="space-y-2">
+                    <div className="space-y-2 min-h-20">
                       {columnTasks.length === 0 ? (
                         <div className="text-center py-8 text-muted-foreground">
                           <Icon className="h-8 w-8 mx-auto mb-2 opacity-50" />
@@ -282,6 +323,7 @@ export function TaskKanban({ tasks, onTaskMove, onTaskClick, clients }: TaskKanb
                             task={task}
                             clients={clients}
                             onTaskClick={onTaskClick}
+                            onStatusChange={onTaskMove}
                           />
                         ))
                       )}
@@ -300,14 +342,18 @@ export function TaskKanban({ tasks, onTaskMove, onTaskClick, clients }: TaskKanb
                     </Button>
                   )}
                 </CardContent>
-              </Card>
+              </DroppableColumn>
             );
           })}
         </div>
 
         <DragOverlay>
           {activeTask && (
-            <SortableTaskCard task={activeTask} clients={clients} />
+            <SortableTaskCard 
+              task={activeTask} 
+              clients={clients} 
+              onStatusChange={onTaskMove}
+            />
           )}
         </DragOverlay>
       </DndContext>
