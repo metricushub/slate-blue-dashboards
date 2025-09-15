@@ -18,10 +18,10 @@ import { CSS } from '@dnd-kit/utilities';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { OnboardingCard, onboardingStageOperations, OnboardingStage } from '@/shared/db/onboardingStore';
+import { Input } from '@/components/ui/input';
+import { OnboardingCard, onboardingStageOperations, OnboardingStage, onboardingCardOperations } from '@/shared/db/onboardingStore';
 import { BulkAddOnboardingCardsModal } from '@/components/modals/BulkAddOnboardingCardsModal';
 import { OnboardingCardEditDrawer } from '@/components/modals/OnboardingCardEditDrawer';
-import { TemplateEditor } from './TemplateEditor';
 import { TemplateApplicator } from './TemplateApplicator';
 import { SaveTemplateModal } from './SaveTemplateModal';
 import { 
@@ -37,7 +37,9 @@ import {
   Rocket, 
   Edit,
   ChevronDown,
-  CheckSquare
+  CheckSquare,
+  Trash2,
+  Check
 } from 'lucide-react';
 import { format, isToday, isPast } from 'date-fns';
 import { pt } from 'date-fns/locale';
@@ -48,6 +50,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface NewOnboardingKanbanProps {
   clientId?: string;
@@ -92,10 +104,12 @@ const getIconComponent = (iconName?: string) => {
 interface SortableOnboardingCardProps {
   card: OnboardingCard;
   onClick: (card: OnboardingCard) => void;
+  onComplete: (cardId: string) => void;
+  onDelete: (cardId: string) => void;
   draggable?: boolean;
 }
 
-function SortableOnboardingCard({ card, onClick, draggable = false }: SortableOnboardingCardProps) {
+function SortableOnboardingCard({ card, onClick, onComplete, onDelete, draggable = false }: SortableOnboardingCardProps) {
   if (!draggable) {
     const today = new Date().toISOString().split('T')[0];
     const isOverdue = card.vencimento && card.vencimento < today;
@@ -107,30 +121,68 @@ function SortableOnboardingCard({ card, onClick, draggable = false }: SortableOn
       onClick(card);
     };
 
+    const handleComplete = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      e.preventDefault();
+      onComplete(card.id);
+    };
+
+    const handleDelete = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      e.preventDefault();
+      onDelete(card.id);
+    };
+
     const getStatusBadge = () => {
       if (isOverdue) return <Badge variant="destructive" className="text-xs">Atrasado</Badge>;
       if (isDueToday) return <Badge variant="default" className="text-xs">Hoje</Badge>;
       return null;
     };
 
+    const isCompleted = card.stage === 'concluidos';
+
     return (
       <div className="mb-3">
-        <Card className={`${isOverdue ? 'border-red-300 bg-red-50/50' : ''} group hover:shadow-md transition-shadow`}>
+        <Card className={`${isOverdue ? 'border-red-300 bg-red-50/50' : ''} ${isCompleted ? 'bg-green-50/50 border-green-200' : ''} group hover:shadow-md transition-shadow`}>
           <CardContent className="p-3 space-y-2">
             <div className="flex items-start gap-2">
+              <button
+                onClick={handleComplete}
+                className={`flex-shrink-0 mt-0.5 w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${
+                  isCompleted 
+                    ? 'bg-green-500 border-green-500 text-white' 
+                    : 'border-gray-300 hover:border-green-400'
+                }`}
+                title="Marcar como concluído"
+              >
+                {isCompleted && <Check className="h-2.5 w-2.5" />}
+              </button>
+              
               <h4 
-                className="font-medium text-sm leading-tight cursor-pointer hover:text-primary hover:underline transition-all flex-1 group-hover:text-primary"
+                className={`font-medium text-sm leading-tight cursor-pointer hover:text-primary hover:underline transition-all flex-1 group-hover:text-primary ${
+                  isCompleted ? 'opacity-60 line-through' : ''
+                }`}
                 onClick={handleCardClick}
                 title="Clique para editar"
               >
                 {card.title}
               </h4>
-              <div 
-                className="flex-shrink-0 mt-0.5 cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
-                onClick={handleCardClick}
-                title="Editar card"
-              >
-                <Edit className="h-3 w-3 text-muted-foreground/50 hover:text-primary" />
+              
+              <div className="flex-shrink-0 mt-0.5 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button 
+                  onClick={handleCardClick}
+                  className="cursor-pointer"
+                  title="Editar card"
+                >
+                  <Edit className="h-3 w-3 text-muted-foreground/50 hover:text-primary" />
+                </button>
+                <button 
+                  onClick={handleDelete}
+                  className="cursor-pointer"
+                  title="Excluir card"
+                >
+                  <Trash2 className="h-3 w-3 text-muted-foreground/50 hover:text-red-500" />
+                </button>
               </div>
             </div>
             
@@ -188,11 +240,25 @@ function SortableOnboardingCard({ card, onClick, draggable = false }: SortableOn
     onClick(card);
   };
 
+  const handleComplete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    onComplete(card.id);
+  };
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    onDelete(card.id);
+  };
+
   const getStatusBadge = () => {
     if (isOverdue) return <Badge variant="destructive" className="text-xs">Atrasado</Badge>;
     if (isDueToday) return <Badge variant="default" className="text-xs">Hoje</Badge>;
     return null;
   };
+
+  const isCompleted = card.stage === 'concluidos';
 
   return (
     <div
@@ -202,24 +268,50 @@ function SortableOnboardingCard({ card, onClick, draggable = false }: SortableOn
       {...listeners}
       className="mb-3 cursor-grab active:cursor-grabbing"
     >
-      <Card className={`${isOverdue ? 'border-red-300 bg-red-50/50' : ''} group hover:shadow-md transition-shadow`}>
+      <Card className={`${isOverdue ? 'border-red-300 bg-red-50/50' : ''} ${isCompleted ? 'bg-green-50/50 border-green-200' : ''} group hover:shadow-md transition-shadow`}>
         <CardContent className="p-3 space-y-2">
           <div className="flex items-start gap-2">
+            <button
+              onClick={handleComplete}
+              onPointerDown={(e) => e.stopPropagation()}
+              className={`flex-shrink-0 mt-0.5 w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${
+                isCompleted 
+                  ? 'bg-green-500 border-green-500 text-white' 
+                  : 'border-gray-300 hover:border-green-400'
+              }`}
+              title="Marcar como concluído"
+            >
+              {isCompleted && <Check className="h-2.5 w-2.5" />}
+            </button>
+            
             <h4 
-              className="font-medium text-sm leading-tight cursor-pointer hover:text-primary hover:underline transition-all flex-1 group-hover:text-primary"
+              className={`font-medium text-sm leading-tight cursor-pointer hover:text-primary hover:underline transition-all flex-1 group-hover:text-primary ${
+                isCompleted ? 'opacity-60 line-through' : ''
+              }`}
               onClick={handleCardClick}
               onPointerDown={(e) => e.stopPropagation()}
               title="Clique para editar"
             >
               {card.title}
             </h4>
-            <div 
-              className="flex-shrink-0 mt-0.5 cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
-              onClick={handleCardClick}
-              onPointerDown={(e) => e.stopPropagation()}
-              title="Editar card"
-            >
-              <Edit className="h-3 w-3 text-muted-foreground/50 hover:text-primary" />
+            
+            <div className="flex-shrink-0 mt-0.5 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button 
+                onClick={handleCardClick}
+                onPointerDown={(e) => e.stopPropagation()}
+                className="cursor-pointer"
+                title="Editar card"
+              >
+                <Edit className="h-3 w-3 text-muted-foreground/50 hover:text-primary" />
+              </button>
+              <button 
+                onClick={handleDelete}
+                onPointerDown={(e) => e.stopPropagation()}
+                className="cursor-pointer"
+                title="Excluir card"
+              >
+                <Trash2 className="h-3 w-3 text-muted-foreground/50 hover:text-red-500" />
+              </button>
             </div>
           </div>
           
@@ -286,6 +378,10 @@ export function NewOnboardingKanban({
   const [showApplyTemplate, setShowApplyTemplate] = useState(false);
   const [stages, setStages] = useState<OnboardingStage[]>([]);
   const [isLoadingStages, setIsLoadingStages] = useState(true);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [cardToDelete, setCardToDelete] = useState<string | null>(null);
+  const [newCardTitle, setNewCardTitle] = useState<{ [stageId: string]: string }>({});
+  const [showingInputForStage, setShowingInputForStage] = useState<string | null>(null);
 
   // Load stages from database
   useEffect(() => {
@@ -387,6 +483,88 @@ export function NewOnboardingKanban({
     }
   };
 
+  const handleCompleteCard = async (cardId: string) => {
+    try {
+      const card = cards.find(c => c.id === cardId);
+      if (!card) return;
+
+      // Check if there's a "Concluídos" stage
+      const concludedStage = stages.find(s => s.id === 'concluidos' || s.title.toLowerCase().includes('concluído'));
+      
+      if (concludedStage) {
+        // Move to concluded stage
+        onCardMove(cardId, concludedStage.id);
+      } else {
+        // Just mark visually as completed by changing stage to 'concluidos'
+        onCardMove(cardId, 'concluidos');
+      }
+    } catch (error) {
+      console.error('Error completing card:', error);
+    }
+  };
+
+  const handleDeleteCardConfirm = (cardId: string) => {
+    setCardToDelete(cardId);
+    setShowDeleteDialog(true);
+  };
+
+  const handleDeleteCardExecute = async () => {
+    if (!cardToDelete) return;
+    
+    try {
+      await onboardingCardOperations.delete(cardToDelete);
+      if (onCardsReload) {
+        onCardsReload();
+      }
+    } catch (error) {
+      console.error('Error deleting card:', error);
+    } finally {
+      setShowDeleteDialog(false);
+      setCardToDelete(null);
+    }
+  };
+
+  const handleAddCard = (stageId: string) => {
+    setShowingInputForStage(stageId);
+    setNewCardTitle({ ...newCardTitle, [stageId]: '' });
+  };
+
+  const handleCreateCard = async (stageId: string) => {
+    const title = newCardTitle[stageId]?.trim();
+    if (!title || !clientId) return;
+
+    try {
+      await onboardingCardOperations.create({
+        title,
+        clientId,
+        stage: stageId,
+        responsavel: '',
+        vencimento: undefined,
+        checklist: [],
+        notas: ''
+      });
+      
+      if (onCardsReload) {
+        onCardsReload();
+      }
+      
+      // Reset input
+      setNewCardTitle({ ...newCardTitle, [stageId]: '' });
+      setShowingInputForStage(null);
+    } catch (error) {
+      console.error('Error creating card:', error);
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent, stageId: string) => {
+    if (e.key === 'Enter') {
+      handleCreateCard(stageId);
+    } else if (e.key === 'Escape') {
+      setShowingInputForStage(null);
+      setNewCardTitle({ ...newCardTitle, [stageId]: '' });
+    }
+  };
+
   return (
     <>
       <DndContext
@@ -404,12 +582,6 @@ export function NewOnboardingKanban({
               </p>
             </div>
             <div className="flex items-center gap-2">
-              {onCreateCard && (
-                <Button onClick={onCreateCard} className="flex items-center gap-2">
-                  <Plus className="h-4 w-4" />
-                  Novo
-                </Button>
-              )}
               <Button 
                 onClick={() => setShowBulkModal(true)} 
                 variant="outline"
@@ -468,22 +640,57 @@ export function NewOnboardingKanban({
                             <p className="text-xs">Nenhum card</p>
                           </div>
                         ) : (
-                          columnCards.map(card => (
-                            <SortableOnboardingCard
-                              key={card.id}
-                              card={card}
-                              onClick={handleCardClick}
-                            />
-                          ))
+                           columnCards.map(card => (
+                             <SortableOnboardingCard
+                               key={card.id}
+                               card={card}
+                               onClick={handleCardClick}
+                               onComplete={handleCompleteCard}
+                               onDelete={handleDeleteCardConfirm}
+                               draggable={true}
+                             />
+                           ))
                         )}
-                      </div>
-                    </SortableContext>
-                  </CardContent>
-                </DroppableColumn>
-              );
-            })}
-          </div>
-        </div>
+                       </div>
+                       
+                       {/* Add Card Button */}
+                       {showingInputForStage === stage.id ? (
+                         <div className="mt-2">
+                           <Input
+                             autoFocus
+                             placeholder="Título do card..."
+                             value={newCardTitle[stage.id] || ''}
+                             onChange={(e) => setNewCardTitle({ ...newCardTitle, [stage.id]: e.target.value })}
+                             onKeyDown={(e) => handleKeyPress(e, stage.id)}
+                             onBlur={() => {
+                               if (!newCardTitle[stage.id]?.trim()) {
+                                 setShowingInputForStage(null);
+                               }
+                             }}
+                             className="text-sm"
+                           />
+                           <p className="text-xs text-muted-foreground mt-1">
+                             Enter para criar • Esc para cancelar
+                           </p>
+                         </div>
+                       ) : (
+                         <Button
+                           variant="ghost"
+                           size="sm"
+                           onClick={() => handleAddCard(stage.id)}
+                           className="w-full justify-start text-muted-foreground hover:text-foreground mt-2"
+                         >
+                           <Plus className="h-4 w-4 mr-2" />
+                           Adicionar card
+                         </Button>
+                       )}
+                     </SortableContext>
+                   </CardContent>
+                 </DroppableColumn>
+               );
+             })}
+           </div>
+         </div>
 
         {activeCard && (
           <DragOverlay>
@@ -521,6 +728,23 @@ export function NewOnboardingKanban({
         clientId={clientId}
         onApplied={handleCardsReload}
       />
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. O card será permanentemente excluído.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteCardExecute}>
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
