@@ -210,7 +210,7 @@ export function NewTaskModal({ open, onOpenChange, onSave, initialData }: NewTas
                     <SelectValue placeholder="Selecionar cliente (opcional)" />
                   </SelectTrigger>
                   <SelectContent>
-                    {clients.filter((c) => c && String(c.id).trim() !== '').map(client => (
+                    {clients.filter((c) => c && c.id && String(c.id).trim() !== '').map(client => (
                       <SelectItem key={client.id} value={client.id}>
                         {client.name}
                       </SelectItem>

@@ -334,7 +334,7 @@ export default function CalendarioPage() {
   };
 
   const getUniqueOwners = () => {
-    return [...new Set(tasks.map(task => task.owner).filter(Boolean))];
+    return [...new Set(tasks.map(task => task.owner).filter(owner => owner && owner.trim() !== ''))];
   };
 
   const renderMonthView = () => {
