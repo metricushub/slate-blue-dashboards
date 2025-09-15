@@ -124,10 +124,10 @@ export default function CalendarioPage() {
   
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedClient, setSelectedClient] = useState<string>('');
-  const [selectedOwner, setSelectedOwner] = useState<string>('');
-  const [selectedPriority, setSelectedPriority] = useState<string>('');
-  const [selectedStatus, setSelectedStatus] = useState<string>('');
+  const [selectedClient, setSelectedClient] = useState<string>('all');
+  const [selectedOwner, setSelectedOwner] = useState<string>('all');
+  const [selectedPriority, setSelectedPriority] = useState<string>('all');
+  const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [showCompleted, setShowCompleted] = useState(false);
   
   // Modals
@@ -185,19 +185,19 @@ export default function CalendarioPage() {
       );
     }
 
-    if (selectedClient) {
+    if (selectedClient !== 'all') {
       filtered = filtered.filter(task => task.client_id === selectedClient);
     }
 
-    if (selectedOwner) {
+    if (selectedOwner !== 'all') {
       filtered = filtered.filter(task => task.owner === selectedOwner);
     }
 
-    if (selectedPriority) {
+    if (selectedPriority !== 'all') {
       filtered = filtered.filter(task => task.priority === selectedPriority);
     }
 
-    if (selectedStatus) {
+    if (selectedStatus !== 'all') {
       filtered = filtered.filter(task => task.status === selectedStatus);
     }
 
@@ -477,7 +477,7 @@ export default function CalendarioPage() {
                   <SelectValue placeholder="Cliente" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos</SelectItem>
+                  <SelectItem value="all">Todos</SelectItem>
                   {clients.map(client => (
                     <SelectItem key={client.id} value={client.id}>{client.name}</SelectItem>
                   ))}
@@ -489,7 +489,7 @@ export default function CalendarioPage() {
                   <SelectValue placeholder="Responsável" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos</SelectItem>
+                  <SelectItem value="all">Todos</SelectItem>
                   {getUniqueOwners().map(owner => (
                     <SelectItem key={owner} value={owner!}>{owner}</SelectItem>
                   ))}
@@ -501,7 +501,7 @@ export default function CalendarioPage() {
                   <SelectValue placeholder="Prioridade" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todas</SelectItem>
+                  <SelectItem value="all">Todas</SelectItem>
                   <SelectItem value="Baixa">Baixa</SelectItem>
                   <SelectItem value="Média">Média</SelectItem>
                   <SelectItem value="Alta">Alta</SelectItem>
@@ -513,7 +513,7 @@ export default function CalendarioPage() {
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos</SelectItem>
+                  <SelectItem value="all">Todos</SelectItem>
                   <SelectItem value="Aberta">Aberta</SelectItem>
                   <SelectItem value="Em progresso">Em progresso</SelectItem>
                   <SelectItem value="Concluída">Concluída</SelectItem>
