@@ -392,8 +392,17 @@ export function TemplateEditor({
         {selectedTemplate && (
           <div className="space-y-4">
             <Card>
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle>Blocos do Template</CardTitle>
+                <Button 
+                  onClick={handleAddBlock}
+                  size="sm"
+                  variant="outline"
+                  className="gap-2 border-dashed"
+                >
+                  <Plus className="h-4 w-4" />
+                  Adicionar Bloco
+                </Button>
               </CardHeader>
               <CardContent>
                 <ScrollArea className="h-[400px]">
@@ -419,15 +428,6 @@ export function TemplateEditor({
                     </SortableContext>
                   </DndContext>
                 </ScrollArea>
-                
-                <Button 
-                  onClick={handleAddBlock}
-                  variant="outline"
-                  className="w-full mt-4 border-dashed"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Adicionar Bloco
-                </Button>
               </CardContent>
             </Card>
           </div>
