@@ -24,7 +24,6 @@ import CalendarioPage from "./pages/CalendarioPage";
 import EquipePage from "./pages/EquipePage";
 import TarefasAnotacoesPage from "./pages/TarefasAnotacoesPage";
 import OnboardingPage from "./pages/OnboardingPage";
-import OnboardingTemplatesPage from "./pages/OnboardingTemplatesPage";
 
 // WIP Pages - Cliente
 import CentralOtimizacoesWip from "./pages/wip/CentralOtimizacoesWip";
@@ -56,7 +55,6 @@ const App = () => (
                 <Route path="/clientes" element={<ClientsPage />} />
                 <Route path="/leads" element={<LeadsPage />} />
                 <Route path="/onboarding" element={<OnboardingPage />} />
-                <Route path="/onboarding/templates" element={<OnboardingTemplatesPage />} />
                 <Route path="/tarefas-anotacoes" element={<TarefasAnotacoesPage />} />
                 <Route path="/calendario" element={<CalendarioPage />} />
                 <Route path="/equipe" element={<EquipePage />} />

@@ -24,7 +24,6 @@ import { OnboardingCardEditDrawer } from '@/components/modals/OnboardingCardEdit
 import { TemplateEditor } from './TemplateEditor';
 import { TemplateApplicator } from './TemplateApplicator';
 import { SaveTemplateModal } from './SaveTemplateModal';
-import { ManageTemplatesModal } from './ManageTemplatesModal';
 import { 
   Plus, 
   Calendar, 
@@ -285,7 +284,6 @@ export function NewOnboardingKanban({
   const [editingCard, setEditingCard] = useState<OnboardingCard | null>(null);
   const [showSaveTemplate, setShowSaveTemplate] = useState(false);
   const [showApplyTemplate, setShowApplyTemplate] = useState(false);
-  const [showManageTemplates, setShowManageTemplates] = useState(false);
   const [stages, setStages] = useState<OnboardingStage[]>([]);
   const [isLoadingStages, setIsLoadingStages] = useState(true);
 
@@ -421,7 +419,6 @@ export function NewOnboardingKanban({
                 Adicionar em Lote
               </Button>
               
-              {/* Templates Menu */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" className="flex items-center gap-2">
@@ -436,9 +433,6 @@ export function NewOnboardingKanban({
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setShowApplyTemplate(true)}>
                     Aplicar template
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setShowManageTemplates(true)}>
-                    Gerenciar templates
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -526,11 +520,6 @@ export function NewOnboardingKanban({
         onOpenChange={setShowApplyTemplate}
         clientId={clientId}
         onApplied={handleCardsReload}
-      />
-
-      <ManageTemplatesModal
-        open={showManageTemplates}
-        onOpenChange={setShowManageTemplates}
       />
     </>
   );

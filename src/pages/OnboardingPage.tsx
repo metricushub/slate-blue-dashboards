@@ -1,6 +1,6 @@
 import React from 'react';
-import { OnboardingKanban } from '@/components/onboarding/OnboardingKanban';
+import OnboardingHubPage from './OnboardingHubPage';
 
 export default function OnboardingPage() {
-  return <OnboardingKanban />;
+  return <OnboardingHubPage />;
 }
