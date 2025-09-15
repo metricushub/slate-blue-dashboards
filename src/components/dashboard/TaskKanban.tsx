@@ -114,16 +114,12 @@ function SortableTaskCard({ task, clients, onTaskClick, onStatusChange }: Sortab
       ref={setNodeRef}
       style={style}
       {...attributes}
-      className="mb-3"
+      {...listeners}
+      className="mb-3 cursor-grab active:cursor-grabbing"
     >
-      <Card className={`${isOverdue ? 'border-red-300 bg-red-50/50' : ''} group`}>
+      <Card className={`${isOverdue ? 'border-red-300 bg-red-50/50' : ''} group hover:shadow-md transition-shadow`}>
         <CardContent className="p-3 space-y-2">
           <div className="flex items-start gap-2">
-            <div 
-              className="flex-shrink-0 w-2 h-4 bg-muted-foreground/20 rounded-sm cursor-grab active:cursor-grabbing hover:bg-muted-foreground/40 transition-colors mt-0.5"
-              {...listeners}
-              title="Arrastar tarefa"
-            />
             <h4 
               className="font-medium text-sm leading-tight cursor-pointer hover:text-primary hover:underline transition-all flex-1 group-hover:text-primary"
               onClick={handleTitleClick}
