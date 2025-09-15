@@ -310,7 +310,7 @@ export function BulkAddTasksModal({ open, onOpenChange, onTasksCreated }: BulkAd
                   <SelectValue placeholder="Selecionar cliente..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {clients.map(client => (
+                  {clients.filter((c) => c && String(c.id).trim() !== '').map(client => (
                     <SelectItem key={client.id} value={client.id}>
                       {client.name}
                     </SelectItem>

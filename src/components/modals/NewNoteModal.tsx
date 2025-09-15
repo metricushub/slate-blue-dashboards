@@ -152,7 +152,7 @@ export function NewNoteModal({ open, onOpenChange, onSave, initialData }: NewNot
                     <SelectValue placeholder="Selecionar cliente (opcional)" />
                   </SelectTrigger>
                   <SelectContent>
-                    {clients.map(client => (
+                    {clients.filter((c) => c && String(c.id).trim() !== '').map(client => (
                       <SelectItem key={client.id} value={client.id}>
                         {client.name}
                       </SelectItem>

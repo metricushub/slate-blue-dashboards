@@ -246,7 +246,7 @@ export function TaskEditDrawer({
           <div className="space-y-2">
             <Label>Cliente</Label>
             <Select 
-              value={formData.client_id ?? 'none'} 
+              value={!formData.client_id ? 'none' : (formData.client_id as string)} 
               onValueChange={(value) =>
                 setFormData(prev => ({ ...prev, client_id: value === 'none' ? undefined : value }))
               }
@@ -256,7 +256,7 @@ export function TaskEditDrawer({
               </SelectTrigger>
               <SelectContent className="z-50">
                 <SelectItem value="none">Nenhum cliente</SelectItem>
-                {clients.map(client => (
+                {clients.filter((c) => c && String(c.id).trim() !== '').map(client => (
                   <SelectItem key={client.id} value={client.id}>
                     {client.name}
                   </SelectItem>
