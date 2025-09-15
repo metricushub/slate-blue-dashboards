@@ -30,6 +30,7 @@ interface NewOnboardingKanbanProps {
   onCardMove: (cardId: string, newStage: string, newSubStage?: string) => void;
   onCardClick?: (card: OnboardingCard) => void;
   onCreateCard?: () => void;
+  onCardsReload?: () => void;
 }
 
 interface DroppableColumnProps {
@@ -169,7 +170,8 @@ export function NewOnboardingKanban({
   cards, 
   onCardMove, 
   onCardClick, 
-  onCreateCard 
+  onCreateCard,
+  onCardsReload
 }: NewOnboardingKanbanProps) {
   const [activeCard, setActiveCard] = useState<OnboardingCard | null>(null);
   

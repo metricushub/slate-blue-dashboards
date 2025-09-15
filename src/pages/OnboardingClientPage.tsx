@@ -65,9 +65,18 @@ export default function OnboardingClientPage() {
     }
   };
 
-  const handleCardClick = (card: OnboardingCard) => {
-    setEditingCard(card);
-    setShowCardModal(true);
+  const handleCardClick = async (cardData: any) => {
+    // Handle card updates from the drawer
+    try {
+      await onboardingCardOperations.update(cardData.id, cardData);
+      await loadCards();
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Não foi possível atualizar o card.",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleCreateCard = () => {
@@ -115,6 +124,7 @@ export default function OnboardingClientPage() {
             onCardMove={handleCardMove}
             onCardClick={handleCardClick}
             onCreateCard={handleCreateCard}
+            onCardsReload={loadCards}
           />
         </TabsContent>
         

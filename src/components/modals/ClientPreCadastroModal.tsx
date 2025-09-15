@@ -1,126 +1,163 @@
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Lead, Client } from '@/types';
-import { Building, User, Phone, Mail, Tag } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { toast } from "@/hooks/use-toast";
+import { useDataSource } from "@/hooks/useDataSource";
+import { onboardingCardOperations } from "@/shared/db/onboardingStore";
 
 interface ClientPreCadastroModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onComplete: (client: Client) => void;
-  leadData: Lead;
+  onSave: (client: any) => void;
+  leadData: {
+    id: string;
+    name: string;
+    email?: string;
+    phone?: string;
+    owner?: string;
+  };
 }
 
-interface PreCadastroData {
-  name: string;
-  contactPrincipal: string;
+interface FormData {
+  nomeEmpresa: string;
+  contatoPrincipal: string;
   telefone: string;
   email: string;
   nicho: string;
 }
 
-export function ClientPreCadastroModal({ 
-  open, 
-  onOpenChange, 
-  onComplete, 
-  leadData 
+export function ClientPreCadastroModal({
+  open,
+  onOpenChange,
+  onSave,
+  leadData
 }: ClientPreCadastroModalProps) {
-  const [formData, setFormData] = useState<PreCadastroData>({
-    name: leadData.name || '',
-    contactPrincipal: '',
+  const [loading, setLoading] = useState(false);
+  const { dataSource } = useDataSource();
+  
+  const [formData, setFormData] = useState<FormData>({
+    nomeEmpresa: leadData.name || '',
+    contatoPrincipal: '',
     telefone: leadData.phone || '',
     email: leadData.email || '',
-    nicho: '',
+    nicho: ''
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name.trim() || !formData.email.trim()) {
+    if (!formData.nomeEmpresa.trim() || !formData.email.trim()) {
+      toast({
+        title: "Erro",
+        description: "Nome da empresa e e-mail são obrigatórios.",
+        variant: "destructive"
+      });
       return;
     }
 
-    // Create client object
-    const client: Client = {
-      id: crypto.randomUUID(),
-      name: formData.name,
-      status: 'onboarding', // Pré-cadastrado status
-      stage: 'Setup inicial',
-      owner: leadData.owner || '',
-      lastUpdate: new Date().toISOString().split('T')[0],
-      budgetMonth: 0,
-      contacts: [{
-        id: crypto.randomUUID(),
-        name: formData.contactPrincipal,
-        email: formData.email,
-        phone: formData.telefone,
-        role: 'Principal',
-        isPrimary: true
-      }],
-      segment: formData.nicho,
-    };
+    if (!dataSource) {
+      toast({
+        title: "Erro",
+        description: "Sistema não inicializado.",
+        variant: "destructive"
+      });
+      return;
+    }
 
-    onComplete(client);
+    setLoading(true);
+    try {
+      // Criar cliente
+      const newClient = await dataSource.addClient({
+        name: formData.nomeEmpresa,
+        phone: formData.telefone,
+        status: 'onboarding' as any,
+        segment: formData.nicho,
+        contacts: [{
+          id: crypto.randomUUID(),
+          name: formData.contatoPrincipal,
+          email: formData.email,
+          phone: formData.telefone,
+          role: 'Principal',
+          isPrimary: true
+        }]
+      });
+
+      // Criar card automático "Formulário enviado"
+      try {
+        await onboardingCardOperations.create({
+          title: "Formulário enviado",
+          clientId: (newClient as any)?.id || 'temp',
+          responsavel: '',
+          vencimento: '',
+          checklist: [],
+          notas: "Aguardando preenchimento do formulário",
+          stage: 'dados-gerais'
+        });
+      } catch (cardError) {
+        console.error('Erro ao criar card automático:', cardError);
+      }
+
+      toast({
+        title: "Sucesso",
+        description: "Cliente pré-cadastrado com sucesso!"
+      });
+
+      onSave(newClient);
+      onOpenChange(false);
+    } catch (error) {
+      console.error("Error creating client:", error);
+      toast({
+        title: "Erro",
+        description: "Erro ao criar cliente.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleInputChange = (field: keyof PreCadastroData, value: string) => {
+  const handleInputChange = (field: keyof FormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const isValid = formData.name.trim() && formData.email.trim();
+  const isValid = formData.nomeEmpresa.trim() && formData.email.trim();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Building className="h-5 w-5" />
-            Pré-cadastro do Cliente
-          </DialogTitle>
-          <DialogDescription>
-            Complete os dados básicos para converter o lead em cliente.
-          </DialogDescription>
+          <DialogTitle>Pré-cadastro do Cliente</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="name" className="flex items-center gap-2">
-              <Building className="h-4 w-4" />
-              Nome da Empresa *
-            </Label>
+            <Label htmlFor="nomeEmpresa">Nome da Empresa *</Label>
             <Input
-              id="name"
-              value={formData.name}
-              onChange={(e) => handleInputChange('name', e.target.value)}
+              id="nomeEmpresa"
+              value={formData.nomeEmpresa}
+              onChange={(e) => handleInputChange('nomeEmpresa', e.target.value)}
               placeholder="Nome da empresa"
               required
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="contact" className="flex items-center gap-2">
-              <User className="h-4 w-4" />
-              Contato Principal
-            </Label>
+            <Label htmlFor="contatoPrincipal">Contato Principal</Label>
             <Input
-              id="contact"
-              value={formData.contactPrincipal}
-              onChange={(e) => handleInputChange('contactPrincipal', e.target.value)}
+              id="contatoPrincipal"
+              value={formData.contatoPrincipal}
+              onChange={(e) => handleInputChange('contatoPrincipal', e.target.value)}
               placeholder="Nome do contato principal"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="phone" className="flex items-center gap-2">
-                <Phone className="h-4 w-4" />
-                Telefone
-              </Label>
+              <Label htmlFor="telefone">Telefone</Label>
               <Input
-                id="phone"
+                id="telefone"
                 value={formData.telefone}
                 onChange={(e) => handleInputChange('telefone', e.target.value)}
                 placeholder="(11) 99999-9999"
@@ -128,10 +165,7 @@ export function ClientPreCadastroModal({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email" className="flex items-center gap-2">
-                <Mail className="h-4 w-4" />
-                E-mail *
-              </Label>
+              <Label htmlFor="email">E-mail *</Label>
               <Input
                 id="email"
                 type="email"
@@ -144,10 +178,7 @@ export function ClientPreCadastroModal({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="nicho" className="flex items-center gap-2">
-              <Tag className="h-4 w-4" />
-              Nicho/Setor
-            </Label>
+            <Label htmlFor="nicho">Nicho/Setor</Label>
             <Input
               id="nicho"
               value={formData.nicho}
@@ -157,11 +188,19 @@ export function ClientPreCadastroModal({
           </div>
 
           <div className="flex justify-end gap-2 pt-4">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => onOpenChange(false)}
+              disabled={loading}
+            >
               Cancelar
             </Button>
-            <Button type="submit" disabled={!isValid}>
-              Salvar e Continuar
+            <Button 
+              type="submit" 
+              disabled={!isValid || loading}
+            >
+              {loading ? "Salvando..." : "Salvar e Continuar"}
             </Button>
           </div>
         </form>
