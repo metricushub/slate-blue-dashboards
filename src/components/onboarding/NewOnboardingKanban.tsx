@@ -8,6 +8,7 @@ import {
   useSensor,
   useSensors,
   PointerSensor,
+  useDroppable,
 } from '@dnd-kit/core';
 import {
   SortableContext,
@@ -77,8 +78,17 @@ interface DroppableColumnProps {
 }
 
 function DroppableColumn({ column, children }: DroppableColumnProps) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: column.id,
+  });
+
   return (
-    <Card className={`${column.color || 'bg-gray-50 border-gray-200'} flex flex-col h-fit`}>
+    <Card 
+      ref={setNodeRef}
+      className={`${column.color || 'bg-gray-50 border-gray-200'} flex flex-col h-fit ${
+        isOver ? 'ring-2 ring-primary/50' : ''
+      }`}
+    >
       {children}
     </Card>
   );
@@ -418,9 +428,11 @@ export function NewOnboardingKanban({
     })
   );
   
-  // Organize cards by columns
+  // Organize cards by columns with position ordering
   const getCardsForColumn = (columnId: string) => {
-    return cards.filter(card => card.stage === columnId);
+    return cards
+      .filter(card => card.stage === columnId)
+      .sort((a, b) => (a.position || 0) - (b.position || 0));
   };
 
   if (isLoadingStages) {
@@ -435,31 +447,68 @@ export function NewOnboardingKanban({
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     
-    if (!over || active.id === over.id) {
-      setActiveCard(null);
-      return;
-    }
-
-    const activeCard = cards.find(c => c.id === active.id);
-    const overCard = cards.find(c => c.id === over.id);
+    setActiveCard(null);
     
-    // If dragging over another card (reordering within same column)
-    if (activeCard && overCard && activeCard.stage === overCard.stage) {
+    // Não há destino válido
+    if (!over) return;
+    
+    const activeCard = cards.find(c => c.id === active.id);
+    if (!activeCard) return;
+    
+    // Se soltou sobre outro card
+    const overCard = cards.find(c => c.id === over.id);
+    if (overCard) {
+      // Só permite reordenação dentro da mesma coluna
+      if (activeCard.stage !== overCard.stage) {
+        console.info('kanban: cross-column drag ignored');
+        return;
+      }
+      
       console.info('kanban: reorder in-column ok');
       
-      // For now, just trigger a reload to maintain visual consistency
-      // The order will be maintained by the database's natural ordering
-      if (onCardsReload) {
-        onCardsReload();
+      // Optimistic update - reordena localmente primeiro
+      const stageCards = getCardsForColumn(activeCard.stage);
+      const activeIndex = stageCards.findIndex(c => c.id === active.id);
+      const overIndex = stageCards.findIndex(c => c.id === over.id);
+      
+      if (activeIndex === overIndex) return;
+      
+      // Calcula nova position baseada nos vizinhos
+      let newPosition: number;
+      if (overIndex === 0) {
+        // Movendo para o início
+        newPosition = (stageCards[0]?.position || 0) - 1;
+      } else if (overIndex === stageCards.length - 1) {
+        // Movendo para o final
+        newPosition = (stageCards[stageCards.length - 1]?.position || 0) + 1;
+      } else {
+        // Movendo para o meio - média entre vizinhos
+        const prevPosition = stageCards[overIndex - (activeIndex < overIndex ? 0 : 1)]?.position || 0;
+        const nextPosition = stageCards[overIndex + (activeIndex < overIndex ? 1 : 0)]?.position || prevPosition + 2;
+        newPosition = (prevPosition + nextPosition) / 2;
       }
-    }
-    // If dragging to a different stage (ignore for now)
-    else if (activeCard && !overCard) {
-      // This would be dragging to a column, ignore for now
-      console.info('kanban: cross-column drag ignored');
+      
+      // Persiste a mudança
+      onboardingCardOperations.update(active.id as string, {
+        position: newPosition
+      }).then(() => {
+        // Reload para manter consistência
+        if (onCardsReload) {
+          onCardsReload();
+        }
+      }).catch(error => {
+        console.error('Error updating card position:', error);
+      });
+      
+      return;
     }
     
-    setActiveCard(null);
+    // Se soltou sobre uma coluna (não implementado ainda)
+    const columnId = over.id as string;
+    if (stages.some(s => s.id === columnId)) {
+      console.info('kanban: cross-column drag ignored');
+      return;
+    }
   };
 
   const handleCardClick = (card: OnboardingCard) => {
@@ -551,6 +600,12 @@ export function NewOnboardingKanban({
     if (!title || !clientId) return;
 
     try {
+      // Calcular position para adicionar no final da coluna
+      const stageCards = getCardsForColumn(stageId);
+      const maxPosition = stageCards.length > 0 
+        ? Math.max(...stageCards.map(c => c.position || 0))
+        : 0;
+      
       await onboardingCardOperations.create({
         title,
         clientId,
@@ -558,7 +613,8 @@ export function NewOnboardingKanban({
         responsavel: '',
         vencimento: undefined,
         checklist: [],
-        notas: ''
+        notas: '',
+        position: maxPosition + 1
       });
       
       if (onCardsReload) {

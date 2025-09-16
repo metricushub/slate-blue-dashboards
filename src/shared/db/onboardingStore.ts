@@ -12,6 +12,7 @@ export interface OnboardingCard {
   stage: string; // Changed from fixed union to dynamic string
   subStage?: string; // Changed from fixed union to dynamic string
   completed?: boolean; // Added for visual completion without moving stages
+  position?: number; // For drag and drop ordering within columns
   created_at: string;
   updated_at: string;
 }
