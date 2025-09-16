@@ -352,7 +352,7 @@ export default function LeadsPage() {
 
   const handleFormSent = (client: Client) => {
     // Navigate to onboarding page for the client
-    navigate(`/onboarding/${client.id}`);
+    navigate(`/cliente/${client.id}/onboarding`);
   };
 
   const handleResetFilters = () => {
