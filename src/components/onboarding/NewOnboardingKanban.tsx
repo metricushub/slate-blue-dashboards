@@ -45,6 +45,7 @@ import {
 import { format, isToday, isPast } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { updateKanbanReport } from '@/lib/kanbanReport';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -393,6 +394,7 @@ export function NewOnboardingKanban({
   const [newCardTitle, setNewCardTitle] = useState<{ [stageId: string]: string }>({});
   const [showingInputForStage, setShowingInputForStage] = useState<string | null>(null);
   const [positionOverrides, setPositionOverrides] = useState<Record<string, number>>({});
+  const [boardScrollRef, setBoardScrollRef] = useState<HTMLDivElement | null>(null);
 
   // Load stages from database
   useEffect(() => {
@@ -400,6 +402,9 @@ export function NewOnboardingKanban({
       try {
         const allStages = await onboardingStageOperations.getAllStages();
         setStages(allStages.filter(s => cards.some(c => c.stage === s.id)));
+        
+        // Update kanban report on first load
+        updateKanbanReport();
       } catch (error) {
         console.error('Error loading stages:', error);
       } finally {
@@ -415,6 +420,16 @@ export function NewOnboardingKanban({
     const reloadStages = async () => {
       const allStages = await onboardingStageOperations.getAllStages();
       setStages(allStages.filter(s => cards.some(c => c.stage === s.id)));
+      
+      // Auto-scroll to the last column after reloading
+      setTimeout(() => {
+        if (boardScrollRef) {
+          boardScrollRef.scrollTo({ 
+            left: boardScrollRef.scrollWidth - boardScrollRef.clientWidth, 
+            behavior: 'smooth' 
+          });
+        }
+      }, 100);
     };
     
     reloadStages();
@@ -696,82 +711,99 @@ export function NewOnboardingKanban({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 flex-1">
+          <div 
+            className="flex gap-4 overflow-x-auto pb-4 flex-1" 
+            style={{ scrollbarWidth: 'thin' }}
+            ref={(el) => {
+              setBoardScrollRef(el);
+              // Auto-scroll to the last column when stages change
+              if (el && stages.length > 0) {
+                setTimeout(() => {
+                  el.scrollTo({ 
+                    left: el.scrollWidth - el.clientWidth, 
+                    behavior: 'smooth' 
+                  });
+                }, 100);
+              }
+            }}
+          >
             {stages.map(stage => {
               const columnCards = getCardsForColumn(stage.id);
               const Icon = getIconComponent(stage.icon);
               
               return (
-                <DroppableColumn key={stage.id} column={stage}>
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Icon className="h-4 w-4" />
-                        <span className="text-sm font-medium">{stage.title}</span>
+                <div key={stage.id} className="flex-shrink-0 w-80">
+                  <DroppableColumn column={stage}>
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Icon className="h-4 w-4" />
+                          <span className="text-sm font-medium">{stage.title}</span>
+                        </div>
+                        <Badge variant="secondary">{columnCards.length}</Badge>
                       </div>
-                      <Badge variant="secondary">{columnCards.length}</Badge>
-                    </div>
-                  </CardHeader>
-                  
-                  <CardContent className="flex-1 pt-0">
-                    <SortableContext
-                      items={columnCards.map(c => c.id)}
-                      strategy={verticalListSortingStrategy}
-                    >
-                      <div className="space-y-2 min-h-20">
-                        {columnCards.length === 0 ? (
-                          <div className="text-center py-8 text-muted-foreground">
-                            <Icon className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                            <p className="text-xs">Nenhum card</p>
-                          </div>
-                        ) : (
-                           columnCards.map(card => (
-                             <SortableOnboardingCard
-                               key={card.id}
-                               card={card}
-                               onClick={handleCardClick}
-                               onComplete={handleCompleteCard}
-                               onDelete={handleDeleteCardConfirm}
-                               draggable={true}
-                             />
-                           ))
-                        )}
-                       </div>
-                       
-                       {/* Add Card Button */}
-                       {showingInputForStage === stage.id ? (
-                         <div className="mt-2">
-                           <Input
-                             autoFocus
-                             placeholder="Título do card..."
-                             value={newCardTitle[stage.id] || ''}
-                             onChange={(e) => setNewCardTitle({ ...newCardTitle, [stage.id]: e.target.value })}
-                             onKeyDown={(e) => handleKeyPress(e, stage.id)}
-                             onBlur={() => {
-                               if (!newCardTitle[stage.id]?.trim()) {
-                                 setShowingInputForStage(null);
-                               }
-                             }}
-                             className="text-sm"
-                           />
-                           <p className="text-xs text-muted-foreground mt-1">
-                             Enter para criar • Esc para cancelar
-                           </p>
+                    </CardHeader>
+                    
+                    <CardContent className="flex-1 pt-0">
+                      <SortableContext
+                        items={columnCards.map(c => c.id)}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        <div className="space-y-2 min-h-20 max-h-96 overflow-y-auto">
+                          {columnCards.length === 0 ? (
+                            <div className="text-center py-8 text-muted-foreground">
+                              <Icon className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                              <p className="text-xs">Nenhum card</p>
+                            </div>
+                          ) : (
+                             columnCards.map(card => (
+                               <SortableOnboardingCard
+                                 key={card.id}
+                                 card={card}
+                                 onClick={handleCardClick}
+                                 onComplete={handleCompleteCard}
+                                 onDelete={handleDeleteCardConfirm}
+                                 draggable={true}
+                               />
+                             ))
+                          )}
                          </div>
-                       ) : (
-                         <Button
-                           variant="ghost"
-                           size="sm"
-                           onClick={() => handleAddCard(stage.id)}
-                           className="w-full justify-start text-muted-foreground hover:text-foreground mt-2"
-                         >
-                           <Plus className="h-4 w-4 mr-2" />
-                           Adicionar card
-                         </Button>
-                       )}
-                     </SortableContext>
-                   </CardContent>
-                 </DroppableColumn>
+                         
+                         {/* Add Card Button */}
+                         {showingInputForStage === stage.id ? (
+                           <div className="mt-2">
+                             <Input
+                               autoFocus
+                               placeholder="Título do card..."
+                               value={newCardTitle[stage.id] || ''}
+                               onChange={(e) => setNewCardTitle({ ...newCardTitle, [stage.id]: e.target.value })}
+                               onKeyDown={(e) => handleKeyPress(e, stage.id)}
+                               onBlur={() => {
+                                 if (!newCardTitle[stage.id]?.trim()) {
+                                   setShowingInputForStage(null);
+                                 }
+                               }}
+                               className="text-sm"
+                             />
+                             <p className="text-xs text-muted-foreground mt-1">
+                               Enter para criar • Esc para cancelar
+                             </p>
+                           </div>
+                         ) : (
+                           <Button
+                             variant="ghost"
+                             size="sm"
+                             onClick={() => handleAddCard(stage.id)}
+                             className="w-full justify-start text-muted-foreground hover:text-foreground mt-2"
+                           >
+                             <Plus className="h-4 w-4 mr-2" />
+                             Adicionar card
+                           </Button>
+                         )}
+                       </SortableContext>
+                     </CardContent>
+                   </DroppableColumn>
+                 </div>
                );
              })}
            </div>

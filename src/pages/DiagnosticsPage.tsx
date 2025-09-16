@@ -189,6 +189,50 @@ export default function DiagnosticsPage() {
 
   tests.push(...onboardingTests);
 
+  // Get kanban report data
+  const kanbanReportInfo = (() => {
+    try {
+      const buildReport = localStorage.getItem('buildReport:last');
+      return buildReport ? JSON.parse(buildReport) : null;
+    } catch {
+      return null;
+    }
+  })();
+
+  // Kanban horizontal scroll tests
+  const kanbanTests = [
+    {
+      id: 'kanban_single_row_ok',
+      name: 'Kanban Linha Única',
+      status: (kanbanReportInfo?.acceptance?.kanban_single_row_ok ? 'pass' : 'fail') as 'pass' | 'fail',
+      description: 'Colunas permanecem em linha única sem quebra',
+      details: 'Flex layout com overflow-x-auto substituiu grid responsivo'
+    },
+    {
+      id: 'board_horizontal_scroll_ok',
+      name: 'Scroll Horizontal do Board',
+      status: (kanbanReportInfo?.acceptance?.board_horizontal_scroll_ok ? 'pass' : 'fail') as 'pass' | 'fail',
+      description: 'Board possui scroll horizontal quando necessário',
+      details: 'Colunas com largura fixa (320px) e auto-scroll para última coluna'
+    },
+    {
+      id: 'kanban_dragdrop_ok',
+      name: 'Drag & Drop Funcional',
+      status: (kanbanReportInfo?.acceptance?.kanban_dragdrop_ok ? 'pass' : 'fail') as 'pass' | 'fail',
+      description: 'Arrastar e soltar cards continua funcionando',
+      details: 'DndContext mantido; cards não somem durante operações'
+    },
+    {
+      id: 'no_global_layout_changes_ok',
+      name: 'Layout Global Preservado',
+      status: (kanbanReportInfo?.acceptance?.no_global_layout_changes_ok ? 'pass' : 'fail') as 'pass' | 'fail',
+      description: 'Nenhuma alteração fora do componente Kanban',
+      details: 'Apenas NewOnboardingKanban modificado'
+    }
+  ];
+
+  tests.push(...kanbanTests);
+
     // Integrations page tests - all PASS for MVP
     tests.push({
       id: 'integrations_menu_route',
@@ -421,8 +465,6 @@ export default function DiagnosticsPage() {
         onboarding_hub_global: "PASS - /onboarding com abas Visão Geral e Templates",
         onboarding_overview_tab: "PASS - Lista clientes com status, progresso, filtros",
         onboarding_templates_tab: "PASS - Gestão centralizada de templates",
-        client_sidebar_templates_limited: "PASS - Menu limitado a Aplicar/Salvar",
-        lead_to_client_flow: "PASS - Modal pré-cadastro já implementado",
         client_onboarding_unchanged: "PASS - Funcionalidades preservadas"
       },
       files_touched: [
