@@ -392,6 +392,7 @@ export function NewOnboardingKanban({
   const [cardToDelete, setCardToDelete] = useState<string | null>(null);
   const [newCardTitle, setNewCardTitle] = useState<{ [stageId: string]: string }>({});
   const [showingInputForStage, setShowingInputForStage] = useState<string | null>(null);
+  const [positionOverrides, setPositionOverrides] = useState<Record<string, number>>({});
 
   // Load stages from database
   useEffect(() => {
@@ -417,6 +418,7 @@ export function NewOnboardingKanban({
     };
     
     reloadStages();
+    setPositionOverrides({});
     onCardsReload?.();
   };
 
@@ -430,9 +432,19 @@ export function NewOnboardingKanban({
   
   // Organize cards by columns with position ordering
   const getCardsForColumn = (columnId: string) => {
-    return cards
+    const col = cards
       .filter(card => card.stage === columnId)
-      .sort((a, b) => (a.position || 0) - (b.position || 0));
+      .map((card, idx) => ({ card, baseIndex: idx }));
+
+    return col
+      .sort((a, b) => {
+        const aPos = (positionOverrides[a.card.id] ?? a.card.position ?? a.baseIndex);
+        const bPos = (positionOverrides[b.card.id] ?? b.card.position ?? b.baseIndex);
+        if (aPos !== bPos) return aPos - bPos;
+        // tie-breaker by created_at to keep deterministic order
+        return new Date(a.card.created_at).getTime() - new Date(b.card.created_at).getTime();
+      })
+      .map(x => x.card);
   };
 
   if (isLoadingStages) {
@@ -448,62 +460,62 @@ export function NewOnboardingKanban({
     const { active, over } = event;
     
     setActiveCard(null);
-    
-    // Não há destino válido
-    if (!over) return;
-    
+    if (!over) return; // sem destino
+
     const activeCard = cards.find(c => c.id === active.id);
     if (!activeCard) return;
-    
+
     // Se soltou sobre outro card
     const overCard = cards.find(c => c.id === over.id);
     if (overCard) {
-      // Só permite reordenação dentro da mesma coluna
+      // Bloquear mudança entre colunas
       if (activeCard.stage !== overCard.stage) {
         console.info('kanban: cross-column drag ignored');
         return;
       }
-      
+
       console.info('kanban: reorder in-column ok');
-      
-      // Optimistic update - reordena localmente primeiro
+
+      // Lista ordenada da coluna (considerando overrides)
       const stageCards = getCardsForColumn(activeCard.stage);
       const activeIndex = stageCards.findIndex(c => c.id === active.id);
       const overIndex = stageCards.findIndex(c => c.id === over.id);
-      
-      if (activeIndex === overIndex) return;
-      
-      // Calcula nova position baseada nos vizinhos
-      let newPosition: number;
-      if (overIndex === 0) {
-        // Movendo para o início
-        newPosition = (stageCards[0]?.position || 0) - 1;
-      } else if (overIndex === stageCards.length - 1) {
-        // Movendo para o final
-        newPosition = (stageCards[stageCards.length - 1]?.position || 0) + 1;
-      } else {
-        // Movendo para o meio - média entre vizinhos
-        const prevPosition = stageCards[overIndex - (activeIndex < overIndex ? 0 : 1)]?.position || 0;
-        const nextPosition = stageCards[overIndex + (activeIndex < overIndex ? 1 : 0)]?.position || prevPosition + 2;
-        newPosition = (prevPosition + nextPosition) / 2;
-      }
-      
-      // Persiste a mudança
-      onboardingCardOperations.update(active.id as string, {
-        position: newPosition
-      }).then(() => {
-        // Reload para manter consistência
-        if (onCardsReload) {
-          onCardsReload();
-        }
-      }).catch(error => {
-        console.error('Error updating card position:', error);
-      });
-      
+      if (activeIndex === -1 || overIndex === -1) return;
+
+      // Índice de inserção: depois do "over" se arrastou para baixo, antes se arrastou para cima
+      const insertionIndex = overIndex + (activeIndex < overIndex ? 1 : 0);
+
+      const effectivePos = (card: OnboardingCard, idx: number) => (
+        positionOverrides[card.id] ?? card.position ?? idx
+      );
+
+      const minPos = stageCards.length ? effectivePos(stageCards[0], 0) : 0;
+      const maxPos = stageCards.length ? effectivePos(stageCards[stageCards.length - 1], stageCards.length - 1) : 0;
+
+      const prevCard = insertionIndex - 1 >= 0 ? stageCards[insertionIndex - 1] : undefined;
+      const nextCard = insertionIndex < stageCards.length ? stageCards[insertionIndex] : undefined;
+
+      const prevPos = prevCard ? effectivePos(prevCard, insertionIndex - 1) : (minPos - 1);
+      const nextPos = nextCard ? effectivePos(nextCard, insertionIndex) : (maxPos + 1);
+      const newPosition = (prevPos + nextPos) / 2;
+
+      // Optimistic update: aplica override local
+      setPositionOverrides((prev) => ({ ...prev, [active.id as string]: newPosition }));
+
+      // Persistência
+      onboardingCardOperations.update(active.id as string, { position: newPosition })
+        .then(() => {
+          // Após persistir, recarrega da fonte para consolidar
+          onCardsReload?.();
+        })
+        .catch((error) => {
+          console.error('Error updating card position:', error);
+        });
+
       return;
     }
-    
-    // Se soltou sobre uma coluna (não implementado ainda)
+
+    // Se soltou sobre uma coluna: ignorar por enquanto
     const columnId = over.id as string;
     if (stages.some(s => s.id === columnId)) {
       console.info('kanban: cross-column drag ignored');
