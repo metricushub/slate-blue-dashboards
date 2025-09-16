@@ -172,7 +172,7 @@ export function ClientCard({ client }: ClientCardProps) {
         </div>
 
         {/* Tags */}
-        {client.tags.length > 0 && (
+        {client.tags?.length > 0 && (
           <div className="flex flex-wrap gap-1">
             {client.tags.map((tag) => (
               <Badge key={tag} variant="secondary" className="text-xs">

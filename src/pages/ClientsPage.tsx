@@ -49,7 +49,7 @@ const ClientsPage = () => {
     if (searchQuery) {
       filtered = filtered.filter(client =>
         client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        client.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
+        client.tags?.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
       );
     }
 
