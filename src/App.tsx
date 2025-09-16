@@ -72,6 +72,7 @@ const App = () => (
                 <Route path="/cliente/:clientId/chat" element={<ChatIaConfigWip />} />
                 <Route path="/cliente/:clientId/anotacoes" element={<AnotacoesClienteWip />} />
                 <Route path="/cliente/:clientId/onboarding" element={<OnboardingClientPage />} />
+                <Route path="/cliente/:id/onboarding" element={<OnboardingClientPage />} />
                 <Route path="/cliente/:clientId/relatorios" element={<RelatoriosClienteWip />} />
                 <Route path="/cliente/:clientId/analytics" element={<AnalyticsClienteWip />} />
                 <Route path="/cliente/:clientId/objetivos" element={<ObjetivosClienteWip />} />

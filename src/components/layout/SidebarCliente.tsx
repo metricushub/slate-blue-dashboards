@@ -32,23 +32,30 @@ import {
 export function SidebarCliente() {
   const { state } = useSidebar();
   const location = useLocation();
-  const { clientId } = useParams<{ clientId: string }>();
+  const params = useParams<{ clientId?: string; id?: string }>();
+  const rawRouteId = params.clientId || params.id;
   const currentPath = location.pathname;
+  const fromPath = currentPath.match(/^\/cliente\/([^/]+)/)?.[1];
+  const isValidId = (v?: string) => !!(v && v !== 'undefined' && v !== 'null' && v.trim() !== '');
+  const resolvedClientId = isValidId(rawRouteId) ? rawRouteId! : (isValidId(fromPath) ? fromPath! : undefined);
   const collapsed = state === "collapsed";
 
+  const link = (segment: string, fallback: string) =>
+    resolvedClientId ? `/cliente/${resolvedClientId}/${segment}` : fallback;
+
   const navigationItems = [
-    { title: "Visão e análise Geral", url: `/cliente/${clientId}/overview`, icon: LayoutDashboard },
-    { title: "Central de Otimizações", url: `/cliente/${clientId}/otimizacoes`, icon: Wand2 },
-    { title: "Tarefas e Alertas", url: `/cliente/${clientId}/tarefas-alertas`, icon: BellDot },
-    { title: "Chat IA e Configuração", url: `/cliente/${clientId}/chat`, icon: MessageSquare },
-    { title: "Anotações", url: `/cliente/${clientId}/anotacoes`, icon: StickyNote },
-    { title: "Onboarding do Cliente", url: `/cliente/${clientId}/onboarding`, icon: ClipboardCheck },
-    { title: "Relatórios", url: `/cliente/${clientId}/relatorios`, icon: FileBarChart },
-    { title: "Analytics", url: `/cliente/${clientId}/analytics`, icon: LineChart },
-    { title: "Objetivos e Metas de KPI", url: `/cliente/${clientId}/objetivos`, icon: Target },
-    { title: "Integração Planilha", url: `/cliente/${clientId}/integracao-planilha`, icon: TableProperties },
-    { title: "Integração Google Ads", url: `/cliente/${clientId}/integracao-google-ads`, icon: BadgeDollarSign },
-    { title: "Integração Meta", url: `/cliente/${clientId}/integracao-meta`, icon: BadgePercent },
+    { title: "Visão e análise Geral", url: link("overview", "/clientes"), icon: LayoutDashboard },
+    { title: "Central de Otimizações", url: link("otimizacoes", "/clientes"), icon: Wand2 },
+    { title: "Tarefas e Alertas", url: link("tarefas-alertas", "/clientes"), icon: BellDot },
+    { title: "Chat IA e Configuração", url: link("chat", "/clientes"), icon: MessageSquare },
+    { title: "Anotações", url: link("anotacoes", "/clientes"), icon: StickyNote },
+    { title: "Onboarding do Cliente", url: link("onboarding", "/onboarding"), icon: ClipboardCheck },
+    { title: "Relatórios", url: link("relatorios", "/clientes"), icon: FileBarChart },
+    { title: "Analytics", url: link("analytics", "/clientes"), icon: LineChart },
+    { title: "Objetivos e Metas de KPI", url: link("objetivos", "/clientes"), icon: Target },
+    { title: "Integração Planilha", url: link("integracao-planilha", "/clientes"), icon: TableProperties },
+    { title: "Integração Google Ads", url: link("integracao-google-ads", "/clientes"), icon: BadgeDollarSign },
+    { title: "Integração Meta", url: link("integracao-meta", "/clientes"), icon: BadgePercent },
   ];
 
   const isActive = (path: string) => {
