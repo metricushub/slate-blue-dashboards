@@ -34,7 +34,7 @@ export function AppLayout({ children }: AppLayoutProps) {
 
       <div className="flex flex-1">
         {isClientRoute ? <SidebarCliente /> : <SidebarGlobal />}
-        <main className={`flex-1 overflow-hidden px-6 py-6 transition-all duration-300 ${getContentPadding()}`}>
+        <main className={`flex-1 overflow-hidden px-6 py-3 transition-all duration-300 ${getContentPadding()}`}>
           <div className="w-full">
             {children}
           </div>

@@ -378,7 +378,7 @@ export default function LeadsPage() {
 
   if (loading) {
     return (
-      <div className="max-w-[1360px] mx-auto px-6 lg:px-8 py-6">
+      <div className="max-w-[1360px] mx-auto px-6 lg:px-8 py-3">
         <div className="flex items-center gap-2 mb-6">
           <Users className="h-6 w-6" />
           <h1 className="text-2xl font-bold">Leads (Kanban)</h1>
@@ -403,7 +403,7 @@ export default function LeadsPage() {
   }
 
   return (
-    <div className="max-w-[1360px] mx-auto px-6 lg:px-8 py-6">
+    <div className="max-w-[1360px] mx-auto px-6 lg:px-8 py-3">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2">
