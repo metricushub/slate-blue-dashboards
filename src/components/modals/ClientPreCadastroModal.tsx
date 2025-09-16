@@ -15,6 +15,7 @@ import { useDataSource } from '@/hooks/useDataSource';
 import { toast } from '@/hooks/use-toast';
 import { Copy, MessageCircle, Mail, Send, SkipForward } from 'lucide-react';
 import { OnboardingService } from '@/lib/onboardingService';
+import { FormSendModal } from './FormSendModal';
 
 interface ClientPreCadastroModalProps {
   open: boolean;
@@ -38,6 +39,8 @@ export function ClientPreCadastroModal({
   leadData 
 }: ClientPreCadastroModalProps) {
   const [loading, setLoading] = useState(false);
+  const [showFormSendModal, setShowFormSendModal] = useState(false);
+  const [savedClient, setSavedClient] = useState<Client | null>(null);
   const { dataSource } = useDataSource();
   
   const [formData, setFormData] = useState<FormData>({
@@ -173,7 +176,17 @@ export function ClientPreCadastroModal({
       // Create/update onboarding card
       await OnboardingService.ensureBoardAndFormCard(client.id, client.name, client.owner);
       
+      // Store client data for the form send modal
+      setSavedClient(client);
+      
+      // Close pre-cadastro modal and open form send modal
+      onOpenChange(false);
       await onSave(client);
+      
+      // Open form send modal after a short delay
+      setTimeout(() => {
+        setShowFormSendModal(true);
+      }, 300);
     } catch (error) {
       console.error('Error saving client:', error);
       toast({
@@ -187,7 +200,8 @@ export function ClientPreCadastroModal({
   };
 
   const handleSkip = async () => {
-    // Just save without sending form
+    // Save without form link
+    const formDataCopy = { ...formData };
     await handleSaveAndSend(new Event('submit') as any);
   };
 
@@ -196,141 +210,92 @@ export function ClientPreCadastroModal({
   const hasTypebotUrl = !!import.meta.env.VITE_TYPEBOT_URL;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            Pré-cadastro Rápido
-            {leadData && (
-              <Badge variant="secondary" className="text-xs">
-                {leadData.name}
-              </Badge>
-            )}
-          </DialogTitle>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              Pré-cadastro Rápido
+              {leadData && (
+                <Badge variant="secondary" className="text-xs">
+                  {leadData.name}
+                </Badge>
+              )}
+            </DialogTitle>
+          </DialogHeader>
 
-        <form onSubmit={handleSaveAndSend} className="space-y-4">
-          <div className="grid grid-cols-1 gap-4">
-            <div>
-              <Label htmlFor="nomeEmpresa">Nome da Empresa *</Label>
-              <Input
-                id="nomeEmpresa"
-                value={formData.nomeEmpresa}
-                onChange={handleInputChange}
-                required
-                placeholder="Ex: Empresa XYZ Ltda"
-              />
-            </div>
+          <form onSubmit={handleSaveAndSend} className="space-y-4">
+            <div className="grid grid-cols-1 gap-4">
+              <div>
+                <Label htmlFor="nomeEmpresa">Nome da Empresa *</Label>
+                <Input
+                  id="nomeEmpresa"
+                  value={formData.nomeEmpresa}
+                  onChange={handleInputChange}
+                  required
+                  placeholder="Ex: Empresa XYZ Ltda"
+                />
+              </div>
 
-            <div>
-              <Label htmlFor="nomeContato">Nome do Contato *</Label>
-              <Input
-                id="nomeContato"
-                value={formData.nomeContato}
-                onChange={handleInputChange}
-                required
-                placeholder="Ex: João Silva"
-              />
-            </div>
+              <div>
+                <Label htmlFor="nomeContato">Nome do Contato *</Label>
+                <Input
+                  id="nomeContato"
+                  value={formData.nomeContato}
+                  onChange={handleInputChange}
+                  required
+                  placeholder="Ex: João Silva"
+                />
+              </div>
 
-            <div>
-              <Label htmlFor="telefone">Telefone (BR) *</Label>
-              <Input
-                id="telefone"
-                value={formData.telefone}
-                onChange={handleInputChange}
-                required
-                placeholder="Ex: (11) 99999-9999"
-                pattern="(\([0-9]{2}\))?\s?[0-9]{4,5}-?[0-9]{4}"
-                title="Formato: (11) 99999-9999"
-              />
-            </div>
+              <div>
+                <Label htmlFor="telefone">Telefone (BR) *</Label>
+                <Input
+                  id="telefone"
+                  value={formData.telefone}
+                  onChange={handleInputChange}
+                  required
+                  placeholder="Ex: (11) 99999-9999"
+                  pattern="(\([0-9]{2}\))?\s?[0-9]{4,5}-?[0-9]{4}"
+                  title="Formato: (11) 99999-9999"
+                />
+              </div>
 
-            <div>
-              <Label htmlFor="email">E-mail *</Label>
-              <Input
-                id="email"
-                type="email"
-                value={formData.email}
-                onChange={handleInputChange}
-                required
-                placeholder="Ex: contato@empresa.com"
-              />
-            </div>
+              <div>
+                <Label htmlFor="email">E-mail *</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  required
+                  placeholder="Ex: contato@empresa.com"
+                />
+              </div>
 
-            <div>
-              <Label htmlFor="nicho">Nicho/Setor *</Label>
-              <Input
-                id="nicho"
-                value={formData.nicho}
-                onChange={handleInputChange}
-                required
-                placeholder="Ex: E-commerce, Serviços, Indústria"
-              />
-            </div>
-          </div>
-
-          {/* Form Link Preview */}
-          {hasTypebotUrl && isValid && (
-            <div className="p-3 bg-muted rounded-lg">
-              <Label className="text-sm font-medium">Link do Formulário:</Label>
-              <div className="mt-1 p-2 bg-background rounded text-xs font-mono break-all">
-                {formLink}
+              <div>
+                <Label htmlFor="nicho">Nicho/Setor *</Label>
+                <Input
+                  id="nicho"
+                  value={formData.nicho}
+                  onChange={handleInputChange}
+                  required
+                  placeholder="Ex: E-commerce, Serviços, Indústria"
+                />
               </div>
             </div>
-          )}
 
-          {/* Warning if no Typebot URL */}
-          {!hasTypebotUrl && (
-            <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <p className="text-sm text-yellow-800">
-                ⚠️ VITE_TYPEBOT_URL não configurada. O link do formulário não será gerado, mas você ainda pode salvar o cliente.
-              </p>
-            </div>
-          )}
-
-          {/* Action Buttons */}
-          <div className="space-y-3 pt-4">
-            {/* Quick Action Buttons - only show if form is valid and has Typebot URL */}
-            {hasTypebotUrl && isValid && (
-              <div className="grid grid-cols-3 gap-2">
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  size="sm"
-                  onClick={handleCopyLink}
-                  className="flex items-center gap-1"
-                >
-                  <Copy className="h-3 w-3" />
-                  Copiar Link
-                </Button>
-                
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  size="sm"
-                  onClick={handleWhatsAppSend}
-                  className="flex items-center gap-1"
-                >
-                  <MessageCircle className="h-3 w-3" />
-                  WhatsApp
-                </Button>
-                
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  size="sm"
-                  onClick={handleEmailSend}
-                  className="flex items-center gap-1"
-                >
-                  <Mail className="h-3 w-3" />
-                  E-mail
-                </Button>
+            {/* Warning if no Typebot URL */}
+            {!hasTypebotUrl && (
+              <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p className="text-sm text-yellow-800">
+                  ⚠️ VITE_TYPEBOT_URL não configurada. O link do formulário não será gerado, mas você ainda pode salvar o cliente.
+                </p>
               </div>
             )}
 
             {/* Main Action Buttons */}
-            <div className="flex gap-2">
+            <div className="flex gap-2 pt-4">
               <Button 
                 type="button" 
                 variant="outline" 
@@ -357,12 +322,22 @@ export function ClientPreCadastroModal({
                 className="flex-1 flex items-center gap-1"
               >
                 <Send className="h-3 w-3" />
-                {loading ? "Salvando..." : "Salvar & Enviar"}
+                {loading ? "Salvando..." : "Salvar & Continuar"}
               </Button>
             </div>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Form Send Modal */}
+      {savedClient && (
+        <FormSendModal
+          open={showFormSendModal}
+          onOpenChange={setShowFormSendModal}
+          client={savedClient}
+          formLink={generateFormLink()}
+        />
+      )}
+    </>
   );
 }
