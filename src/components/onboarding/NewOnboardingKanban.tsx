@@ -13,7 +13,6 @@ import {
   SortableContext,
   verticalListSortingStrategy,
   useSortable,
-  arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Button } from '@/components/ui/button';
@@ -383,29 +382,6 @@ export function NewOnboardingKanban({
   const [cardToDelete, setCardToDelete] = useState<string | null>(null);
   const [newCardTitle, setNewCardTitle] = useState<{ [stageId: string]: string }>({});
   const [showingInputForStage, setShowingInputForStage] = useState<string | null>(null);
-  const [columnOrder, setColumnOrder] = useState<Record<string, string[]>>({});
-
-  // Build/reconcile per-column order from current cards
-  useEffect(() => {
-    const next: Record<string, string[]> = { ...columnOrder };
-    stages.forEach((stage) => {
-      const ids = cards.filter((c) => c.stage === stage.id).map((c) => c.id);
-      const existing = next[stage.id] || [];
-      const kept = existing.filter((id) => ids.includes(id));
-      const newOnes = ids.filter((id) => !kept.includes(id));
-      next[stage.id] = [...kept, ...newOnes];
-    });
-    // Only update if changed
-    const changed = stages.some((s) => {
-      const a = (columnOrder[s.id] || []).join(',');
-      const b = (next[s.id] || []).join(',');
-      return a !== b;
-    });
-    if (changed) {
-      setColumnOrder(next);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cards, stages]);
 
   // Load stages from database
   useEffect(() => {
@@ -442,16 +418,9 @@ export function NewOnboardingKanban({
     })
   );
   
-  // Organize cards by columns with local ordering
+  // Organize cards by columns
   const getCardsForColumn = (columnId: string) => {
-    const inColumn = cards.filter(card => card.stage === columnId);
-    const order = columnOrder[columnId];
-    if (!order || order.length === 0) return inColumn;
-    const byId = new Map(inColumn.map(c => [c.id, c] as const));
-    const ordered = order.map(id => byId.get(id)).filter(Boolean) as OnboardingCard[];
-    // Append any cards not yet tracked in order (just in case)
-    const missing = inColumn.filter(c => !order.includes(c.id));
-    return [...ordered, ...missing];
+    return cards.filter(card => card.stage === columnId);
   };
 
   if (isLoadingStages) {
@@ -471,57 +440,20 @@ export function NewOnboardingKanban({
       return;
     }
 
-    const activeId = String(active.id);
-    const overId = String(over.id);
-    const sourceCard = cards.find(c => c.id === activeId);
-    if (!sourceCard) {
-      setActiveCard(null);
-      return;
-    }
-    const sourceStageId = sourceCard.stage;
-
-    // Determine destination stage (column)
+    // Determine the destination column (stage) correctly
     const targetContainerId = (over.data?.current as any)?.sortable?.containerId as string | undefined;
+    const overId = over.id as string;
     const validStageIds = new Set(stages.map(s => s.id));
-    let destStageId: string = targetContainerId && validStageIds.has(targetContainerId)
+
+    const newStageId = (targetContainerId && validStageIds.has(targetContainerId))
       ? targetContainerId
-      : validStageIds.has(overId) ? overId : sourceStageId;
+      : (validStageIds.has(overId) ? overId : undefined);
 
-    // If hovering over a card, use that card's stage as destination
-    if (!validStageIds.has(destStageId)) {
-      const overCard = cards.find(c => c.id === overId);
-      if (overCard) destStageId = overCard.stage;
+    if (newStageId) {
+      // Persist immediately so the card stays in the destination column
+      onCardMove(active.id as string, newStageId);
     }
-
-    // Prepare current order arrays
-    const getIds = (stageId: string) => (columnOrder[stageId] ?? cards.filter(c => c.stage === stageId).map(c => c.id));
-    const sourceIds = getIds(sourceStageId);
-    const destIdsInitial = getIds(destStageId);
-
-    // Compute target index within destination
-    let overIndex = destIdsInitial.indexOf(overId);
-    if (overIndex === -1) overIndex = destIdsInitial.length;
-
-    if (destStageId !== sourceStageId) {
-      // Move across columns: update local order and persist stage change
-      setColumnOrder(prev => {
-        const src = (prev[sourceStageId] ?? sourceIds).filter(id => id !== activeId);
-        const dstBase = (prev[destStageId] ?? destIdsInitial).filter(id => id !== activeId);
-        const dst = [...dstBase];
-        const insertAt = Math.min(overIndex, dst.length);
-        dst.splice(insertAt, 0, activeId);
-        return { ...prev, [sourceStageId]: src, [destStageId]: dst };
-      });
-      onCardMove(activeId, destStageId);
-    } else {
-      // Reorder within same column (no persistence needed)
-      const oldIndex = sourceIds.indexOf(activeId);
-      if (oldIndex !== -1) {
-        const newOrder = arrayMove(sourceIds, oldIndex, overIndex);
-        setColumnOrder(prev => ({ ...prev, [sourceStageId]: newOrder }));
-      }
-    }
-
+    
     setActiveCard(null);
   };
 
