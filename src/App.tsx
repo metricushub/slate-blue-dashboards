@@ -10,6 +10,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import HomePage from "./pages/Home/HomePage";
 import ClientsPage from "./pages/ClientsPage";
 import LeadsPage from "./pages/LeadsPage";
+import WhatsAppPage from "./pages/WhatsAppPage";
 import OptimizationsPage from "./pages/OptimizationsPage";
 import AnalyticsPage from "./pages/AnalyticsPage";
 import ReportsPage from "./pages/ReportsPage";
@@ -54,6 +55,7 @@ const App = () => (
                 <Route path="/" element={<HomePage />} />
                 <Route path="/clientes" element={<ClientsPage />} />
                 <Route path="/leads" element={<LeadsPage />} />
+                <Route path="/whatsapp" element={<WhatsAppPage />} />
                 <Route path="/onboarding" element={<OnboardingPage />} />
                 <Route path="/tarefas-anotacoes" element={<TarefasAnotacoesPage />} />
                 <Route path="/calendario" element={<CalendarioPage />} />

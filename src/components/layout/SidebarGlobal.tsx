@@ -10,6 +10,7 @@ import {
   ClipboardCheck,
   Layout,
   ChevronRight,
+  MessageCircle,
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { BrandLogo } from "@/components/ui/brand-logo";
@@ -30,6 +31,7 @@ import {
 const navigationItems = [
   { title: "Home", url: "/", icon: Home },
   { title: "Leads (CRM Kanban)", url: "/leads", icon: Kanban },
+  { title: "WhatsApp Web", url: "/whatsapp", icon: MessageCircle },
   { title: "Clientes", url: "/clientes", icon: Users },
   { title: "Onboarding", url: "/onboarding", icon: ClipboardCheck },
   { title: "Tarefas e Anotações", url: "/tarefas-anotacoes", icon: ClipboardList },
