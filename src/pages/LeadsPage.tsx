@@ -456,6 +456,14 @@ export default function LeadsPage() {
           <Button
             variant="outline"
             size="sm"
+            onClick={() => setShowAnalytics(!showAnalytics)}
+          >
+            <BarChart3 className="h-4 w-4 mr-2" />
+            {showAnalytics ? 'Ocultar Analytics' : 'Ver Analytics'}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => setShowFilters(!showFilters)}
           >
             <Filter className="h-4 w-4 mr-2" />
@@ -508,6 +516,13 @@ export default function LeadsPage() {
           }}
           leads={leads}
         />
+      )}
+
+      {/* Analytics Panel */}
+      {showAnalytics && (
+        <div className="mb-6 p-4 border rounded-lg bg-muted/30">
+          <LeadAnalytics leads={filteredLeads} />
+        </div>
       )}
 
       {/* Kanban Board */}
