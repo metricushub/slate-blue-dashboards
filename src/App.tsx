@@ -11,6 +11,7 @@ import HomePage from "./pages/Home/HomePage";
 import ClientsPage from "./pages/ClientsPage";
 import LeadsPage from "./pages/LeadsPage";
 import WhatsAppPage from "./pages/WhatsAppPage";
+import { FinanceiroPage } from "./pages/FinanceiroPage";
 import OptimizationsPage from "./pages/OptimizationsPage";
 import AnalyticsPage from "./pages/AnalyticsPage";
 import ReportsPage from "./pages/ReportsPage";
@@ -59,6 +60,7 @@ const App = () => (
                 <Route path="/onboarding" element={<OnboardingPage />} />
                 <Route path="/tarefas-anotacoes" element={<TarefasAnotacoesPage />} />
                 <Route path="/calendario" element={<CalendarioPage />} />
+                <Route path="/financeiro" element={<FinanceiroPage />} />
                 <Route path="/equipe" element={<EquipePage />} />
                 <Route path="/otimizacoes" element={<OptimizationsPage />} />
                 <Route path="/analytics" element={<AnalyticsPage />} />

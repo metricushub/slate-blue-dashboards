@@ -11,6 +11,7 @@ import {
   Layout,
   ChevronRight,
   MessageCircle,
+  DollarSign,
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { BrandLogo } from "@/components/ui/brand-logo";
@@ -36,6 +37,7 @@ const navigationItems = [
   { title: "Onboarding", url: "/onboarding", icon: ClipboardCheck },
   { title: "Tarefas e Anotações", url: "/tarefas-anotacoes", icon: ClipboardList },
   { title: "Calendário", url: "/calendario", icon: Calendar },
+  { title: "Financeiro", url: "/financeiro", icon: DollarSign },
   { title: "Equipe", url: "/equipe", icon: UserCog },
   { title: "Integrações Gerais", url: "/integracoes", icon: Puzzle },
   { title: "Configurações", url: "/configuracoes", icon: Settings },
