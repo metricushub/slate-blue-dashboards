@@ -123,6 +123,7 @@ export interface Lead {
   name: string;
   email?: string;
   phone?: string;
+  company?: string;
   utm_source?: string;
   utm_medium?: string;
   utm_campaign?: string;
@@ -132,6 +133,30 @@ export interface Lead {
   stage: LeadStage;          // coluna do Kanban
   notes?: string;
   client_id?: string;        // opcional, vínculo com clients
+  // Novos campos para analytics
+  priority?: 'low' | 'medium' | 'high' | 'urgent';
+  temperature?: 'cold' | 'warm' | 'hot';
+  lastContactDate?: string;
+  nextFollowUpDate?: string;
+  leadScore?: number; // 0-100
+  lossReason?: string;
+  lossDate?: string;
+  dealCloseDate?: string;
+  proposalSentDate?: string;
+  firstContactDate?: string;
+  qualificationNotes?: string;
+  competitorInfo?: string;
+  decisionMaker?: string;
+  budget?: {
+    min: number;
+    max: number;
+    confirmed: boolean;
+  };
+  timeline?: {
+    decisionDate?: string;
+    implementationDate?: string;
+    urgency: 'immediate' | 'this_quarter' | 'next_quarter' | 'flexible';
+  };
 }
 
 // Client Dashboard Types

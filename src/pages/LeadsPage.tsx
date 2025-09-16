@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Plus, Search, Filter, Download, RotateCcw, Users } from 'lucide-react';
+import { Plus, Search, Filter, Download, RotateCcw, Users, BarChart3 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useDataSource } from '@/hooks/useDataSource';
 import { LeadCard } from '@/components/leads/LeadCard';
@@ -25,6 +25,8 @@ import { LeadDrawer } from '@/components/leads/LeadDrawer';
 import { LeadFilters } from '@/components/leads/LeadFilters';
 import { ClientPreCadastroModal } from '@/components/modals/ClientPreCadastroModal';
 import { FormSendModal } from '@/components/modals/FormSendModal';
+import { LossReasonModal } from '@/components/leads/LossReasonModal';
+import { LeadAnalytics } from '@/components/leads/LeadAnalytics';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
@@ -42,8 +44,10 @@ export default function LeadsPage() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [showPreCadastroModal, setShowPreCadastroModal] = useState(false);
   const [showFormSendModal, setShowFormSendModal] = useState(false);
+  const [showLossReasonModal, setShowLossReasonModal] = useState(false);
   const [leadToConvert, setLeadToConvert] = useState<Lead | null>(null);
   const [clientForFormSend, setClientForFormSend] = useState<Client | null>(null);
+  const [showAnalytics, setShowAnalytics] = useState(false);
   const [filters, setFilters] = useState({
     stages: [] as string[],
     owner: '',
@@ -355,6 +359,37 @@ export default function LeadsPage() {
     navigate(`/cliente/${client.id}/onboarding`);
   };
 
+  const handleLossReasonSaved = async (leadId: string, lossReason: string, notes?: string) => {
+    try {
+      await LeadsStore.updateLead(leadId, { 
+        lossReason,
+        lossDate: new Date().toISOString(),
+        notes: notes ? (leads.find(l => l.id === leadId)?.notes || '') + '\n\nMotivo da perda: ' + notes : undefined
+      });
+      
+      setLeads(prev => prev.map(l => 
+        l.id === leadId 
+          ? { ...l, lossReason, lossDate: new Date().toISOString(), updated_at: new Date().toISOString() } 
+          : l
+      ));
+
+      setShowLossReasonModal(false);
+      setLeadToConvert(null);
+
+      toast({
+        title: "Motivo da perda registrado",
+        description: "As informações foram salvas para análise.",
+      });
+    } catch (error) {
+      console.error("Error saving loss reason:", error);
+      toast({
+        title: "Erro",
+        description: "Falha ao salvar motivo da perda",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleResetFilters = () => {
     setFilters({ stages: [], owner: '', dateFrom: '', dateTo: '' });
     setSearchQuery('');
@@ -491,6 +526,10 @@ export default function LeadsPage() {
               onLeadClick={openLeadDrawer}
               onNewLead={() => setShowNewLeadModal(true)}
               onLeadConverted={handleLeadConverted}
+              onMarkAsLost={(lead) => {
+                setLeadToConvert(lead);
+                setShowLossReasonModal(true);
+              }}
             />
           ))}
         </div>
@@ -540,6 +579,23 @@ export default function LeadsPage() {
           formLink=""
           onFormSent={handleFormSent}
         />
+      )}
+
+      {/* Modal de Motivo da Perda */}
+      {leadToConvert && (
+        <LossReasonModal
+          open={showLossReasonModal}
+          onClose={() => setShowLossReasonModal(false)}
+          lead={leadToConvert}
+          onSave={handleLossReasonSaved}
+        />
+      )}
+
+      {/* Analytics Panel */}
+      {showAnalytics && (
+        <div className="mb-6 p-4 border rounded-lg bg-muted/30">
+          <LeadAnalytics leads={filteredLeads} />
+        </div>
       )}
     </div>
   );

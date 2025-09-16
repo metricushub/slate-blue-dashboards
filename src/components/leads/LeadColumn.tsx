@@ -14,9 +14,10 @@ interface LeadColumnProps {
   onLeadClick: (lead: Lead) => void;
   onNewLead: () => void;
   onLeadConverted?: (lead: Lead) => void;
+  onMarkAsLost?: (lead: Lead) => void;
 }
 
-export function LeadColumn({ stage, leads, stats, onLeadClick, onNewLead, onLeadConverted }: LeadColumnProps) {
+export function LeadColumn({ stage, leads, stats, onLeadClick, onNewLead, onLeadConverted, onMarkAsLost }: LeadColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: stage,
   });
@@ -109,6 +110,7 @@ export function LeadColumn({ stage, leads, stats, onLeadClick, onNewLead, onLead
                 lead={lead}
                 onClick={onLeadClick}
                 onConverted={stage === 'Fechado' ? onLeadConverted : undefined}
+                onMarkAsLost={stage === 'Fechado' ? onMarkAsLost : undefined}
               />
             ))
           )}

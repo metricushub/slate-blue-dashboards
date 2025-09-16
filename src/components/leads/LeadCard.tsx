@@ -7,16 +7,17 @@ import { Button } from '@/components/ui/button';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { OnboardingService } from '@/lib/onboardingService';
-import { User, DollarSign } from 'lucide-react';
+import { User, DollarSign, Calendar, Thermometer, AlertTriangle, Star } from 'lucide-react';
 
 interface LeadCardProps {
   lead: Lead;
   onClick: (lead: Lead) => void;
   isDragging?: boolean;
   onConverted?: (lead: Lead) => void;
+  onMarkAsLost?: (lead: Lead) => void;
 }
 
-export function LeadCard({ lead, onClick, isDragging, onConverted }: LeadCardProps) {
+export function LeadCard({ lead, onClick, isDragging, onConverted, onMarkAsLost }: LeadCardProps) {
   const {
     attributes,
     listeners,
@@ -33,6 +34,32 @@ export function LeadCard({ lead, onClick, isDragging, onConverted }: LeadCardPro
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
+  };
+
+  const getPriorityIcon = (priority?: string) => {
+    switch (priority) {
+      case 'urgent':
+        return <AlertTriangle className="h-3 w-3 text-red-600" />;
+      case 'high':
+        return <Star className="h-3 w-3 text-orange-600" />;
+      case 'medium':
+        return <Star className="h-3 w-3 text-yellow-600" />;
+      default:
+        return null;
+    }
+  };
+
+  const getTemperatureColor = (temperature?: string) => {
+    switch (temperature) {
+      case 'hot':
+        return 'text-red-600 bg-red-50 border-red-200';
+      case 'warm':
+        return 'text-orange-600 bg-orange-50 border-orange-200';
+      case 'cold':
+        return 'text-blue-600 bg-blue-50 border-blue-200';
+      default:
+        return 'text-muted-foreground bg-muted border-border';
+    }
   };
 
   const getStageColor = (stage: string) => {
@@ -90,23 +117,42 @@ export function LeadCard({ lead, onClick, isDragging, onConverted }: LeadCardPro
       onClick={() => onClick(lead)}
     >
       <CardContent className="p-4">
-        {/* Nome e Owner */}
+        {/* Nome, Priority e Owner */}
         <div className="flex items-start justify-between mb-3">
           <div className="flex-1 min-w-0">
-            <h4 className="font-semibold text-sm truncate">{lead.name}</h4>
-            <div className="flex items-center gap-1 mt-1">
+            <div className="flex items-center gap-2 mb-1">
+              <h4 className="font-semibold text-sm truncate">{lead.name}</h4>
+              {getPriorityIcon(lead.priority)}
+            </div>
+            <div className="flex items-center gap-1">
               <User className="h-3 w-3 text-muted-foreground" />
               <span className="text-xs text-muted-foreground truncate">
                 {lead.owner || '—'}
               </span>
             </div>
+            {lead.company && (
+              <div className="text-xs text-muted-foreground mt-1 truncate">
+                {lead.company}
+              </div>
+            )}
           </div>
-          <Badge 
-            variant="outline" 
-            className={`text-xs shrink-0 ml-2 ${getStageColor(lead.stage)}`}
-          >
-            {lead.stage}
-          </Badge>
+          <div className="flex flex-col items-end gap-1 ml-2">
+            <Badge 
+              variant="outline" 
+              className={`text-xs shrink-0 ${getStageColor(lead.stage)}`}
+            >
+              {lead.stage}
+            </Badge>
+            {lead.temperature && (
+              <Badge 
+                variant="outline"
+                className={`text-xs shrink-0 ${getTemperatureColor(lead.temperature)}`}
+              >
+                <Thermometer className="h-2 w-2 mr-1" />
+                {lead.temperature}
+              </Badge>
+            )}
+          </div>
         </div>
 
         {/* Contato */}
@@ -131,6 +177,26 @@ export function LeadCard({ lead, onClick, isDragging, onConverted }: LeadCardPro
           </div>
         )}
 
+        {/* Lead Score e Follow-up */}
+        {(lead.leadScore || lead.nextFollowUpDate) && (
+          <div className="flex items-center justify-between text-xs mb-2">
+            {lead.leadScore && (
+              <div className="flex items-center gap-1">
+                <Star className="h-3 w-3 text-yellow-600" />
+                <span className="font-medium">{lead.leadScore}/100</span>
+              </div>
+            )}
+            {lead.nextFollowUpDate && (
+              <div className="flex items-center gap-1 text-orange-600">
+                <Calendar className="h-3 w-3" />
+                <span className="text-xs">
+                  Follow-up: {new Date(lead.nextFollowUpDate).toLocaleDateString('pt-BR')}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Valor e Idade */}
         <div className="flex items-center justify-between text-xs">
           <div className="flex items-center gap-1">
@@ -152,8 +218,17 @@ export function LeadCard({ lead, onClick, isDragging, onConverted }: LeadCardPro
           </span>
         </div>
 
-        {/* Formulário enviado indicator for closed leads */}
-        {lead.stage === 'Fechado' && lead.client_id && (() => {
+        {/* Motivo de perda ou formulário enviado */}
+        {lead.stage === 'Fechado' && lead.lossReason && (
+          <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded-lg">
+            <div className="text-xs text-red-800 font-medium flex items-center gap-1">
+              <AlertTriangle className="h-3 w-3" />
+              Perdido: {lead.lossReason}
+            </div>
+          </div>
+        )}
+        
+        {lead.stage === 'Fechado' && !lead.lossReason && lead.client_id && (() => {
           const sentDate = OnboardingService.getFormSentDate(lead.client_id);
           if (sentDate) {
             return (
@@ -161,20 +236,58 @@ export function LeadCard({ lead, onClick, isDragging, onConverted }: LeadCardPro
                 <div className="text-xs text-green-800 font-medium">
                   Formulário enviado em {sentDate}
                 </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="mt-1 h-6 text-xs"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onConverted?.(lead);
-                  }}
-                >
-                  Reenviar
-                </Button>
+                <div className="flex gap-1 mt-1">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-6 text-xs flex-1"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onConverted?.(lead);
+                    }}
+                  >
+                    Reenviar
+                  </Button>
+                </div>
               </div>
             );
           }
+          
+          // Se não tem formulário enviado mas está fechado sem motivo de perda
+          if (!lead.lossReason && onMarkAsLost) {
+            return (
+              <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <div className="text-xs text-yellow-800 font-medium mb-1">
+                  Lead fechado - registrar resultado
+                </div>
+                <div className="flex gap-1">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-6 text-xs flex-1"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onConverted?.(lead);
+                    }}
+                  >
+                    Ganho
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-6 text-xs flex-1 text-red-600 border-red-200"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onMarkAsLost?.(lead);
+                    }}
+                  >
+                    Perdido
+                  </Button>
+                </div>
+              </div>
+            );
+          }
+          
           return null;
         })()}
       </CardContent>

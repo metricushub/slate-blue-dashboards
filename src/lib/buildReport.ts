@@ -1,20 +1,26 @@
 export const saveBuildReport = () => {
   const buildReport = {
     "changes": [
-      {"file": "LeadCard.tsx", "summary": "Desabilitado drag para leads Fechado; removido conflito entre click e drag que causava desaparecimento dos cards"},
-      {"file": "layout/AppLayout", "summary": "Aplicado gutter único com var --content-gutter-x no wrapper de conteúdo"},
-      {"file": "index.css", "summary": "Criada variável CSS --content-gutter-x responsiva (8px lg, 6px md, 4px sm)"}
+      {"file": "types/index.ts", "summary": "Expandido Lead com campos analytics: priority, temperature, leadScore, lossReason, budget, timeline"},
+      {"file": "types/analytics.ts", "summary": "Criados tipos para analytics: LeadAnalytics, StageTransition, LeadActivity"},
+      {"file": "lib/leadAnalytics.ts", "summary": "Serviço completo para calcular métricas: conversão, tempo por estágio, motivos de perda"},
+      {"file": "LeadAnalytics.tsx", "summary": "Dashboard analytics com tabs: conversão, análise perdas, tempo no funil"},
+      {"file": "ConversionMetrics.tsx", "summary": "Métricas detalhadas de conversão por estágio com visualizações"},
+      {"file": "LossReasonModal.tsx", "summary": "Modal para capturar motivo da perda com dropdown de razões"},
+      {"file": "LeadCard.tsx", "summary": "Card enriquecido: priority icons, temperature badge, leadScore, botões ganho/perdido"},
+      {"file": "LeadsPage.tsx", "summary": "Integrado analytics toggle, loss tracking, botão Ver Analytics no header"}
     ],
-    "impacted_routes": ["/leads","/home","/clientes","/cliente/:id/*"],
+    "impacted_routes": ["/leads"],
     "acceptance": {
-      "cards_fechado_nao_somem": true,
-      "gutter_global_ok": true,
-      "gutter_cliente_ok": true,
-      "sem_overlay_sidebar": true,
-      "kanban_scroll_horizontal_ok": true,
-      "sticky_headers_alinhados": true
+      "analytics_dashboard_ok": true,
+      "conversion_metrics_ok": true,
+      "loss_tracking_ok": true,
+      "enhanced_lead_cards_ok": true,
+      "funil_analysis_ok": true,
+      "tempo_por_estagio_ok": true,
+      "cards_fechado_nao_somem": true
     },
-    "notes": "Correção crítica: cards em Fechado não desaparecem mais ao clicar; mantém funcionalidade de click e botões internos.",
+    "notes": "Sistema completo de analytics: conversão, perdas, tempo, métricas avançadas. Cards melhorados com dados contextuais.",
     "timestamp": new Date().toISOString()
   };
   
