@@ -101,7 +101,7 @@ Paleta: Slate (neutro) + Azul (acentos)
     --sb-expanded: 280px;
     
     /* Content Gutter System */
-    --content-gutter-x: 16px;
+    --content-gutter-x: 8px;
   }
 
   .dark {
@@ -146,7 +146,7 @@ Paleta: Slate (neutro) + Azul (acentos)
     --sb-expanded: 280px;
     
     /* Content Gutter System */
-    --content-gutter-x: 16px;
+    --content-gutter-x: 8px;
   }
 }
 
