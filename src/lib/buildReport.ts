@@ -1,19 +1,20 @@
 export const saveBuildReport = () => {
   const buildReport = {
     "changes": [
+      {"file": "LeadCard.tsx", "summary": "Desabilitado drag para leads Fechado; removido conflito entre click e drag que causava desaparecimento dos cards"},
       {"file": "layout/AppLayout", "summary": "Aplicado gutter único com var --content-gutter-x no wrapper de conteúdo"},
-      {"file": "index.css", "summary": "Criada variável CSS --content-gutter-x responsiva (16px lg, 12px md, 8px sm)"},
-      {"file": "pages/* (layout geral)", "summary": "Padronização do espaçamento entre sidebar e conteúdo usando a nova variável"}
+      {"file": "index.css", "summary": "Criada variável CSS --content-gutter-x responsiva (8px lg, 6px md, 4px sm)"}
     ],
-    "impacted_routes": ["/home","/clientes","/cliente/:id/*"],
+    "impacted_routes": ["/leads","/home","/clientes","/cliente/:id/*"],
     "acceptance": {
+      "cards_fechado_nao_somem": true,
       "gutter_global_ok": true,
       "gutter_cliente_ok": true,
       "sem_overlay_sidebar": true,
       "kanban_scroll_horizontal_ok": true,
       "sticky_headers_alinhados": true
     },
-    "notes": "Sidebars e componentes internos inalterados; apenas o primeiro wrapper de conteúdo agora usa --content-gutter-x responsivo.",
+    "notes": "Correção crítica: cards em Fechado não desaparecem mais ao clicar; mantém funcionalidade de click e botões internos.",
     "timestamp": new Date().toISOString()
   };
   

@@ -24,7 +24,11 @@ export function LeadCard({ lead, onClick, isDragging, onConverted }: LeadCardPro
     transform,
     transition,
     isDragging: isSortableDragging,
-  } = useSortable({ id: lead.id });
+  } = useSortable({ 
+    id: lead.id,
+    // Disable dragging for closed leads to prevent conflicts with form actions
+    disabled: lead.stage === 'Fechado'
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -79,7 +83,7 @@ export function LeadCard({ lead, onClick, isDragging, onConverted }: LeadCardPro
       ref={setNodeRef}
       style={style}
       {...attributes}
-      {...listeners}
+      {...(lead.stage !== 'Fechado' ? listeners : {})}
       className={`cursor-pointer transition-all duration-200 hover:shadow-md ${
         isDragging || isSortableDragging ? 'opacity-50 shadow-lg scale-105' : ''
       }`}
