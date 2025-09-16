@@ -342,7 +342,7 @@ export default function LeadsPage() {
       });
 
       // Redirect to client onboarding
-      window.location.href = `/cliente/${client.id}/onboarding`;
+      window.location.href = `/cliente/${client.id}/onboarding?first=true`;
     } catch (error) {
       console.error("Error creating client:", error);
       toast({

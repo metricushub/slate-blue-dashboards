@@ -58,25 +58,20 @@ export function ClientPreCadastroModal({
       return;
     }
 
-    if (!dataSource) {
-      toast({
-        title: "Erro",
-        description: "Sistema não inicializado.",
-        variant: "destructive"
-      });
-      return;
-    }
-
     setLoading(true);
+    let clientId: string | null = null;
+    let saved = false;
+    
     try {
-      // Criar cliente
-      const clientId = crypto.randomUUID();
+      // Gerar clientId único uma vez
+      clientId = crypto.randomUUID();
+      
       const newClient: Client = {
         id: clientId,
         name: formData.nomeEmpresa,
         status: 'onboarding' as any,
         stage: 'Setup inicial',
-        owner: 'Sistema',
+        owner: leadData.owner || 'Sistema',
         lastUpdate: new Date().toISOString().split('T')[0],
         budgetMonth: 0,
         segment: formData.nicho,
@@ -90,32 +85,68 @@ export function ClientPreCadastroModal({
         }]
       };
 
-      const result = await dataSource.addClient(newClient);
+      // Salvar localmente primeiro (IndexedDB)
+      const { ClientsStore } = await import('@/shared/db/clientsStore');
+      const localClient = { ...newClient, createdAt: new Date().toISOString() };
+      await ClientsStore.upsertClient(localClient);
+      saved = true;
 
-      // Criar card automático "Formulário enviado"
+      // Tentar salvar no dataSource também (mock/sheets)
+      if (dataSource?.addClient) {
+        try {
+          await dataSource.addClient(newClient);
+        } catch (error) {
+          console.warn('Erro ao salvar no dataSource, mas cliente salvo localmente:', error);
+        }
+      }
+
+      // Criar card automático "Formulário enviado" no onboarding
       try {
         await onboardingCardOperations.create({
           title: "Formulário enviado",
           clientId: clientId,
-          responsavel: '',
+          responsavel: leadData.owner || 'Sistema',
           vencimento: '',
           checklist: [],
-          notas: "Aguardando preenchimento do formulário",
-          stage: 'dados-gerais'
+          notas: "Cliente pré-cadastrado via formulário. Aguardando preenchimento completo dos dados.",
+          stage: 'dados-gerais',
+          position: 1
         });
       } catch (cardError) {
         console.error('Erro ao criar card automático:', cardError);
+        // Não falha o fluxo se o card não for criado
       }
 
+      // Salvar diagnóstico
+      await ClientsStore.saveDiagnostic('onboardingPreCreate:last', {
+        clientId,
+        saved,
+        redirect: `/cliente/${clientId}/onboarding?first=true`
+      });
+
       toast({
-        title: "Sucesso",
+        title: "Sucesso", 
         description: "Cliente pré-cadastrado com sucesso!"
       });
 
       onSave(newClient);
       onOpenChange(false);
+      
+      // Redirecionar para onboarding do cliente criado
+      window.location.href = `/cliente/${clientId}/onboarding?first=true`;
     } catch (error) {
       console.error("Error creating client:", error);
+      
+      // Salvar diagnóstico de erro
+      if (clientId) {
+        const { ClientsStore } = await import('@/shared/db/clientsStore');
+        await ClientsStore.saveDiagnostic('onboardingPreCreate:last', {
+          clientId,
+          saved,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+      
       toast({
         title: "Erro",
         description: "Erro ao criar cliente.",

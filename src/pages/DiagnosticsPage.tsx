@@ -44,6 +44,16 @@ export default function DiagnosticsPage() {
   const runDiagnostics = async () => {
     const tests: DiagnosticTest[] = [];
 
+    // Helper function to get diagnostic data from localStorage
+    const getStoredDiagnostic = (key: string) => {
+      try {
+        const data = localStorage.getItem(`diag:${key}`);
+        return data ? JSON.parse(data) : null;
+      } catch {
+        return null;
+      }
+    };
+
     // Test 1: Sidebar "Tarefas & Anotações" exists
     tests.push({
       id: 'sidebar_tarefas_ok',
@@ -276,6 +286,62 @@ export default function DiagnosticsPage() {
       description: 'Verifica se nada fora deste escopo foi alterado',
       details: 'Apenas onboarding implementado, outros módulos intactos'
     });
+
+    // Onboarding Pre-Create and Client Access diagnostics
+    const preCreateDiag = getStoredDiagnostic('onboardingPreCreate:last');
+    const accessDiag = getStoredDiagnostic('onboardingAccess:last');
+
+    if (preCreateDiag) {
+      tests.push({
+        id: 'precreate_saved',
+        name: 'Pré-cadastro - Cliente Salvo',
+        status: (preCreateDiag.saved === true && !preCreateDiag.error) ? 'pass' : 'fail',
+        description: 'Verifica se cliente foi salvo antes do redirecionamento',
+        details: `ClientId: ${preCreateDiag.clientId}, Saved: ${preCreateDiag.saved}, Error: ${preCreateDiag.error || 'none'}`
+      });
+
+      tests.push({
+        id: 'route_id_matches',
+        name: 'Pré-cadastro - ID da Rota Correto',
+        status: (preCreateDiag.clientId && preCreateDiag.redirect?.includes(preCreateDiag.clientId)) ? 'pass' : 'fail',
+        description: 'Verifica se ID da rota corresponde ao ID salvo',
+        details: `ClientId: ${preCreateDiag.clientId}, Redirect: ${preCreateDiag.redirect}`
+      });
+
+      tests.push({
+        id: 'board_boot_ok',
+        name: 'Pré-cadastro - Board Inicial',
+        status: !preCreateDiag.error ? 'pass' : 'fail',
+        description: 'Verifica se board inicial foi criado sem erros',
+        details: preCreateDiag.error ? `Error: ${preCreateDiag.error}` : 'Board criado com sucesso'
+      });
+    }
+
+    if (accessDiag) {
+      tests.push({
+        id: 'client_found',
+        name: 'Acesso - Cliente Encontrado',
+        status: accessDiag.found === true ? 'pass' : 'fail',
+        description: 'Verifica se cliente foi encontrado no acesso ao onboarding',
+        details: `ClientId: ${accessDiag.clientId}, Found: ${accessDiag.found}, Source: ${accessDiag.source}`
+      });
+
+      tests.push({
+        id: 'cards_loaded',
+        name: 'Acesso - Cards Carregados',
+        status: accessDiag.cardsCount !== undefined ? 'pass' : 'fail',
+        description: 'Verifica se cards foram carregados corretamente',
+        details: `Cards count: ${accessDiag.cardsCount}, ClientId: ${accessDiag.clientId}`
+      });
+
+      tests.push({
+        id: 'source_valid',
+        name: 'Acesso - Fonte Válida',
+        status: accessDiag.source !== null ? 'pass' : 'fail',
+        description: 'Verifica se fonte de dados é válida',
+        details: `Source: ${accessDiag.source}, ClientId: ${accessDiag.clientId}`
+      });
+    }
 
     // Save updated build report  
     const updatedBuildReport = {

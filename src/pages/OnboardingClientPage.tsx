@@ -50,15 +50,37 @@ export default function OnboardingClientPage() {
       setLoading(true);
       setError(null);
       
-      // Load client data and cards in parallel
-      const [clientCards, clients] = await Promise.all([
+      // Load client data from multiple sources
+      const [clientCards, dataSourceClients] = await Promise.all([
         onboardingCardOperations.getByClient(resolvedClientId),
         dataSource.getClients()
       ]);
       
-      const foundClient = clients.find(c => c.id === resolvedClientId);
+      let foundClient = dataSourceClients.find(c => c.id === resolvedClientId);
+      
+      // If not found in dataSource, try local storage (IndexedDB)
+      if (!foundClient) {
+        const { ClientsStore } = await import('@/shared/db/clientsStore');
+        foundClient = await ClientsStore.getClient(resolvedClientId);
+        
+        // If found locally, try to sync with dataSource
+        if (foundClient && dataSource.addClient) {
+          try {
+            await dataSource.addClient(foundClient);
+          } catch (error) {
+            console.warn('Could not sync client to dataSource:', error);
+          }
+        }
+      }
       
       if (!foundClient) {
+        // Try to recover from diagnostic data as last resort
+        const { ClientsStore } = await import('@/shared/db/clientsStore');
+        const diagnostic = ClientsStore.getDiagnostic('onboardingPreCreate:last');
+        if (diagnostic?.clientId === resolvedClientId) {
+          console.warn('Client not found but diagnostic exists, showing error with recovery option');
+        }
+        
         setError(`Cliente com ID "${resolvedClientId}" não encontrado`);
         setClient(null);
         setCards([]);
@@ -66,7 +88,26 @@ export default function OnboardingClientPage() {
         setCards(clientCards);
         setClient(foundClient);
         setError(null);
+        
+        // Boot initial board if first access
+        const isFirstAccess = searchParams.get('first') === 'true';
+        if (isFirstAccess && clientCards.length === 0) {
+          await bootInitialBoard(resolvedClientId, foundClient);
+          // Reload cards after creating initial board
+          const updatedCards = await onboardingCardOperations.getByClient(resolvedClientId);
+          setCards(updatedCards);
+        }
       }
+      
+      // Save diagnostic
+      const { ClientsStore } = await import('@/shared/db/clientsStore');
+      await ClientsStore.saveDiagnostic('onboardingAccess:last', {
+        clientId: resolvedClientId,
+        found: !!foundClient,
+        cardsCount: clientCards.length,
+        source: foundClient ? (dataSourceClients.find(c => c.id === resolvedClientId) ? 'dataSource' : 'localStorage') : null
+      });
+      
     } catch (error) {
       console.error('Error loading data:', error);
       setError('Erro ao carregar dados do onboarding');
@@ -77,6 +118,26 @@ export default function OnboardingClientPage() {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const bootInitialBoard = async (clientId: string, client: Client) => {
+    try {
+      // Create initial onboarding card
+      await onboardingCardOperations.create({
+        title: "Bem-vindo ao Onboarding",
+        clientId: clientId,
+        responsavel: client.owner,
+        vencimento: '',
+        checklist: [],
+        notas: "Card inicial criado automaticamente no primeiro acesso",
+        stage: 'dados-gerais',
+        position: 1
+      });
+      
+      console.info('Initial onboarding board created for client:', clientId);
+    } catch (error) {
+      console.error('Error creating initial board:', error);
     }
   };
 

@@ -17,44 +17,77 @@ export function ConvertLeadButton({ lead, onConversion }: ConvertLeadButtonProps
   const { dataSource } = useDataSource();
 
   const handleConvertLead = async (client: Client) => {
+    let clientId: string | null = null;
+    let saved = false;
+    
     try {
-      // Add client
-      if (dataSource.addClient) {
-        await dataSource.addClient(client);
-        
-        // Create onboarding automatically
-        const { onboardingCardOperations } = await import('@/shared/db/onboardingStore');
-        const { createCardFromTemplate, getTemplateByStage } = await import('@/shared/data/onboardingTemplates');
-        
-        // Create cards for all stages
-        const stages = ['dados-gerais', 'financeiro', 'implementacao', 'briefing', 'configuracao'];
-        for (const stage of stages) {
-          const template = getTemplateByStage(stage);
-          if (template) {
-            const card = createCardFromTemplate(template, client.id, client.name, client.owner);
-            await onboardingCardOperations.create(card);
-          }
+      clientId = client.id;
+      
+      // Salvar localmente primeiro (IndexedDB) 
+      const { ClientsStore } = await import('@/shared/db/clientsStore');
+      const localClient = { ...client, createdAt: new Date().toISOString() };
+      await ClientsStore.upsertClient(localClient);
+      saved = true;
+
+      // Tentar salvar no dataSource também
+      if (dataSource?.addClient) {
+        try {
+          await dataSource.addClient(client);
+        } catch (error) {
+          console.warn('Erro ao salvar no dataSource, mas cliente salvo localmente:', error);
         }
-        
-        // Update lead to mark as converted
-        await LeadsStore.updateLead(lead.id, { 
-          stage: 'Fechado',
-          client_id: client.id 
-        });
-        
-        setShowWizard(false);
-        onConversion?.();
-        
-        toast({
-          title: "Lead convertido!",
-          description: `${lead.name} foi convertido em cliente com sucesso.`,
-        });
-        
-        // Redirect to client onboarding
-        window.location.href = `/cliente/${client.id}/onboarding`;
       }
+        
+      // Create onboarding automatically
+      const { onboardingCardOperations } = await import('@/shared/db/onboardingStore');
+      const { createCardFromTemplate, getTemplateByStage } = await import('@/shared/data/onboardingTemplates');
+      
+      // Create cards for all stages
+      const stages = ['dados-gerais', 'financeiro', 'implementacao', 'briefing', 'configuracao'];
+      for (const stage of stages) {
+        const template = getTemplateByStage(stage);
+        if (template) {
+          const card = createCardFromTemplate(template, client.id, client.name, client.owner);
+          await onboardingCardOperations.create(card);
+        }
+      }
+      
+      // Update lead to mark as converted - aguardar commit
+      await LeadsStore.updateLead(lead.id, { 
+        stage: 'Fechado',
+        client_id: client.id 
+      });
+
+      // Salvar diagnóstico
+      await ClientsStore.saveDiagnostic('onboardingPreCreate:last', {
+        clientId,
+        saved,
+        redirect: `/cliente/${clientId}/onboarding?first=true`
+      });
+      
+      setShowWizard(false);
+      onConversion?.();
+      
+      toast({
+        title: "Lead convertido!",
+        description: `${lead.name} foi convertido em cliente com sucesso.`,
+      });
+      
+      // Redirect só após tudo salvo
+      window.location.href = `/cliente/${client.id}/onboarding?first=true`;
     } catch (error) {
       console.error("Error converting lead:", error);
+      
+      // Salvar diagnóstico de erro
+      if (clientId) {
+        const { ClientsStore } = await import('@/shared/db/clientsStore');
+        await ClientsStore.saveDiagnostic('onboardingPreCreate:last', {
+          clientId,
+          saved,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+      
       toast({
         title: "Erro",
         description: "Falha ao converter lead em cliente",
