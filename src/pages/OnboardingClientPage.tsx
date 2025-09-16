@@ -2,17 +2,26 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { NewOnboardingKanban } from '@/components/onboarding/NewOnboardingKanban';
 import { NewClientFicha } from '@/components/client/NewClientFicha';
-import { ClientHeader } from '@/components/onboarding/ClientHeader';
+import { OnboardingClientHeader } from '@/components/onboarding/OnboardingClientHeader';
+import { ClientNotFound } from '@/components/onboarding/ClientNotFound';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { OnboardingCard, onboardingCardOperations } from '@/shared/db/onboardingStore';
 import { OnboardingCardModal } from '@/components/onboarding/OnboardingCardModal';
 import { useDataSource } from '@/hooks/useDataSource';
 import { Client } from '@/types';
 import { toast } from '@/hooks/use-toast';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function OnboardingClientPage() {
-  const { clientId: routeClientId } = useParams<{ clientId: string }>();
-  const resolvedClientId = routeClientId && routeClientId !== 'undefined' && routeClientId !== 'null' ? routeClientId : undefined;
+  const params = useParams<{ clientId?: string; id?: string }>();
+  const routeClientId = params.clientId || params.id;
+  const resolvedClientId = routeClientId && 
+    routeClientId !== 'undefined' && 
+    routeClientId !== 'null' && 
+    routeClientId.trim() !== '' ? routeClientId : undefined;
+
+  // Diagnostic logging
+  console.info('onboarding: clientId via rota =', resolvedClientId);
   const { dataSource } = useDataSource();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') || 'kanban';
@@ -21,12 +30,16 @@ export default function OnboardingClientPage() {
   const [cards, setCards] = useState<OnboardingCard[]>([]);
   const [client, setClient] = useState<Client | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [showCardModal, setShowCardModal] = useState(false);
   const [editingCard, setEditingCard] = useState<OnboardingCard | null>(null);
 
   useEffect(() => {
     if (resolvedClientId) {
       loadData();
+    } else {
+      setLoading(false);
+      setError('ID do cliente não encontrado na URL');
     }
   }, [resolvedClientId]);
 
@@ -35,6 +48,7 @@ export default function OnboardingClientPage() {
     
     try {
       setLoading(true);
+      setError(null);
       
       // Load client data and cards in parallel
       const [clientCards, clients] = await Promise.all([
@@ -44,10 +58,18 @@ export default function OnboardingClientPage() {
       
       const foundClient = clients.find(c => c.id === resolvedClientId);
       
-      setCards(clientCards);
-      setClient(foundClient || null);
+      if (!foundClient) {
+        setError(`Cliente com ID "${resolvedClientId}" não encontrado`);
+        setClient(null);
+        setCards([]);
+      } else {
+        setCards(clientCards);
+        setClient(foundClient);
+        setError(null);
+      }
     } catch (error) {
       console.error('Error loading data:', error);
+      setError('Erro ao carregar dados do onboarding');
       toast({
         title: "Erro",
         description: "Não foi possível carregar os dados do onboarding.",
@@ -119,16 +141,36 @@ export default function OnboardingClientPage() {
   };
   
   if (loading) {
-    return <div className="p-6">Carregando...</div>;
+    return (
+      <div className="h-full">
+        <div className="border-b bg-card">
+          <div className="flex items-center gap-4 p-6">
+            <Skeleton className="h-8 w-24" />
+            <Skeleton className="h-10 w-10 rounded-full" />
+            <div className="space-y-2">
+              <Skeleton className="h-6 w-48" />
+              <Skeleton className="h-4 w-32" />
+            </div>
+          </div>
+        </div>
+        <div className="p-6">
+          <Skeleton className="h-32 w-full" />
+        </div>
+      </div>
+    );
   }
 
-  if (!resolvedClientId) {
-    return <div className="p-6 text-destructive">Cliente não identificado. Abra o Onboarding a partir de um cliente válido em Clientes.</div>;
+  if (!resolvedClientId || error) {
+    return <ClientNotFound clientId={resolvedClientId || 'desconhecido'} />;
+  }
+
+  if (!client) {
+    return <ClientNotFound clientId={resolvedClientId} />;
   }
 
   return (
-    <div className="h-full">
-      {client && <ClientHeader client={client} />}
+    <div className="h-full" key={resolvedClientId}>
+      <OnboardingClientHeader client={client} />
       
       <Tabs value={activeTab} onValueChange={handleTabChange} className="h-full">
         <div className="border-b">

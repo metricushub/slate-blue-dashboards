@@ -1,20 +1,20 @@
-// Relatório de Execução - Cards Fix Onboarding  
+// Relatório de Execução - Onboarding Client Routing Fix  
 const buildReport = {
   "changes": [
-    {"file": "shared/db/onboardingStore", "summary": "Adicionado campo 'completed' na interface OnboardingCard para controle visual de conclusão"},
-    {"file": "onboarding/NewOnboardingKanban", "summary": "Check não move cards; apenas toggle completed com visual line-through; persistência imediata no drag & drop"},
-    {"file": "onboarding/ClientHeader", "summary": "Novo componente para exibir logo/iniciais + nome do cliente no topo"},
-    {"file": "pages/OnboardingClientPage", "summary": "Carregamento de dados do cliente e integração com ClientHeader"}
+    {"file": "pages/OnboardingClientPage", "summary": "aceita id|clientId via rota; header com logo/nome/voltar; sem seletor; key={clientId}"},
+    {"file": "components/onboarding/OnboardingClientHeader", "summary": "logo + nome do cliente + link voltar ao hub"},
+    {"file": "components/onboarding/ClientNotFound", "summary": "fallback para cliente não encontrado com botão ao hub"}
   ],
-  "impacted_routes": ["/cliente/:id/onboarding"],
+  "impacted_routes": ["/cliente/:id/onboarding", "/onboarding"],
   "acceptance": {
-    "check_no_move_ok": true,
-    "dnd_persist_visible_ok": true, 
-    "client_header_ok": true,
-    "no_changes_outside_onboarding": true
+    "loads_from_client_sidebar": true,
+    "loads_from_hub": true,
+    "no_infinite_loading": true,
+    "client_header_with_back_link": true,
+    "no_selector_in_client_mode": true
   },
-  "notes": "Sem alterações fora do onboarding; manter dados e estilos existentes. Campo 'completed' adicionado para controle visual sem mover entre stages.",
-  "timestamp": "2025-09-15T10:00:00Z"
+  "notes": "Rota cliente aceita id|clientId; diagnóstico logado; header sempre visível; nunca mostra seletor.",
+  "timestamp": "2025-09-16T15:00:00Z"
 };
 
 // Save to localStorage
