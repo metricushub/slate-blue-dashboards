@@ -39,8 +39,6 @@ export function ClientPreCadastroModal({
   leadData 
 }: ClientPreCadastroModalProps) {
   const [loading, setLoading] = useState(false);
-  const [showFormSendModal, setShowFormSendModal] = useState(false);
-  const [savedClient, setSavedClient] = useState<Client | null>(null);
   const { dataSource } = useDataSource();
   
   const [formData, setFormData] = useState<FormData>({
@@ -167,17 +165,9 @@ export function ClientPreCadastroModal({
 
       // Onboarding será criado somente quando marcar como enviado no próximo passo.
 
-      // Store client data for the form send modal
-      setSavedClient(client);
-      
-      // Close pre-cadastro modal and open form send modal
-      onOpenChange(false);
+      // Close modal and trigger parent to open FormSendModal
       await onSave(client);
-      
-      // Open form send modal after a short delay
-      setTimeout(() => {
-        setShowFormSendModal(true);
-      }, 300);
+      onOpenChange(false);
     } catch (error) {
       console.error('Error saving client:', error);
       toast({
@@ -320,15 +310,6 @@ export function ClientPreCadastroModal({
         </DialogContent>
       </Dialog>
 
-      {/* Form Send Modal */}
-      {savedClient && (
-        <FormSendModal
-          open={showFormSendModal}
-          onOpenChange={setShowFormSendModal}
-          client={savedClient}
-          formLink={generateFormLink()}
-        />
-      )}
     </>
   );
 }

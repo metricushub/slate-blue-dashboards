@@ -24,6 +24,7 @@ import { NewLeadModal } from '@/components/leads/NewLeadModal';
 import { LeadDrawer } from '@/components/leads/LeadDrawer';
 import { LeadFilters } from '@/components/leads/LeadFilters';
 import { ClientPreCadastroModal } from '@/components/modals/ClientPreCadastroModal';
+import { FormSendModal } from '@/components/modals/FormSendModal';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -39,7 +40,9 @@ export default function LeadsPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [showPreCadastroModal, setShowPreCadastroModal] = useState(false);
+  const [showFormSendModal, setShowFormSendModal] = useState(false);
   const [leadToConvert, setLeadToConvert] = useState<Lead | null>(null);
+  const [clientForFormSend, setClientForFormSend] = useState<Client | null>(null);
   const [filters, setFilters] = useState({
     stages: [] as string[],
     owner: '',
@@ -319,7 +322,12 @@ export default function LeadsPage() {
       ));
 
       setShowPreCadastroModal(false);
-      setLeadToConvert(null);
+      
+      // Prepare FormSendModal
+      setClientForFormSend(client);
+      setTimeout(() => {
+        setShowFormSendModal(true);
+      }, 300);
 
       toast({
         title: "Pré-cadastro salvo",
@@ -513,6 +521,16 @@ export default function LeadsPage() {
           onOpenChange={setShowPreCadastroModal}
           onSave={handleClientCreated}
           leadData={leadToConvert}
+        />
+      )}
+
+      {/* Modal de Envio do Formulário */}
+      {clientForFormSend && (
+        <FormSendModal
+          open={showFormSendModal}
+          onOpenChange={setShowFormSendModal}
+          client={clientForFormSend}
+          formLink=""
         />
       )}
     </div>

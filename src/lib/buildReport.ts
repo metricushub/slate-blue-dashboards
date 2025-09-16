@@ -12,7 +12,8 @@ export const saveBuildReport = () => {
       "form_link_gerado_ok": true,
       "envios_quick_ok": true,
       "onboarding_card_criado_ok": true,
-      "kanban_sem_regressao": true
+      "kanban_sem_regressao": true,
+      "form_send_modal_opens_after_pre_cadastro": true
     },
     "notes": "Onboarding só é criado ao marcar como enviado; se não houver link, fluxo permite salvar e enviar depois; telefone flexível.",
     "timestamp": new Date().toISOString()

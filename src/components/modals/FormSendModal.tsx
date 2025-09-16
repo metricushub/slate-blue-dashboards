@@ -28,6 +28,8 @@ export function FormSendModal({
   client,
   formLink
 }: FormSendModalProps) {
+  console.log('FormSendModal render:', { open, client: !!client, formLink });
+  
   const [formLinkValue, setFormLinkValue] = useState(formLink);
   const [editingWhatsApp, setEditingWhatsApp] = useState(false);
   const [editingEmail, setEditingEmail] = useState(false);
