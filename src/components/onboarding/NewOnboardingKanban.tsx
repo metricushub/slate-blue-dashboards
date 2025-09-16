@@ -712,7 +712,7 @@ export function NewOnboardingKanban({
           </div>
 
           <div 
-            className="flex gap-4 overflow-x-auto overscroll-x-contain pb-4 flex-1 pr-6 bg-muted min-h-0" 
+            className="flex gap-4 overflow-x-auto overscroll-x-contain pb-4 flex-1 pr-6 bg-muted min-h-0 min-w-full" 
             style={{ scrollbarWidth: 'thin' }}
             ref={(el) => {
               setBoardScrollRef(el);

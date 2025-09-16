@@ -12,6 +12,7 @@ interface AppLayoutProps {
 export function AppLayout({ children }: AppLayoutProps) {
   const location = useLocation();
   const isClientRoute = location.pathname.startsWith('/cliente/');
+  const isOnboardingRoute = location.pathname.includes('/onboarding');
   const { state } = useSidebar();
   const isMobile = useIsMobile();
   const collapsed = state === "collapsed";
@@ -34,7 +35,7 @@ export function AppLayout({ children }: AppLayoutProps) {
 
       <div className="flex flex-1">
         {isClientRoute ? <SidebarCliente /> : <SidebarGlobal />}
-        <main className={`flex-1 overflow-hidden px-6 py-3 transition-all duration-300 ${getContentPadding()}`}>
+        <main className={`flex-1 overflow-hidden px-6 py-3 transition-all duration-300 ${getContentPadding()} ${isOnboardingRoute ? 'bg-muted' : ''}`}>
           <div className="w-full">
             {children}
           </div>
