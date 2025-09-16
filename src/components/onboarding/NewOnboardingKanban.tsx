@@ -673,7 +673,7 @@ export function NewOnboardingKanban({
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        <div className="h-full flex flex-col bg-muted">
+        <div className="h-full flex flex-col">
           <div className="flex justify-between items-center mb-6">
             <div>
               <h1 className="text-2xl font-bold">Onboarding do Cliente</h1>
