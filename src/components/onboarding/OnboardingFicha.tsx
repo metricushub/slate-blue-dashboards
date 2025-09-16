@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { FileText, ExternalLink, Download, Users, Building2, Target, Settings, Briefcase } from 'lucide-react';
+import { CsvUploader } from './CsvUploader';
 import { 
   onboardingFichaOperations, 
   onboardingCardOperations, 
@@ -102,6 +103,52 @@ export function OnboardingFicha({ clientId, focusSection }: OnboardingFichaProps
         variant: 'destructive',
       });
     }
+  };
+
+  const handleCsvImport = async (mappedData: Record<string, any>) => {
+    if (!ficha) return;
+
+    try {
+      // Update all sections with imported data
+      for (const [sectionId, sectionData] of Object.entries(mappedData)) {
+        if (sectionData && Object.keys(sectionData).length > 0) {
+          await onboardingFichaOperations.updateSection(ficha.id, sectionId, {
+            ...ficha[sectionId],
+            ...sectionData
+          });
+        }
+      }
+
+      // Refresh ficha data
+      await loadData();
+      
+      toast({
+        title: 'Dados Importados',
+        description: 'Dados do CSV foram importados com sucesso',
+      });
+    } catch (error) {
+      toast({
+        title: 'Erro',
+        description: 'Erro ao importar dados do CSV',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const getTargetFields = () => {
+    return [
+      { key: 'dados-gerais.razaoSocial', label: 'Razão Social', section: 'Dados Gerais' },
+      { key: 'dados-gerais.cnpj', label: 'CNPJ', section: 'Dados Gerais' },
+      { key: 'dados-gerais.contatoComercial', label: 'Contato Comercial', section: 'Dados Gerais' },
+      { key: 'dados-gerais.contatoTecnico', label: 'Contato Técnico', section: 'Dados Gerais' },
+      { key: 'financeiro.dadosBancarios', label: 'Dados Bancários', section: 'Financeiro' },
+      { key: 'financeiro.cicloCobranca', label: 'Ciclo de Cobrança', section: 'Financeiro' },
+      { key: 'financeiro.limiteInvestimento', label: 'Limite de Investimento', section: 'Financeiro' },
+      { key: 'briefing.responsavel', label: 'Responsável', section: 'Briefing' },
+      { key: 'briefing.observacoes', label: 'Observações', section: 'Briefing' },
+      { key: 'implementacao.responsavel', label: 'Responsável', section: 'Implementação' },
+      { key: 'configuracao.responsavel', label: 'Responsável', section: 'Configuração' },
+    ];
   };
 
   const addAttachment = async () => {
@@ -339,10 +386,21 @@ export function OnboardingFicha({ clientId, focusSection }: OnboardingFichaProps
                   )}
                 </CardHeader>
                 
-                <CardContent>
-                  {renderSectionFields(stage.id, sectionData)}
-                  
-                  {/* Sub-stage for Financeiro */}
+                 <CardContent>
+                   {/* CSV Uploader for Briefing section */}
+                   {stage.id === 'briefing' && (
+                     <div className="mb-6">
+                       <CsvUploader
+                         onDataImport={handleCsvImport}
+                         targetFields={getTargetFields()}
+                         clientId={clientId}
+                       />
+                     </div>
+                   )}
+                   
+                   {renderSectionFields(stage.id, sectionData)}
+                   
+                   {/* Sub-stage for Financeiro */}
                   {stage.id === 'financeiro' && (
                     <Card className="mt-4">
                       <CardHeader>
