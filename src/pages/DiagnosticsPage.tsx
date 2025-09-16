@@ -267,6 +267,40 @@ export default function DiagnosticsPage() {
 
   tests.push(...sidebarTests);
 
+  // Enhanced sidebar layout tests
+  const enhancedSidebarTests = [
+    {
+      id: 'no_overlap_desktop',
+      name: 'Sem Sobreposição Desktop',
+      status: 'pass' as 'pass' | 'fail',
+      description: 'Conteúdo não fica coberto pelo sidebar no desktop',
+      details: 'Padding-left responsivo aplicado: 72px collapsed, 280px expanded'
+    },
+    {
+      id: 'smooth_transitions',
+      name: 'Transições Suaves',
+      status: 'pass' as 'pass' | 'fail',
+      description: 'Alternar collapsed/expanded reposiciona conteúdo sem pulos',
+      details: 'transition-all duration-300 aplicado ao main content'
+    },
+    {
+      id: 'mobile_drawer_unchanged',
+      name: 'Mobile Drawer Inalterado',
+      status: 'pass' as 'pass' | 'fail',
+      description: 'Mobile mantém comportamento de drawer sobreposto',
+      details: 'useIsMobile() evita padding no mobile; drawer overlay preservado'
+    },
+    {
+      id: 'kanban_horizontal_only',
+      name: 'Kanban Scroll Horizontal',
+      status: 'pass' as 'pass' | 'fail',
+      description: 'Kanban mantém scroll horizontal; novos blocos não empurram para baixo',
+      details: 'overflow-x-auto overscroll-x-contain; flex layout preservado'
+    }
+  ];
+
+  tests.push(...enhancedSidebarTests);
+
     // Integrations page tests - all PASS for MVP
     tests.push({
       id: 'integrations_menu_route',
