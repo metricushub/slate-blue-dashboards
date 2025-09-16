@@ -105,6 +105,18 @@ export function TemplateApplicator({ open, onOpenChange, clientId, onApplied }: 
       });
 
       onApplied?.();
+      
+      // Scroll to rightmost column after applying template
+      setTimeout(() => {
+        const container = document.getElementById('kanban-container');
+        if (container) {
+          container.scrollTo({
+            left: container.scrollWidth - container.clientWidth,
+            behavior: 'smooth'
+          });
+        }
+      }, 200);
+      
       onOpenChange(false);
     } catch (error) {
       console.error('Error applying template:', error);

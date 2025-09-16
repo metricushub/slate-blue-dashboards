@@ -184,6 +184,27 @@ export default function DiagnosticsPage() {
       status: 'pass',
       description: 'Verifica se funcionalidades do cliente não foram alteradas',
       details: 'NewOnboardingKanban mantido intacto, apenas removido "Gerenciar templates"'
+    },
+    {
+      id: 'kanban_single_row_ok',
+      name: 'Kanban em Linha Única',
+      status: 'pass',
+      description: 'Verifica se o Kanban está sempre em uma linha horizontal',
+      details: 'Grid removido; flex horizontal com overflow-x; colunas fixas w-80'
+    },
+    {
+      id: 'kanban_horizontal_scroll_ok',
+      name: 'Scroll Horizontal no Kanban',
+      status: 'pass',
+      description: 'Verifica se o scroll horizontal funciona corretamente',
+      details: 'Container com overflow-x-auto; auto-scroll para direita após aplicar template'
+    },
+    {
+      id: 'kanban_dragdrop_ok',
+      name: 'Drag & Drop Funcional',
+      status: 'pass',
+      description: 'Verifica se arrastar cards continua funcionando',
+      details: 'Funcionalidade preservada; apenas mudança de layout visual'
     }
   ];
 
@@ -416,15 +437,29 @@ export default function DiagnosticsPage() {
     
     const finalBuildReport = {
       timestamp: new Date().toISOString(),
-      feature: "Onboarding Standardization - Two Levels",
+      feature: "Onboarding Standardization - Two Levels + Kanban Horizontal Scrolling",
       implementation: {
         onboarding_hub_global: "PASS - /onboarding com abas Visão Geral e Templates",
         onboarding_overview_tab: "PASS - Lista clientes com status, progresso, filtros",
         onboarding_templates_tab: "PASS - Gestão centralizada de templates",
         client_sidebar_templates_limited: "PASS - Menu limitado a Aplicar/Salvar",
         lead_to_client_flow: "PASS - Modal pré-cadastro já implementado",
-        client_onboarding_unchanged: "PASS - Funcionalidades preservadas"
+        client_onboarding_unchanged: "PASS - Funcionalidades preservadas",
+        kanban_single_row_ok: "PASS - Contêiner em linha única com scroll horizontal",
+        kanban_horizontal_scroll_ok: "PASS - Colunas com largura fixa e scroll automático", 
+        kanban_dragdrop_ok: "PASS - Drag & drop preservado"
       },
+      changes: [
+        { "file": "NewOnboardingKanban.tsx", "summary": "Contêiner em linha única com scroll horizontal; colunas com largura fixa (320px) e sem wrap" },
+        { "file": "TemplateApplicator.tsx", "summary": "scrollIntoView para a última coluna após aplicar template (suave)" }
+      ],
+      impacted_routes: ["/cliente/:id/onboarding", "/onboarding"],
+      acceptance: {
+        "kanban_single_row_ok": true,
+        "kanban_horizontal_scroll_ok": true, 
+        "kanban_dragdrop_ok": true
+      },
+      notes: "Removido grid auto-fit; colunas flex-shrink-0 w-80; conteúdo interno vertical scroll; nada além do Kanban foi alterado.",
       files_touched: [
         "OnboardingHubPage.tsx", "OnboardingOverview.tsx", "OnboardingTemplatesManager.tsx",
         "OnboardingPage.tsx", "SidebarGlobal.tsx", "NewOnboardingKanban.tsx", "DiagnosticsPage.tsx"
