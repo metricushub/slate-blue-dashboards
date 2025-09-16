@@ -49,7 +49,7 @@ export function SidebarCliente() {
     { title: "Tarefas e Alertas", url: link("tarefas-alertas", "/clientes"), icon: BellDot },
     { title: "Chat IA e Configuração", url: link("chat", "/clientes"), icon: MessageSquare },
     { title: "Anotações", url: link("anotacoes", "/clientes"), icon: StickyNote },
-    { title: "Onboarding do Cliente", url: link("onboarding", "/onboarding"), icon: ClipboardCheck },
+    { title: "Cadastro e Onboarding do Cliente", url: link("onboarding", "/onboarding"), icon: ClipboardCheck },
     { title: "Relatórios", url: link("relatorios", "/clientes"), icon: FileBarChart },
     { title: "Analytics", url: link("analytics", "/clientes"), icon: LineChart },
     { title: "Objetivos e Metas de KPI", url: link("objetivos", "/clientes"), icon: Target },
