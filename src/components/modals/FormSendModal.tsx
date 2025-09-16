@@ -20,13 +20,15 @@ interface FormSendModalProps {
   onOpenChange: (open: boolean) => void;
   client: Client;
   formLink: string;
+  onFormSent?: (client: Client) => void;
 }
 
 export function FormSendModal({ 
   open, 
   onOpenChange, 
   client,
-  formLink
+  formLink,
+  onFormSent
 }: FormSendModalProps) {
   console.log('FormSendModal render:', { open, client: !!client, formLink });
   
@@ -324,9 +326,14 @@ Obrigado!`;
                   await OnboardingService.ensureBoardAndFormCard(client.id, client.name, client.owner);
                   toast({
                     title: "Formulário registrado!",
-                    description: "O envio do formulário foi registrado no onboarding do cliente.",
+                    description: "O envio do formulário foi registrado. Abrindo onboarding...",
                   });
                   onOpenChange(false);
+                  
+                  // Notify parent that form was sent
+                  if (onFormSent) {
+                    onFormSent(client);
+                  }
                 } catch (error) {
                   toast({
                     title: "Erro",

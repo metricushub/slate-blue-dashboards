@@ -27,6 +27,7 @@ import { ClientPreCadastroModal } from '@/components/modals/ClientPreCadastroMod
 import { FormSendModal } from '@/components/modals/FormSendModal';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useNavigate } from 'react-router-dom';
 
 const LEAD_STAGES: LeadStage[] = ["Novo", "Qualificação", "Proposta", "Fechado"];
 
@@ -52,6 +53,7 @@ export default function LeadsPage() {
 
   const { toast } = useToast();
   const { dataSource } = useDataSource();
+  const navigate = useNavigate();
   const sensors = useSensors(useSensor(PointerSensor));
 
   // Carregar leads ao montar
@@ -348,6 +350,11 @@ export default function LeadsPage() {
     setShowPreCadastroModal(true);
   };
 
+  const handleFormSent = (client: Client) => {
+    // Navigate to onboarding page for the client
+    navigate(`/onboarding/${client.id}`);
+  };
+
   const handleResetFilters = () => {
     setFilters({ stages: [], owner: '', dateFrom: '', dateTo: '' });
     setSearchQuery('');
@@ -531,6 +538,7 @@ export default function LeadsPage() {
           onOpenChange={setShowFormSendModal}
           client={clientForFormSend}
           formLink=""
+          onFormSent={handleFormSent}
         />
       )}
     </div>
