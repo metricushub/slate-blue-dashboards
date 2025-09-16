@@ -28,6 +28,8 @@ import {
 import { toast } from '@/hooks/use-toast';
 import { LeadIntegration } from '@/components/whatsapp/LeadIntegration';
 import { LeadSyncBanner } from '@/components/whatsapp/LeadSyncBanner';
+import { LeadsStore } from '@/shared/db/leadsStore';
+import { LeadStage } from '@/types';
 
 interface WhatsAppContact {
   id: string;
@@ -181,14 +183,69 @@ export default function WhatsAppPage() {
     });
   };
 
-  const handleConnectWhatsApp = () => {
+  const handleConnectWhatsApp = async () => {
     setIsConnected(true);
-    toast({
-      title: "WhatsApp Conectado",
-      description: "Conexão estabelecida com sucesso! Leads serão sincronizados automaticamente.",
-    });
-  };
 
+    const mapStageToCRM = (stage?: string): LeadStage => {
+      switch (stage) {
+        case 'Interessado':
+          return 'Novo';
+        case 'Qualificado':
+          return 'Qualificação';
+        case 'Negociação':
+          return 'Proposta';
+        case 'Objeção':
+          return 'Qualificação';
+        case 'Fechado':
+          return 'Fechado';
+        default:
+          return 'Novo';
+      }
+    };
+
+    try {
+      const existing = await LeadsStore.getAllLeads();
+      const byPhone = new Set((existing || []).map(l => l.phone));
+      let created = 0;
+
+      for (const c of contacts) {
+        if (!byPhone.has(c.phone)) {
+          const payload = {
+            name: c.name,
+            phone: c.phone,
+            utm_source: 'WhatsApp',
+            owner: 'WhatsApp',
+            stage: mapStageToCRM(c.leadStage),
+            notes: c.lastMessage,
+            temperature: c.leadTemperature,
+            leadScore: c.leadScore,
+            firstContactDate: new Date().toISOString(),
+          } as any;
+
+          const newLead = await LeadsStore.createLead(payload);
+          try {
+            localStorage.setItem(`waLead:${c.id}`, newLead.id);
+            if (c.phone) localStorage.setItem(`waLeadByPhone:${c.phone}`, newLead.id);
+          } catch {}
+          created++;
+        }
+      }
+
+      setShowSyncBanner(true);
+      toast({
+        title: 'WhatsApp Conectado',
+        description: created > 0
+          ? `${created} lead(s) sincronizados com o Kanban.`
+          : 'Conexão estabelecida. Nenhum novo lead para sincronizar.',
+      });
+    } catch (error) {
+      toast({
+        title: 'WhatsApp Conectado',
+        description: 'Falha ao sincronizar automaticamente. Você ainda pode criar leads pelo painel.',
+        variant: 'destructive',
+      });
+    }
+  };
   const handleLeadCreated = (leadId: string) => {
     toast({
       title: "Lead criado e sincronizado",

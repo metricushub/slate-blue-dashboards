@@ -22,6 +22,8 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { LeadsStore } from '@/shared/db/leadsStore';
+import { LeadStage } from '@/types';
 
 interface WhatsAppContact {
   id: string;
@@ -77,32 +79,69 @@ export function LeadIntegration({ contact, onLeadCreated, onLeadUpdated }: LeadI
 
   const handleCreateLead = async () => {
     setIsCreatingLead(true);
-    
-    // Simular criação do lead
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    const newLeadId = `lead-${Date.now()}`;
-    
-    toast({
-      title: "Lead criado com sucesso!",
-      description: `${leadData.name} foi adicionado ao CRM Kanban`,
-    });
+    try {
+      const payload = {
+        name: leadData.name.trim(),
+        email: leadData.email || undefined,
+        phone: leadData.phone,
+        utm_source: leadData.source,
+        value: leadData.value ? Number(leadData.value) : undefined,
+        owner: 'WhatsApp',
+        stage: mapStageToCRM(leadData.stage),
+        notes: leadData.notes,
+        temperature: leadData.temperature,
+        leadScore: contact.leadScore,
+        firstContactDate: new Date().toISOString(),
+      } as const;
 
-    onLeadCreated?.(newLeadId);
-    setIsCreatingLead(false);
+      const newLead = await LeadsStore.createLead(payload as any);
+
+      // Guardar vínculo local entre contato do WhatsApp e lead do CRM (sem backend)
+      try {
+        localStorage.setItem(`waLead:${contact.id}`, newLead.id);
+        if (leadData.phone) localStorage.setItem(`waLeadByPhone:${leadData.phone}`, newLead.id);
+      } catch {}
+
+      toast({
+        title: 'Lead criado com sucesso!',
+        description: `${leadData.name} foi adicionado ao CRM Kanban`,
+      });
+
+      onLeadCreated?.(newLead.id);
+    } catch (err) {
+      toast({
+        title: 'Erro ao criar lead',
+        description: 'Tente novamente em instantes.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsCreatingLead(false);
+    }
   };
-
   const handleUpdateLeadStage = async (newStage: string) => {
-    const updates = { stage: newStage };
-    
-    toast({
-      title: "Lead atualizado",
-      description: `Estágio alterado para ${newStage}`,
-    });
+    const mappedStage = mapStageToCRM(newStage);
+    try {
+      const leadId =
+        localStorage.getItem(`waLead:${contact.id}`) ||
+        localStorage.getItem(`waLeadByPhone:${contact.phone}`);
 
-    onLeadUpdated?.(existingLead!.id, updates);
+      if (leadId) {
+        await LeadsStore.updateLead(leadId, { stage: mappedStage });
+        onLeadUpdated?.(leadId, { stage: mappedStage });
+      }
+
+      toast({
+        title: 'Lead atualizado',
+        description: `Estágio alterado para ${mappedStage}`,
+      });
+    } catch (err) {
+      toast({
+        title: 'Erro ao atualizar lead',
+        description: 'Não foi possível alterar o estágio.',
+        variant: 'destructive',
+      });
+    }
   };
-
   const getStageColor = (stage: string) => {
     switch (stage) {
       case 'Interessado': return 'bg-blue-100 text-blue-800';
@@ -120,6 +159,24 @@ export function LeadIntegration({ contact, onLeadCreated, onLeadUpdated }: LeadI
       case 'warm': return 'text-yellow-500'; 
       case 'cold': return 'text-blue-500';
       default: return 'text-gray-500';
+    }
+  };
+
+  // Mapeia os estágios do módulo WhatsApp para os estágios do Kanban do CRM
+  const mapStageToCRM = (stage: string): LeadStage => {
+    switch (stage) {
+      case 'Interessado':
+        return 'Novo';
+      case 'Qualificado':
+        return 'Qualificação';
+      case 'Negociação':
+        return 'Proposta';
+      case 'Objeção':
+        return 'Qualificação';
+      case 'Fechado':
+        return 'Fechado';
+      default:
+        return 'Novo';
     }
   };
 
