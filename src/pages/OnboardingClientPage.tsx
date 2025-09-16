@@ -12,10 +12,14 @@ import { useOnboardingClient } from '@/hooks/useOnboardingClient';
 import { toast } from '@/hooks/use-toast';
 
 export default function OnboardingClientPage() {
-  const { clientId: routeClientId } = useParams<{ clientId: string }>();
+  const params = useParams<{ clientId?: string; id?: string }>();
+  const routeClientId = params.clientId || params.id;
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') || 'kanban';
   const focusSection = searchParams.get('section');
+
+  // Log para diagnóstico
+  console.log(`onboarding: clientId=${routeClientId} (fonte: rota)`);
 
   // Use custom hook para gerenciar cliente
   const {
@@ -154,14 +158,14 @@ export default function OnboardingClientPage() {
     return <ErrorState error={error} onRetry={retryAll} isRetrying={isLoading} />;
   }
 
-  // Client selection state - só mostra seletor se não há routeClientId (hub global)
+  // Client selection state - NUNCA mostra seletor na rota do cliente
   if (!clientId || !ready) {
-    // Se estamos na rota do cliente mas clientId inválido, mostrar erro
-    if (routeClientId) {
+    // Se estamos na rota do cliente, sempre mostrar erro ou loading
+    if (routeClientId && routeClientId !== 'undefined' && routeClientId !== 'null') {
       return <ErrorState error="Cliente não encontrado" onRetry={retryAll} isRetrying={isLoading} />;
     }
-    // Se não há routeClientId (hub global), mostrar seletor
-    return <ClientSelector clients={clients} onClientSelect={handleClientSelect} isLoading={isLoading} />;
+    // Se routeClientId está undefined/null, mostrar erro genérico
+    return <ErrorState error="Parâmetro de cliente inválido" onRetry={retryAll} isRetrying={isLoading} />;
   }
 
   // Cards error state
