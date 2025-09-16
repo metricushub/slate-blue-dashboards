@@ -44,6 +44,20 @@ export function LeadCard({ lead, onClick, isDragging, onConverted }: LeadCardPro
     }
   };
 
+  const getStageAccent = (stage: string) => {
+    switch (stage) {
+      case 'Novo':
+        return 'border-l-blue-400';
+      case 'Qualificação':
+        return 'border-l-yellow-400';
+      case 'Proposta':
+        return 'border-l-orange-400';
+      case 'Fechado':
+        return 'border-l-green-500';
+      default:
+        return 'border-l-muted-foreground';
+    }
+  };
   const getUtmDisplay = () => {
     if (!lead.utm_source && !lead.utm_medium) return null;
     
@@ -78,7 +92,7 @@ export function LeadCard({ lead, onClick, isDragging, onConverted }: LeadCardPro
       style={style}
       {...attributes}
       {...listeners}
-      className={`cursor-pointer transition-all duration-200 hover:shadow-md ${
+      className={`cursor-pointer transition-all duration-200 hover:shadow-md bg-background border-l-4 ${getStageAccent(lead.stage)} ${
         isDragging || isSortableDragging ? 'opacity-50 shadow-lg scale-105' : ''
       }`}
       onClick={() => onClick(lead)}

@@ -484,18 +484,20 @@ export default function LeadsPage() {
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {LEAD_STAGES.map(stage => (
-            <LeadColumn
-              key={stage}
-              stage={stage}
-              leads={leadsByStage[stage]}
-              stats={stats.byStage[stage]}
-              onLeadClick={openLeadDrawer}
-              onNewLead={() => setShowNewLeadModal(true)}
-              onLeadConverted={handleLeadConverted}
-            />
-          ))}
+        <div className="rounded-lg bg-muted p-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {LEAD_STAGES.map(stage => (
+              <LeadColumn
+                key={stage}
+                stage={stage}
+                leads={leadsByStage[stage]}
+                stats={stats.byStage[stage]}
+                onLeadClick={openLeadDrawer}
+                onNewLead={() => setShowNewLeadModal(true)}
+                onLeadConverted={handleLeadConverted}
+              />
+            ))}
+          </div>
         </div>
 
         <DragOverlay>
