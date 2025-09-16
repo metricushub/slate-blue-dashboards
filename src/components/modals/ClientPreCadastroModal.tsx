@@ -150,15 +150,7 @@ export function ClientPreCadastroModal({
         }]
       };
 
-      // Store form metadata separately
-      const formMetadata = {
-        clientId: client.id,
-        formSentAt: new Date().toISOString(),
-        formLinkLast: generateFormLink(),
-        leadId: leadData?.id
-      };
-      
-      OnboardingService.storeFormMetadata(formMetadata);
+      // Não registramos envio aqui; será registrado ao marcar como enviado no próximo passo.
 
       // Save to local store
       const localClient = { ...client, created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
@@ -173,9 +165,8 @@ export function ClientPreCadastroModal({
         console.warn('Failed to save to data source:', error);
       }
 
-      // Create/update onboarding card
-      await OnboardingService.ensureBoardAndFormCard(client.id, client.name, client.owner);
-      
+      // Onboarding será criado somente quando marcar como enviado no próximo passo.
+
       // Store client data for the form send modal
       setSavedClient(client);
       
@@ -255,9 +246,9 @@ export function ClientPreCadastroModal({
                   value={formData.telefone}
                   onChange={handleInputChange}
                   required
-                  placeholder="Ex: (11) 99999-9999"
-                  pattern="(\([0-9]{2}\))?\s?[0-9]{4,5}-?[0-9]{4}"
-                  title="Formato: (11) 99999-9999"
+                  placeholder="Ex: +55 11 99999-9999"
+                  pattern="^(\\+?55\\s?)?(\\(?\\d{2}\\)?\\s?)?\\d{4,5}-?\\d{4}$"
+                  title="Aceita: +55 11 99999-9999, (11) 99999-9999 ou 11999999999"
                 />
               </div>
 

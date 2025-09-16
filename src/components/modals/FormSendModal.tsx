@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
 import { Copy, MessageCircle, Mail, Edit, Send } from 'lucide-react';
 import { Client } from '@/types';
+import { OnboardingService } from '@/lib/onboardingService';
 
 interface FormSendModalProps {
   open: boolean;
@@ -27,6 +28,7 @@ export function FormSendModal({
   client,
   formLink
 }: FormSendModalProps) {
+  const [formLinkValue, setFormLinkValue] = useState(formLink);
   const [editingWhatsApp, setEditingWhatsApp] = useState(false);
   const [editingEmail, setEditingEmail] = useState(false);
   
@@ -41,7 +43,7 @@ export function FormSendModal({
 
 Aqui está o formulário de onboarding da ${client.name} para alinharmos tudo e começar do jeito certo:
 
-${formLink}
+${formLinkValue}
 
 Qualquer dúvida, estou por aqui. Obrigado!`;
 
@@ -49,7 +51,7 @@ Qualquer dúvida, estou por aqui. Obrigado!`;
 
 Aqui está o formulário de onboarding da ${client.name} para alinharmos tudo e começar do jeito certo:
 
-${formLink}
+${formLinkValue}
 
 Qualquer dúvida, estou à disposição.
 
@@ -58,9 +60,17 @@ Obrigado!`;
   const [whatsappMessage, setWhatsappMessage] = useState(defaultWhatsAppMsg);
   const [emailMessage, setEmailMessage] = useState(defaultEmailMsg);
 
+  useEffect(() => {
+    if (!editingWhatsApp) {
+      setWhatsappMessage(`Olá ${contactName}! 🚀\n\nAqui está o formulário de onboarding da ${client.name} para alinharmos tudo e começar do jeito certo:\n\n${formLinkValue}\n\nQualquer dúvida, estou por aqui. Obrigado!`);
+    }
+    if (!editingEmail) {
+      setEmailMessage(`Olá ${contactName},\n\nAqui está o formulário de onboarding da ${client.name} para alinharmos tudo e começar do jeito certo:\n\n${formLinkValue}\n\nQualquer dúvida, estou à disposição.\n\nObrigado!`);
+    }
+  }, [formLinkValue, editingWhatsApp, editingEmail, contactName, client.name]);
   // Action handlers
   const handleCopyLink = async () => {
-    if (!formLink) {
+    if (!formLinkValue) {
       toast({
         title: "Erro",
         description: "Link do formulário não disponível",
@@ -70,7 +80,7 @@ Obrigado!`;
     }
 
     try {
-      await navigator.clipboard.writeText(formLink);
+      await navigator.clipboard.writeText(formLinkValue);
       toast({
         title: "Link copiado!",
         description: "O link do formulário foi copiado para a área de transferência",
@@ -154,8 +164,9 @@ Obrigado!`;
             <Label className="text-sm font-medium">Link do Formulário:</Label>
             <div className="flex gap-2">
               <Input 
-                value={formLink} 
-                readOnly 
+                value={formLinkValue}
+                onChange={(e) => setFormLinkValue(e.target.value)}
+                placeholder="Cole ou edite o link do formulário aqui"
                 className="font-mono text-xs"
               />
               <Button 
@@ -293,12 +304,34 @@ Obrigado!`;
             </Button>
             
             <Button 
-              onClick={() => {
-                toast({
-                  title: "Formulário registrado!",
-                  description: "O envio do formulário foi registrado no onboarding do cliente.",
-                });
-                onOpenChange(false);
+              onClick={async () => {
+                try {
+                  if (!formLinkValue) {
+                    toast({
+                      title: "Aviso",
+                      description: "Adicione o link do formulário antes de marcar como enviado.",
+                      variant: "destructive",
+                    });
+                    return;
+                  }
+                  OnboardingService.storeFormMetadata({
+                    clientId: client.id,
+                    formSentAt: new Date().toISOString(),
+                    formLinkLast: formLinkValue,
+                  });
+                  await OnboardingService.ensureBoardAndFormCard(client.id, client.name, client.owner);
+                  toast({
+                    title: "Formulário registrado!",
+                    description: "O envio do formulário foi registrado no onboarding do cliente.",
+                  });
+                  onOpenChange(false);
+                } catch (error) {
+                  toast({
+                    title: "Erro",
+                    description: "Não foi possível registrar o envio.",
+                    variant: "destructive",
+                  });
+                }
               }}
               className="flex-1"
             >

@@ -306,22 +306,7 @@ export default function LeadsPage() {
         await dataSource.addClient(client);
       }
 
-      // Create onboarding card automatically
-      const { onboardingCardOperations } = await import('@/shared/db/onboardingStore');
-      const initialCard = {
-        clientId: client.id,
-        clientName: client.name,
-        title: 'Formulário enviado',
-        stage: 'dados-gerais' as const,
-        responsavel: client.owner,
-        vencimento: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 7 days from now
-        checklist: ['Aguardando preenchimento do formulário'],
-        notas: 'Aguardando preenchimento do formulário',
-      };
-      
-      await onboardingCardOperations.create(initialCard);
-
-      // Update lead to mark as converted and move to Fechado
+      // Atualizar lead para marcar como fechado e vincular cliente
       await LeadsStore.updateLead(leadToConvert.id, { 
         stage: 'Fechado',
         client_id: client.id 
@@ -337,12 +322,9 @@ export default function LeadsPage() {
       setLeadToConvert(null);
 
       toast({
-        title: "Cliente criado!",
-        description: `${leadToConvert.name} foi convertido em cliente com sucesso.`,
+        title: "Pré-cadastro salvo",
+        description: "Agora envie o formulário pelo WhatsApp/E-mail.",
       });
-
-      // Redirect to client onboarding
-      window.location.href = `/cliente/${client.id}/onboarding?first=true`;
     } catch (error) {
       console.error("Error creating client:", error);
       toast({
