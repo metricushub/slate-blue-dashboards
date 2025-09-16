@@ -13,6 +13,7 @@ import {
   SortableContext,
   verticalListSortingStrategy,
   useSortable,
+  arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Button } from '@/components/ui/button';
@@ -423,6 +424,23 @@ export function NewOnboardingKanban({
     return cards.filter(card => card.stage === columnId);
   };
 
+  // Local ordering per column (only reorder within same column)
+  const [columnOrder, setColumnOrder] = useState<Record<string, string[]>>({});
+
+  useEffect(() => {
+    const next: Record<string, string[]> = {};
+    stages.forEach((stage) => {
+      const ids = getCardsForColumn(stage.id).map((c) => c.id);
+      const prev = columnOrder[stage.id] || [];
+      // Preserve existing order, append any new ids
+      const merged = [
+        ...prev.filter((id) => ids.includes(id)),
+        ...ids.filter((id) => !prev.includes(id)),
+      ];
+      next[stage.id] = merged;
+    });
+    setColumnOrder(next);
+  }, [cards, stages]);
   if (isLoadingStages) {
     return <div className="flex items-center justify-center p-8">Carregando...</div>;
   }
@@ -435,26 +453,37 @@ export function NewOnboardingKanban({
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
 
-    if (!over) {
-      setActiveCard(null);
+    setActiveCard(null);
+    if (!over) return;
+
+    const activeContainerId = (active.data?.current as any)?.sortable?.containerId as string | undefined;
+    const overContainerId = (over.data?.current as any)?.sortable?.containerId as string | undefined;
+
+    if (!activeContainerId) return;
+
+    // Bloquear mover entre colunas
+    if (overContainerId && overContainerId !== activeContainerId) {
       return;
     }
 
-    // Determine the destination column (stage) correctly
-    const targetContainerId = (over.data?.current as any)?.sortable?.containerId as string | undefined;
-    const overId = over.id as string;
-    const validStageIds = new Set(stages.map(s => s.id));
+    // Reordenar apenas dentro da mesma coluna
+    const stageId = activeContainerId;
+    const items = columnOrder[stageId] || getCardsForColumn(stageId).map((c) => c.id);
 
-    const newStageId = (targetContainerId && validStageIds.has(targetContainerId))
-      ? targetContainerId
-      : (validStageIds.has(overId) ? overId : undefined);
+    const activeIndex = items.indexOf(active.id as string);
+    let overIndex = items.indexOf(over.id as string);
 
-    if (newStageId) {
-      // Persist immediately so the card stays in the destination column
-      onCardMove(active.id as string, newStageId);
+    if (overIndex === -1) {
+      // Solto no container (não em um item) -> coloca no final
+      overIndex = items.length - 1;
     }
-    
-    setActiveCard(null);
+
+    if (activeIndex !== -1 && overIndex !== -1 && activeIndex !== overIndex) {
+      setColumnOrder((prev) => ({
+        ...prev,
+        [stageId]: arrayMove(items, activeIndex, overIndex),
+      }));
+    }
   };
 
   const handleCardClick = (card: OnboardingCard) => {
@@ -643,7 +672,7 @@ export function NewOnboardingKanban({
                   <CardContent className="flex-1 pt-0">
                     <SortableContext
                       id={stage.id}
-                      items={columnCards.map(c => c.id)}
+                      items={(columnOrder[stage.id] || columnCards.map(c => c.id))}
                       strategy={verticalListSortingStrategy}
                     >
                       <div className="space-y-2 min-h-20">
@@ -653,16 +682,20 @@ export function NewOnboardingKanban({
                             <p className="text-xs">Nenhum card</p>
                           </div>
                         ) : (
-                           columnCards.map(card => (
-                             <SortableOnboardingCard
-                               key={card.id}
-                               card={card}
-                               onClick={handleCardClick}
-                               onComplete={handleCompleteCard}
-                               onDelete={handleDeleteCardConfirm}
-                               draggable={true}
-                             />
-                           ))
+                           (columnOrder[stage.id] || columnCards.map(c => c.id)).map((id) => {
+                             const card = columnCards.find(c => c.id === id);
+                             if (!card) return null;
+                             return (
+                               <SortableOnboardingCard
+                                 key={card.id}
+                                 card={card}
+                                 onClick={handleCardClick}
+                                 onComplete={handleCompleteCard}
+                                 onDelete={handleDeleteCardConfirm}
+                                 draggable={true}
+                               />
+                             );
+                           })
                         )}
                        </div>
                        
