@@ -72,7 +72,7 @@ export function SidebarCliente() {
 
   return (
     <Sidebar 
-      className={`transition-all duration-300 ${collapsed ? "w-14" : "w-64"}`}
+      className={`transition-all duration-300 ${collapsed ? "w-14 lg:w-14" : "w-64 lg:w-64"} lg:fixed lg:inset-y-0 lg:left-0 lg:z-40`}
       collapsible="icon"
     >
       <SidebarHeader className="p-4">
