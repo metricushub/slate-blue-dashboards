@@ -30,8 +30,11 @@ export function useOnboardingClient({
   const [error, setError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
 
-  // Fonte única do clientId - prioriza routeClientId
-  const clientId = routeClientId && routeClientId !== 'undefined' && routeClientId !== 'null' 
+  // Fonte única do clientId - prioriza routeClientId, filtra valores inválidos
+  const clientId = routeClientId && 
+    routeClientId !== 'undefined' && 
+    routeClientId !== 'null' && 
+    routeClientId.trim() !== '' 
     ? routeClientId 
     : selectedClientId || null;
 

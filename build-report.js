@@ -1,20 +1,19 @@
-// Relatório de Execução - Onboarding Loading Fix
+// Relatório de Execução - Onboarding Client Route Fix
 const buildReport = {
   "changes": [
-    {"file": "hooks/useOnboardingClient", "summary": "Hook customizado com fonte única clientId; watchdog 10s; fallback selectedClientId; loaders finalizados"},
-    {"file": "onboarding/ClientSelector", "summary": "Componente seletor de cliente quando não há clientId válido"},
-    {"file": "onboarding/ErrorState", "summary": "Estado de erro unificado com botão Tentar novamente"},
-    {"file": "pages/OnboardingClientPage", "summary": "key={clientId} para re-montagem; prioriza params.clientId; estados ready/loading/error separados"}
+    {"file": "hooks/useOnboardingClient", "summary": "melhor detecção de clientId inválido; filtra 'undefined', 'null', strings vazias"},
+    {"file": "pages/OnboardingClientPage", "summary": "não mostra seletor quando routeClientId presente; erro específico para cliente não encontrado"},
+    {"file": "components/OnboardingHeader", "summary": "novo cabeçalho com logo + nome cliente + botão voltar ao hub"}
   ],
   "impacted_routes": ["/cliente/:id/onboarding", "/onboarding"],
   "acceptance": {
     "loads_from_client_sidebar": true,
-    "loads_from_hub": true, 
-    "no_infinite_loading": true,
-    "retry_on_error": true
+    "loads_from_hub": true,
+    "no_selector_when_client_route": true,
+    "shows_client_header": true
   },
-  "notes": "Implementado watchdog, fonte única de clientId, seletor de cliente e estados de erro com retry. key={clientId} força re-montagem limpa.",
-  "timestamp": "2025-09-16T12:30:00Z"
+  "notes": "Cliente sidebar agora abre direto sem seletor. Hub mantém seletor normal.",
+  "timestamp": "2025-09-16T12:35:00Z"
 };
 
 // Save to localStorage

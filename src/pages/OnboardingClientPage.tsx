@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { NewOnboardingKanban } from '@/components/onboarding/NewOnboardingKanban';
 import { NewClientFicha } from '@/components/client/NewClientFicha';
-import { ClientHeader } from '@/components/onboarding/ClientHeader';
+import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
 import { ClientSelector } from '@/components/onboarding/ClientSelector';
 import { ErrorState } from '@/components/onboarding/ErrorState';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -154,8 +154,13 @@ export default function OnboardingClientPage() {
     return <ErrorState error={error} onRetry={retryAll} isRetrying={isLoading} />;
   }
 
-  // Client selection state
+  // Client selection state - só mostra seletor se não há routeClientId (hub global)
   if (!clientId || !ready) {
+    // Se estamos na rota do cliente mas clientId inválido, mostrar erro
+    if (routeClientId) {
+      return <ErrorState error="Cliente não encontrado" onRetry={retryAll} isRetrying={isLoading} />;
+    }
+    // Se não há routeClientId (hub global), mostrar seletor
     return <ClientSelector clients={clients} onClientSelect={handleClientSelect} isLoading={isLoading} />;
   }
 
@@ -167,7 +172,7 @@ export default function OnboardingClientPage() {
   // Main content with key for clean remount
   return (
     <div className="h-full" key={clientId}>
-      {client && <ClientHeader client={client} />}
+      {client && <OnboardingHeader client={client} showBackButton={!!routeClientId} />}
       
       <Tabs value={activeTab} onValueChange={handleTabChange} className="h-full">
         <div className="border-b">
