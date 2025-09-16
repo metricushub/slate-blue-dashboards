@@ -38,9 +38,11 @@ export function ClientCard({ client }: ClientCardProps) {
     );
   };
 
-  const budgetUsage = (client.budgetSpentMonth / client.monthlyBudget) * 100;
+  const monthlyBudget = client.monthlyBudget || 0;
+  const budgetSpent = client.budgetSpentMonth || 0;
+  const budgetUsage = monthlyBudget > 0 ? (budgetSpent / monthlyBudget) * 100 : 0;
   const isLowBudget = budgetUsage > 80;
-  const budgetRemaining = client.monthlyBudget - client.budgetSpentMonth;
+  const budgetRemaining = monthlyBudget - budgetSpent;
 
   // Calculate health score based on goals vs actuals
   const calculateHealthScore = () => {
@@ -111,7 +113,7 @@ export function ClientCard({ client }: ClientCardProps) {
           <div className="flex justify-between items-center">
             <span className="text-sm text-muted-foreground">Budget mensal:</span>
             <span className="font-medium">
-              R$ {client.monthlyBudget.toLocaleString('pt-BR')}
+              R$ {(client.monthlyBudget || 0).toLocaleString('pt-BR')}
             </span>
           </div>
           
@@ -132,7 +134,7 @@ export function ClientCard({ client }: ClientCardProps) {
             {isLowBudget && (
               <div className="flex items-center gap-1 text-xs text-destructive">
                 <AlertTriangle className="h-3 w-3" />
-                R$ {budgetRemaining.toLocaleString('pt-BR')} restante
+                R$ {(budgetRemaining || 0).toLocaleString('pt-BR')} restante
               </div>
             )}
           </div>

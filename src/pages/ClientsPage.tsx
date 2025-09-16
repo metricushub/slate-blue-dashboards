@@ -96,7 +96,7 @@ const ClientsPage = () => {
 
   const totalInvestment = clients
     .filter(c => c.status === 'active')
-    .reduce((sum, client) => sum + client.monthlyBudget, 0);
+    .reduce((sum, client) => sum + (client.monthlyBudget || 0), 0);
 
   const uniqueOwners = [...new Set(clients.map(c => c.owner))];
   const uniqueStages = [...new Set(clients.map(c => c.stage))];
