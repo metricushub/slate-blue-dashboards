@@ -35,7 +35,7 @@ export function AppLayout({ children }: AppLayoutProps) {
 
       <div className="flex flex-1">
         {isClientRoute ? <SidebarCliente /> : <SidebarGlobal />}
-        <main className={`flex-1 overflow-hidden px-6 py-3 transition-all duration-300 ${getContentPadding()} ${isOnboardingRoute ? 'bg-muted' : ''}`}>
+        <main className={`flex-1 overflow-hidden px-6 py-3 transition-all duration-300 ${getContentPadding()} ${isOnboardingRoute ? 'bg-muted' : ''} min-h-[calc(100vh-56px)]`}>
           <div className="w-full">
             {children}
           </div>
