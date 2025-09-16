@@ -2,76 +2,59 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { NewOnboardingKanban } from '@/components/onboarding/NewOnboardingKanban';
 import { NewClientFicha } from '@/components/client/NewClientFicha';
-import { OnboardingHeader } from '@/components/onboarding/OnboardingHeader';
-import { ClientSelector } from '@/components/onboarding/ClientSelector';
-import { ErrorState } from '@/components/onboarding/ErrorState';
+import { ClientHeader } from '@/components/onboarding/ClientHeader';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { OnboardingCard, onboardingCardOperations } from '@/shared/db/onboardingStore';
 import { OnboardingCardModal } from '@/components/onboarding/OnboardingCardModal';
-import { useOnboardingClient } from '@/hooks/useOnboardingClient';
+import { useDataSource } from '@/hooks/useDataSource';
+import { Client } from '@/types';
 import { toast } from '@/hooks/use-toast';
 
 export default function OnboardingClientPage() {
-  const params = useParams<{ clientId?: string; id?: string }>();
-  const routeClientId = params.clientId || params.id;
+  const { clientId: routeClientId } = useParams<{ clientId: string }>();
+  const resolvedClientId = routeClientId && routeClientId !== 'undefined' && routeClientId !== 'null' ? routeClientId : undefined;
+  const { dataSource } = useDataSource();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') || 'kanban';
   const focusSection = searchParams.get('section');
 
-  // Log para diagnóstico
-  console.log(`onboarding: clientId=${routeClientId} (fonte: rota)`);
-
-  // Use custom hook para gerenciar cliente
-  const {
-    clientId,
-    client,
-    clients,
-    isLoading,
-    error,
-    ready,
-    setSelectedClient,
-    retry
-  } = useOnboardingClient({ routeClientId });
-
   const [cards, setCards] = useState<OnboardingCard[]>([]);
-  const [cardsLoading, setCardsLoading] = useState(false);
-  const [cardsError, setCardsError] = useState<string | null>(null);
+  const [client, setClient] = useState<Client | null>(null);
+  const [loading, setLoading] = useState(true);
   const [showCardModal, setShowCardModal] = useState(false);
   const [editingCard, setEditingCard] = useState<OnboardingCard | null>(null);
 
-  // Load cards when clientId changes
   useEffect(() => {
-    if (clientId && ready) {
-      loadCards();
+    if (resolvedClientId) {
+      loadData();
     }
-  }, [clientId, ready]);
+  }, [resolvedClientId]);
 
-  const loadCards = async () => {
-    if (!clientId) return;
-    
-    setCardsLoading(true);
-    setCardsError(null);
-
-    const timeout = setTimeout(() => {
-      console.warn('OnboardingCards: Watchdog triggered - forcing end of loading');
-      setCardsLoading(false);
-      setCardsError('Não conseguimos carregar os cards agora');
-    }, 10000);
+  const loadData = async () => {
+    if (!resolvedClientId) return;
     
     try {
-      const clientCards = await onboardingCardOperations.getByClient(clientId);
+      setLoading(true);
+      
+      // Load client data and cards in parallel
+      const [clientCards, clients] = await Promise.all([
+        onboardingCardOperations.getByClient(resolvedClientId),
+        dataSource.getClients()
+      ]);
+      
+      const foundClient = clients.find(c => c.id === resolvedClientId);
+      
       setCards(clientCards);
+      setClient(foundClient || null);
     } catch (error) {
-      console.error('Error loading cards:', error);
-      setCardsError('Erro ao carregar cards do onboarding');
+      console.error('Error loading data:', error);
       toast({
         title: "Erro",
-        description: "Não foi possível carregar os cards do onboarding.",
+        description: "Não foi possível carregar os dados do onboarding.",
         variant: "destructive"
       });
     } finally {
-      clearTimeout(timeout);
-      setCardsLoading(false);
+      setLoading(false);
     }
   };
 
@@ -87,7 +70,7 @@ export default function OnboardingClientPage() {
   const handleCardMove = async (cardId: string, newStage: string) => {
     try {
       await onboardingCardOperations.moveCard(cardId, newStage as any);
-      await loadCards();
+      await loadData();
     } catch (error) {
       toast({
         title: "Erro",
@@ -101,7 +84,7 @@ export default function OnboardingClientPage() {
     // Handle card updates from the drawer
     try {
       await onboardingCardOperations.update(cardData.id, cardData);
-      await loadCards();
+      await loadData();
     } catch (error) {
       toast({
         title: "Erro",
@@ -121,9 +104,9 @@ export default function OnboardingClientPage() {
       if (editingCard) {
         await onboardingCardOperations.update(editingCard.id, cardData);
       } else {
-        await onboardingCardOperations.create({ ...cardData, clientId });
+        await onboardingCardOperations.create({ ...cardData, clientId: resolvedClientId });
       }
-      await loadCards();
+      await loadData();
       setShowCardModal(false);
       setEditingCard(null);
     } catch (error) {
@@ -134,49 +117,18 @@ export default function OnboardingClientPage() {
       });
     }
   };
-
-  const handleClientSelect = (selectedClientId: string) => {
-    setSelectedClient(selectedClientId);
-    // Pode navegar para a URL com o cliente selecionado se necessário
-    // window.history.replaceState({}, '', `/cliente/${selectedClientId}/onboarding`);
-  };
-
-  const retryAll = () => {
-    retry();
-    if (clientId) {
-      loadCards();
-    }
-  };
   
-  // Loading state
-  if (isLoading) {
-    return <div className="flex items-center justify-center p-8">Carregando cliente...</div>;
+  if (loading) {
+    return <div className="p-6">Carregando...</div>;
   }
 
-  // Error state
-  if (error) {
-    return <ErrorState error={error} onRetry={retryAll} isRetrying={isLoading} />;
+  if (!resolvedClientId) {
+    return <div className="p-6 text-destructive">Cliente não identificado. Abra o Onboarding a partir de um cliente válido em Clientes.</div>;
   }
 
-  // Client selection state - NUNCA mostra seletor na rota do cliente
-  if (!clientId || !ready) {
-    // Se estamos na rota do cliente, sempre mostrar erro ou loading
-    if (routeClientId && routeClientId !== 'undefined' && routeClientId !== 'null') {
-      return <ErrorState error="Cliente não encontrado" onRetry={retryAll} isRetrying={isLoading} />;
-    }
-    // Se routeClientId está undefined/null, mostrar erro genérico
-    return <ErrorState error="Parâmetro de cliente inválido" onRetry={retryAll} isRetrying={isLoading} />;
-  }
-
-  // Cards error state
-  if (cardsError) {
-    return <ErrorState error={cardsError} onRetry={loadCards} isRetrying={cardsLoading} />;
-  }
-
-  // Main content with key for clean remount
   return (
-    <div className="h-full" key={clientId}>
-      {client && <OnboardingHeader client={client} showBackButton={!!routeClientId} />}
+    <div className="h-full">
+      {client && <ClientHeader client={client} />}
       
       <Tabs value={activeTab} onValueChange={handleTabChange} className="h-full">
         <div className="border-b">
@@ -187,22 +139,18 @@ export default function OnboardingClientPage() {
         </div>
         
         <TabsContent value="kanban" className="h-full mt-0 p-6">
-          {cardsLoading ? (
-            <div className="flex items-center justify-center p-8">Carregando cards...</div>
-          ) : (
-            <NewOnboardingKanban 
-              clientId={clientId}
-              cards={cards}
-              onCardMove={handleCardMove}
-              onCardClick={handleCardClick}
-              onCreateCard={handleCreateCard}
-              onCardsReload={loadCards}
-            />
-          )}
+          <NewOnboardingKanban 
+            clientId={resolvedClientId as string}
+            cards={cards}
+            onCardMove={handleCardMove}
+            onCardClick={handleCardClick}
+            onCreateCard={handleCreateCard}
+            onCardsReload={loadData}
+          />
         </TabsContent>
         
         <TabsContent value="ficha" className="h-full mt-0 p-6">
-          <NewClientFicha clientId={clientId} focusSection={focusSection} />
+          <NewClientFicha clientId={resolvedClientId as string} focusSection={focusSection} />
         </TabsContent>
       </Tabs>
 
@@ -211,7 +159,7 @@ export default function OnboardingClientPage() {
         onOpenChange={setShowCardModal}
         onSave={handleSaveCard}
         initialData={editingCard || undefined}
-        clientId={clientId}
+        clientId={resolvedClientId as string}
       />
     </div>
   );

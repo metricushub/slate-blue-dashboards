@@ -1,23 +1,23 @@
-// Relatório de Execução - Onboarding Client Route Fix
+// Relatório de Execução - Cards Fix Onboarding  
 const buildReport = {
   "changes": [
-    {"file": "pages/OnboardingClientPage", "summary": "aceita params id/clientId; nunca mostra seletor na rota cliente; log diagnóstico"},
-    {"file": "components/OnboardingHeader", "summary": "cabeçalho com logo + nome + botão voltar ao hub"},
-    {"file": "hooks/useOnboardingClient", "summary": "watchdog 10s; prioriza routeClientId; filtra valores inválidos"}
+    {"file": "shared/db/onboardingStore", "summary": "Adicionado campo 'completed' na interface OnboardingCard para controle visual de conclusão"},
+    {"file": "onboarding/NewOnboardingKanban", "summary": "Check não move cards; apenas toggle completed com visual line-through; persistência imediata no drag & drop"},
+    {"file": "onboarding/ClientHeader", "summary": "Novo componente para exibir logo/iniciais + nome do cliente no topo"},
+    {"file": "pages/OnboardingClientPage", "summary": "Carregamento de dados do cliente e integração com ClientHeader"}
   ],
-  "impacted_routes": ["/cliente/:id/onboarding", "/onboarding"],
+  "impacted_routes": ["/cliente/:id/onboarding"],
   "acceptance": {
-    "loads_from_client_sidebar": true,
-    "loads_from_hub": true, 
-    "no_selector_on_client_route": true,
-    "client_header_with_back_button": true,
-    "handles_undefined_clientId": true
+    "check_no_move_ok": true,
+    "dnd_persist_visible_ok": true, 
+    "client_header_ok": true,
+    "no_changes_outside_onboarding": true
   },
-  "notes": "Rota do cliente nunca mostra seletor; sempre carrega board direto ou erro. Aceita id ou clientId como parâmetro.",
-  "timestamp": "2025-09-16T13:45:00Z"
+  "notes": "Sem alterações fora do onboarding; manter dados e estilos existentes. Campo 'completed' adicionado para controle visual sem mover entre stages.",
+  "timestamp": "2025-09-15T10:00:00Z"
 };
 
 // Save to localStorage
 localStorage.setItem('buildReport:last', JSON.stringify(buildReport));
 
-console.log('Build Report - Onboarding Loading Fix:', buildReport);
+console.log('Build Report - Cards Fix:', buildReport);
