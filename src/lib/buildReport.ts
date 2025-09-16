@@ -1,21 +1,19 @@
 export const saveBuildReport = () => {
   const buildReport = {
     "changes": [
-      {"file": "LeadsPage.tsx", "summary": "Fluxo ajustado: sem redirecionar/abrir onboarding após pré-cadastro; apenas move para Fechado e exibe aviso para enviar"},
-      {"file": "ClientPreCadastroModal.tsx", "summary": "Validação de telefone corrigida; remoção de registro/envio automático. Abre FormSendModal para envio."},
-      {"file": "FormSendModal.tsx", "summary": "Campo de link editável; botões WhatsApp/E-mail; 'Marcar como Enviado' grava metadata e cria/atualiza card no Onboarding"},
-      {"file": "LeadCard.tsx", "summary": "Badge no Fechado: alerta 'Precisa enviar formulário' com botão Enviar; exibe reenviar quando já enviado"}
+      {"file": "layout/AppLayout", "summary": "Aplicado gutter único com var --content-gutter-x no wrapper de conteúdo"},
+      {"file": "index.css", "summary": "Criada variável CSS --content-gutter-x responsiva (16px lg, 12px md, 8px sm)"},
+      {"file": "pages/* (layout geral)", "summary": "Padronização do espaçamento entre sidebar e conteúdo usando a nova variável"}
     ],
-    "impacted_routes": ["/leads","/cliente/:id/onboarding"],
+    "impacted_routes": ["/home","/clientes","/cliente/:id/*"],
     "acceptance": {
-      "pre_cadastro_abre_ao_fechar": true,
-      "form_link_gerado_ok": true,
-      "envios_quick_ok": true,
-      "onboarding_card_criado_ok": true,
-      "kanban_sem_regressao": true,
-      "form_send_modal_opens_after_pre_cadastro": true
+      "gutter_global_ok": true,
+      "gutter_cliente_ok": true,
+      "sem_overlay_sidebar": true,
+      "kanban_scroll_horizontal_ok": true,
+      "sticky_headers_alinhados": true
     },
-    "notes": "Onboarding só é criado ao marcar como enviado; se não houver link, fluxo permite salvar e enviar depois; telefone flexível.",
+    "notes": "Sidebars e componentes internos inalterados; apenas o primeiro wrapper de conteúdo agora usa --content-gutter-x responsivo.",
     "timestamp": new Date().toISOString()
   };
   

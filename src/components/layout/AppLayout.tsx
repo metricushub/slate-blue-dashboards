@@ -19,8 +19,8 @@ export function AppLayout({ children }: AppLayoutProps) {
   
   // Only apply padding on desktop, mobile uses overlay
   const getContentPadding = () => {
-    if (isMobile) return ""; // No padding on mobile - drawer overlay
-    return collapsed ? "lg:pl-[72px]" : "lg:pl-[280px]";
+    if (isMobile) return "pl-[var(--content-gutter-x)] sm:[--content-gutter-x:8px] md:[--content-gutter-x:12px] lg:[--content-gutter-x:16px]"; 
+    return collapsed ? "lg:pl-[72px] pl-[var(--content-gutter-x)] sm:[--content-gutter-x:8px] md:[--content-gutter-x:12px] lg:[--content-gutter-x:16px]" : "lg:pl-[280px] pl-[var(--content-gutter-x)] sm:[--content-gutter-x:8px] md:[--content-gutter-x:12px] lg:[--content-gutter-x:16px]";
   };
 
   return (
@@ -35,7 +35,7 @@ export function AppLayout({ children }: AppLayoutProps) {
 
       <div className="flex flex-1">
         {isClientRoute ? <SidebarCliente /> : <SidebarGlobal />}
-        <main className={`flex-1 overflow-hidden px-6 py-3 transition-all duration-300 ${getContentPadding()} ${isOnboardingRoute ? 'bg-muted' : ''} min-h-[calc(100vh-56px)]`}>
+        <main className={`flex-1 overflow-hidden pr-[var(--content-gutter-x)] py-3 transition-all duration-300 ${getContentPadding()} ${isOnboardingRoute ? 'bg-muted' : ''} min-h-[calc(100vh-56px)] sm:[--content-gutter-x:8px] md:[--content-gutter-x:12px] lg:[--content-gutter-x:16px]`}>
           <div className="w-full">
             {children}
           </div>
