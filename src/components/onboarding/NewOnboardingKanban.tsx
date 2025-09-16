@@ -673,7 +673,7 @@ export function NewOnboardingKanban({
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        <div className="h-full flex flex-col">
+        <div className="h-full flex flex-col bg-gray-50">
           <div className="flex justify-between items-center mb-6">
             <div>
               <h1 className="text-2xl font-bold">Onboarding do Cliente</h1>
@@ -712,7 +712,7 @@ export function NewOnboardingKanban({
           </div>
 
           <div 
-            className="flex gap-4 overflow-x-auto overscroll-x-contain pb-4 flex-1 bg-gray-50 pr-6" 
+            className="flex gap-4 overflow-x-auto overscroll-x-contain pb-4 flex-1 pr-6" 
             style={{ scrollbarWidth: 'thin' }}
             ref={(el) => {
               setBoardScrollRef(el);
