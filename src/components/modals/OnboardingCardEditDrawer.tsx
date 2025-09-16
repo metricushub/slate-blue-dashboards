@@ -203,25 +203,6 @@ export function OnboardingCardEditDrawer({
             />
           </div>
 
-          {/* Etapa/Coluna */}
-          <div className="space-y-2">
-            <Label>Etapa</Label>
-            <Select 
-              value={formData.stage || 'dados-gerais'} 
-              onValueChange={(value) => setFormData(prev => ({ ...prev, stage: value as any }))}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione a etapa" />
-              </SelectTrigger>
-              <SelectContent>
-                {ONBOARDING_STAGES.map(stage => (
-                  <SelectItem key={stage.id} value={stage.id}>
-                    {stage.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
 
           {/* Responsável */}
           <div className="space-y-2">

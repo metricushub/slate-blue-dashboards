@@ -218,22 +218,6 @@ export function OnboardingCardModal({
             </Select>
           </div>
 
-          {/* Stage */}
-          <div className="space-y-2">
-            <Label htmlFor="stage">Etapa</Label>
-            <Select value={formData.stage} onValueChange={(value) => setFormData(prev => ({ ...prev, stage: value as OnboardingCard['stage'] }))}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {STAGES.map((stage) => (
-                  <SelectItem key={stage.value} value={stage.value}>
-                    {stage.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
 
           {/* Sub-stage for Financeiro */}
           {formData.stage === 'financeiro' && (
