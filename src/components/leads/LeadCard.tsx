@@ -3,8 +3,10 @@ import { CSS } from '@dnd-kit/utilities';
 import { Lead } from '@/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { OnboardingService } from '@/lib/onboardingService';
 import { User, DollarSign } from 'lucide-react';
 
 interface LeadCardProps {
@@ -146,12 +148,31 @@ export function LeadCard({ lead, onClick, isDragging, onConverted }: LeadCardPro
           </span>
         </div>
 
-        {/* Notas preview */}
-        {lead.notes && (
-          <div className="text-xs text-muted-foreground mt-2 line-clamp-2">
-            {lead.notes}
-          </div>
-        )}
+        {/* Formulário enviado indicator for closed leads */}
+        {lead.stage === 'Fechado' && lead.client_id && (() => {
+          const sentDate = OnboardingService.getFormSentDate(lead.client_id);
+          if (sentDate) {
+            return (
+              <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-lg">
+                <div className="text-xs text-green-800 font-medium">
+                  Formulário enviado em {sentDate}
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="mt-1 h-6 text-xs"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onConverted?.(lead);
+                  }}
+                >
+                  Reenviar
+                </Button>
+              </div>
+            );
+          }
+          return null;
+        })()}
       </CardContent>
     </Card>
   );

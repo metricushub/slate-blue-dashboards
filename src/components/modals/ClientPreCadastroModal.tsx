@@ -1,83 +1,145 @@
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { toast } from "@/hooks/use-toast";
-import { useDataSource } from "@/hooks/useDataSource";
-import { onboardingCardOperations } from "@/shared/db/onboardingStore";
-import { Client } from "@/types";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { Client, Lead } from '@/types';
+import { ClientsStore } from '@/shared/db/clientsStore';
+import { useDataSource } from '@/hooks/useDataSource';
+import { toast } from '@/hooks/use-toast';
+import { Copy, MessageCircle, Mail, Send, SkipForward } from 'lucide-react';
+import { OnboardingService } from '@/lib/onboardingService';
 
 interface ClientPreCadastroModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (client: any) => void;
-  leadData: {
-    id: string;
-    name: string;
-    email?: string;
-    phone?: string;
-    owner?: string;
-  };
+  onSave: (client: Client) => Promise<void>;
+  leadData?: Lead;
 }
 
 interface FormData {
   nomeEmpresa: string;
-  contatoPrincipal: string;
+  nomeContato: string;
   telefone: string;
   email: string;
   nicho: string;
 }
 
-export function ClientPreCadastroModal({
-  open,
-  onOpenChange,
-  onSave,
-  leadData
+export function ClientPreCadastroModal({ 
+  open, 
+  onOpenChange, 
+  onSave, 
+  leadData 
 }: ClientPreCadastroModalProps) {
   const [loading, setLoading] = useState(false);
   const { dataSource } = useDataSource();
   
   const [formData, setFormData] = useState<FormData>({
-    nomeEmpresa: leadData.name || '',
-    contatoPrincipal: '',
-    telefone: leadData.phone || '',
-    email: leadData.email || '',
+    nomeEmpresa: leadData?.name || '',
+    nomeContato: leadData?.owner || '',
+    telefone: leadData?.phone || '',
+    email: leadData?.email || '',
     nicho: ''
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!formData.nomeEmpresa.trim() || !formData.email.trim()) {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { id, value } = e.target;
+    setFormData(prev => ({ ...prev, [id]: value }));
+  };
+
+  // Generate Typebot form link with parameters
+  const generateFormLink = (): string => {
+    const baseUrl = import.meta.env.VITE_TYPEBOT_URL || '';
+    if (!baseUrl) return '';
+
+    const params = new URLSearchParams({
+      company: formData.nomeEmpresa,
+      contact: formData.nomeContato,
+      phone: formData.telefone,
+      email: formData.email,
+      niche: formData.nicho,
+      clientId: leadData?.id || crypto.randomUUID()
+    });
+
+    return `${baseUrl}?${params.toString()}`;
+  };
+
+  // Get default messages from env with fallbacks
+  const getWhatsAppMessage = (): string => {
+    const defaultMsg = `Olá ${formData.nomeContato}! 🚀 Aqui está o formulário de onboarding da ${formData.nomeEmpresa} para alinharmos tudo e começar do jeito certo:\n\n${generateFormLink()}\n\nQualquer dúvida, estou por aqui. Obrigado!`;
+    return import.meta.env.VITE_ONBOARDING_WAPP_MSG?.replace('{contato}', formData.nomeContato).replace('{empresa}', formData.nomeEmpresa).replace('{link}', generateFormLink()) || defaultMsg;
+  };
+
+  const getEmailMessage = (): string => {
+    const defaultMsg = `Olá ${formData.nomeContato},\n\nAqui está o formulário de onboarding da ${formData.nomeEmpresa} para alinharmos tudo e começar do jeito certo:\n\n${generateFormLink()}\n\nQualquer dúvida, estou à disposição.\n\nObrigado!`;
+    return import.meta.env.VITE_ONBOARDING_EMAIL_MSG?.replace('{contato}', formData.nomeContato).replace('{empresa}', formData.nomeEmpresa).replace('{link}', generateFormLink()) || defaultMsg;
+  };
+
+  // Action handlers
+  const handleCopyLink = async () => {
+    const link = generateFormLink();
+    if (!link) {
       toast({
-        title: "Erro",
-        description: "Nome da empresa e e-mail são obrigatórios.",
+        title: "Aviso",
+        description: "URL do Typebot não configurada (VITE_TYPEBOT_URL)",
         variant: "destructive"
       });
       return;
     }
 
-    setLoading(true);
-    let clientId: string | null = null;
-    let saved = false;
-    
     try {
-      // Gerar clientId único uma vez
-      clientId = crypto.randomUUID();
-      
-      const newClient: Client = {
-        id: clientId,
+      await navigator.clipboard.writeText(link);
+      toast({
+        title: "Link copiado!",
+        description: "O link do formulário foi copiado para a área de transferência",
+      });
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Falha ao copiar o link",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleWhatsAppSend = () => {
+    const phone = formData.telefone.replace(/\D/g, '');
+    const message = encodeURIComponent(getWhatsAppMessage());
+    const url = `https://wa.me/${phone}?text=${message}`;
+    window.open(url, '_blank');
+  };
+
+  const handleEmailSend = () => {
+    const subject = encodeURIComponent('Formulário de Onboarding');
+    const body = encodeURIComponent(getEmailMessage());
+    const url = `mailto:${formData.email}?subject=${subject}&body=${body}`;
+    window.open(url, '_blank');
+  };
+
+  const handleSaveAndSend = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isValid) return;
+
+    setLoading(true);
+    try {
+      const client: Client = {
+        id: crypto.randomUUID(),
         name: formData.nomeEmpresa,
-        status: 'onboarding' as any,
+        status: 'Ativo',
         stage: 'Setup inicial',
-        owner: leadData.owner || 'Sistema',
+        owner: formData.nomeContato,
         lastUpdate: new Date().toISOString().split('T')[0],
         budgetMonth: 0,
         segment: formData.nicho,
         contacts: [{
           id: crypto.randomUUID(),
-          name: formData.contatoPrincipal,
+          name: formData.nomeContato,
           email: formData.email,
           phone: formData.telefone,
           role: 'Principal',
@@ -85,71 +147,38 @@ export function ClientPreCadastroModal({
         }]
       };
 
-      // Salvar localmente primeiro (IndexedDB)
-      const { ClientsStore } = await import('@/shared/db/clientsStore');
-      const localClient = { ...newClient, createdAt: new Date().toISOString() };
+      // Store form metadata separately
+      const formMetadata = {
+        clientId: client.id,
+        formSentAt: new Date().toISOString(),
+        formLinkLast: generateFormLink(),
+        leadId: leadData?.id
+      };
+      
+      OnboardingService.storeFormMetadata(formMetadata);
+
+      // Save to local store
+      const localClient = { ...client, created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
       await ClientsStore.upsertClient(localClient);
-      saved = true;
-
-      // Tentar salvar no dataSource também (mock/sheets)
-      if (dataSource?.addClient) {
-        try {
-          await dataSource.addClient(newClient);
-        } catch (error) {
-          console.warn('Erro ao salvar no dataSource, mas cliente salvo localmente:', error);
-        }
-      }
-
-      // Criar card automático "Formulário enviado" no onboarding
+      
+      // Try to save to data source
       try {
-        await onboardingCardOperations.create({
-          title: "Formulário enviado",
-          clientId: clientId,
-          responsavel: leadData.owner || 'Sistema',
-          vencimento: '',
-          checklist: [],
-          notas: "Cliente pré-cadastrado via formulário. Aguardando preenchimento completo dos dados.",
-          stage: 'dados-gerais',
-          position: 1
-        });
-      } catch (cardError) {
-        console.error('Erro ao criar card automático:', cardError);
-        // Não falha o fluxo se o card não for criado
+        if (dataSource && dataSource.addClient) {
+          await dataSource.addClient(client);
+        }
+      } catch (error) {
+        console.warn('Failed to save to data source:', error);
       }
 
-      // Salvar diagnóstico
-      await ClientsStore.saveDiagnostic('onboardingPreCreate:last', {
-        clientId,
-        saved,
-        redirect: `/cliente/${clientId}/onboarding?first=true`
-      });
-
-      toast({
-        title: "Sucesso", 
-        description: "Cliente pré-cadastrado com sucesso!"
-      });
-
-      onSave(newClient);
-      onOpenChange(false);
+      // Create/update onboarding card
+      await OnboardingService.ensureBoardAndFormCard(client.id, client.name, client.owner);
       
-      // Redirecionar para onboarding do cliente criado
-      window.location.href = `/cliente/${clientId}/onboarding?first=true`;
+      await onSave(client);
     } catch (error) {
-      console.error("Error creating client:", error);
-      
-      // Salvar diagnóstico de erro
-      if (clientId) {
-        const { ClientsStore } = await import('@/shared/db/clientsStore');
-        await ClientsStore.saveDiagnostic('onboardingPreCreate:last', {
-          clientId,
-          saved,
-          error: error instanceof Error ? error.message : 'Unknown error'
-        });
-      }
-      
+      console.error('Error saving client:', error);
       toast({
         title: "Erro",
-        description: "Erro ao criar cliente.",
+        description: "Falha ao salvar cliente",
         variant: "destructive"
       });
     } finally {
@@ -157,90 +186,180 @@ export function ClientPreCadastroModal({
     }
   };
 
-  const handleInputChange = (field: keyof FormData, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+  const handleSkip = async () => {
+    // Just save without sending form
+    await handleSaveAndSend(new Event('submit') as any);
   };
 
-  const isValid = formData.nomeEmpresa.trim() && formData.email.trim();
+  const isValid = formData.nomeEmpresa && formData.email && formData.nomeContato && formData.telefone && formData.nicho;
+  const formLink = generateFormLink();
+  const hasTypebotUrl = !!import.meta.env.VITE_TYPEBOT_URL;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Pré-cadastro do Cliente</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            Pré-cadastro Rápido
+            {leadData && (
+              <Badge variant="secondary" className="text-xs">
+                {leadData.name}
+              </Badge>
+            )}
+          </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="nomeEmpresa">Nome da Empresa *</Label>
-            <Input
-              id="nomeEmpresa"
-              value={formData.nomeEmpresa}
-              onChange={(e) => handleInputChange('nomeEmpresa', e.target.value)}
-              placeholder="Nome da empresa"
-              required
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="contatoPrincipal">Contato Principal</Label>
-            <Input
-              id="contatoPrincipal"
-              value={formData.contatoPrincipal}
-              onChange={(e) => handleInputChange('contatoPrincipal', e.target.value)}
-              placeholder="Nome do contato principal"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="telefone">Telefone</Label>
+        <form onSubmit={handleSaveAndSend} className="space-y-4">
+          <div className="grid grid-cols-1 gap-4">
+            <div>
+              <Label htmlFor="nomeEmpresa">Nome da Empresa *</Label>
               <Input
-                id="telefone"
-                value={formData.telefone}
-                onChange={(e) => handleInputChange('telefone', e.target.value)}
-                placeholder="(11) 99999-9999"
+                id="nomeEmpresa"
+                value={formData.nomeEmpresa}
+                onChange={handleInputChange}
+                required
+                placeholder="Ex: Empresa XYZ Ltda"
               />
             </div>
 
-            <div className="space-y-2">
+            <div>
+              <Label htmlFor="nomeContato">Nome do Contato *</Label>
+              <Input
+                id="nomeContato"
+                value={formData.nomeContato}
+                onChange={handleInputChange}
+                required
+                placeholder="Ex: João Silva"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="telefone">Telefone (BR) *</Label>
+              <Input
+                id="telefone"
+                value={formData.telefone}
+                onChange={handleInputChange}
+                required
+                placeholder="Ex: (11) 99999-9999"
+                pattern="(\([0-9]{2}\))?\s?[0-9]{4,5}-?[0-9]{4}"
+                title="Formato: (11) 99999-9999"
+              />
+            </div>
+
+            <div>
               <Label htmlFor="email">E-mail *</Label>
               <Input
                 id="email"
                 type="email"
                 value={formData.email}
-                onChange={(e) => handleInputChange('email', e.target.value)}
-                placeholder="contato@empresa.com"
+                onChange={handleInputChange}
                 required
+                placeholder="Ex: contato@empresa.com"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="nicho">Nicho/Setor *</Label>
+              <Input
+                id="nicho"
+                value={formData.nicho}
+                onChange={handleInputChange}
+                required
+                placeholder="Ex: E-commerce, Serviços, Indústria"
               />
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="nicho">Nicho/Setor</Label>
-            <Input
-              id="nicho"
-              value={formData.nicho}
-              onChange={(e) => handleInputChange('nicho', e.target.value)}
-              placeholder="Ex: E-commerce, Saúde, Educação..."
-            />
-          </div>
+          {/* Form Link Preview */}
+          {hasTypebotUrl && isValid && (
+            <div className="p-3 bg-muted rounded-lg">
+              <Label className="text-sm font-medium">Link do Formulário:</Label>
+              <div className="mt-1 p-2 bg-background rounded text-xs font-mono break-all">
+                {formLink}
+              </div>
+            </div>
+          )}
 
-          <div className="flex justify-end gap-2 pt-4">
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={() => onOpenChange(false)}
-              disabled={loading}
-            >
-              Cancelar
-            </Button>
-            <Button 
-              type="submit" 
-              disabled={!isValid || loading}
-            >
-              {loading ? "Salvando..." : "Salvar e Continuar"}
-            </Button>
+          {/* Warning if no Typebot URL */}
+          {!hasTypebotUrl && (
+            <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p className="text-sm text-yellow-800">
+                ⚠️ VITE_TYPEBOT_URL não configurada. O link do formulário não será gerado, mas você ainda pode salvar o cliente.
+              </p>
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <div className="space-y-3 pt-4">
+            {/* Quick Action Buttons - only show if form is valid and has Typebot URL */}
+            {hasTypebotUrl && isValid && (
+              <div className="grid grid-cols-3 gap-2">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleCopyLink}
+                  className="flex items-center gap-1"
+                >
+                  <Copy className="h-3 w-3" />
+                  Copiar Link
+                </Button>
+                
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleWhatsAppSend}
+                  className="flex items-center gap-1"
+                >
+                  <MessageCircle className="h-3 w-3" />
+                  WhatsApp
+                </Button>
+                
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleEmailSend}
+                  className="flex items-center gap-1"
+                >
+                  <Mail className="h-3 w-3" />
+                  E-mail
+                </Button>
+              </div>
+            )}
+
+            {/* Main Action Buttons */}
+            <div className="flex gap-2">
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => onOpenChange(false)}
+                className="flex-1"
+              >
+                Cancelar
+              </Button>
+              
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={handleSkip}
+                disabled={!isValid || loading}
+                className="flex items-center gap-1"
+              >
+                <SkipForward className="h-3 w-3" />
+                Pular
+              </Button>
+              
+              <Button 
+                type="submit" 
+                disabled={!isValid || loading}
+                className="flex-1 flex items-center gap-1"
+              >
+                <Send className="h-3 w-3" />
+                {loading ? "Salvando..." : "Salvar & Enviar"}
+              </Button>
+            </div>
           </div>
         </form>
       </DialogContent>
