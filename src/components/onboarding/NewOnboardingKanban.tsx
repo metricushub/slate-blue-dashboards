@@ -25,7 +25,6 @@ import { BulkAddOnboardingCardsModal } from '@/components/modals/BulkAddOnboardi
 import { OnboardingCardEditDrawer } from '@/components/modals/OnboardingCardEditDrawer';
 import { TemplateApplicator } from './TemplateApplicator';
 import { SaveTemplateModal } from './SaveTemplateModal';
-import '../../lib/kanbanReport'; // Import to trigger localStorage save
 import { 
   Plus, 
   Calendar, 
@@ -416,17 +415,6 @@ export function NewOnboardingKanban({
     const reloadStages = async () => {
       const allStages = await onboardingStageOperations.getAllStages();
       setStages(allStages.filter(s => cards.some(c => c.stage === s.id)));
-      
-      // Scroll to the rightmost column after reload
-      setTimeout(() => {
-        const container = document.getElementById('kanban-container');
-        if (container) {
-          container.scrollTo({
-            left: container.scrollWidth - container.clientWidth,
-            behavior: 'smooth'
-          });
-        }
-      }, 100);
     };
     
     reloadStages();
@@ -708,25 +696,24 @@ export function NewOnboardingKanban({
             </div>
           </div>
 
-          <div className="flex gap-4 flex-1 overflow-x-auto pb-4" id="kanban-container">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 flex-1">
             {stages.map(stage => {
               const columnCards = getCardsForColumn(stage.id);
               const Icon = getIconComponent(stage.icon);
               
               return (
-                <div key={stage.id} className="flex-shrink-0 w-80">
-                  <DroppableColumn column={stage}>
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Icon className="h-4 w-4" />
-                          <span className="text-sm font-medium">{stage.title}</span>
-                        </div>
-                        <Badge variant="secondary">{columnCards.length}</Badge>
+                <DroppableColumn key={stage.id} column={stage}>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Icon className="h-4 w-4" />
+                        <span className="text-sm font-medium">{stage.title}</span>
                       </div>
-                    </CardHeader>
-                    
-                    <CardContent className="flex-1 pt-0 max-h-96 overflow-y-auto">
+                      <Badge variant="secondary">{columnCards.length}</Badge>
+                    </div>
+                  </CardHeader>
+                  
+                  <CardContent className="flex-1 pt-0">
                     <SortableContext
                       items={columnCards.map(c => c.id)}
                       strategy={verticalListSortingStrategy}
@@ -781,14 +768,13 @@ export function NewOnboardingKanban({
                            <Plus className="h-4 w-4 mr-2" />
                            Adicionar card
                          </Button>
-                        )}
-                      </SortableContext>
-                    </CardContent>
-                  </DroppableColumn>
-                </div>
-              );
-            })}
-          </div>
+                       )}
+                     </SortableContext>
+                   </CardContent>
+                 </DroppableColumn>
+               );
+             })}
+           </div>
          </div>
 
         {activeCard && (
