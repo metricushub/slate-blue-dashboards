@@ -46,7 +46,7 @@ export interface OptimizationInput {
 }
 
 // Data source configuration
-export type DataSourceType = 'mock' | 'sheets';
+export type DataSourceType = 'mock' | 'sheets' | 'supabase' | 'hybrid';
 
 export interface SheetsConfig {
   spreadsheetId: string;

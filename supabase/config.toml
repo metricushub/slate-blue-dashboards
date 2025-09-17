@@ -1,1 +1,7 @@
 project_id = "zoahzxfjefjmkxylbfxf"
+
+[functions.ingest-metrics]
+verify_jwt = false
+
+[functions.ingest-campaigns]
+verify_jwt = false
