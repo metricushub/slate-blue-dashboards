@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -38,6 +39,7 @@ const STATUS_ICONS = {
 };
 
 export function RecentOptimizations({ clientId }: RecentOptimizationsProps) {
+  const navigate = useNavigate();
   const [optimizations, setOptimizations] = useState<Optimization[]>([]);
   const [loading, setLoading] = useState(true);
   const [showResultModal, setShowResultModal] = useState(false);
@@ -186,7 +188,7 @@ export function RecentOptimizations({ clientId }: RecentOptimizationsProps) {
             <Button 
               variant="outline" 
               size="sm"
-              onClick={() => window.location.href = `/cliente/${clientId}/otimizacoes`}
+              onClick={() => navigate(`/cliente/${clientId}/otimizacoes`)}
               className="text-xs"
             >
               Ver Central
