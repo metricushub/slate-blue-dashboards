@@ -257,7 +257,7 @@ const HomePage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-background to-muted/20 p-4 md:p-6 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="flex flex-col items-center gap-4 animate-fade-in">
           <div className="relative">
             <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -274,7 +274,7 @@ const HomePage = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-background to-muted/20 p-4 md:p-6 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <Card className="p-8 max-w-md rounded-2xl shadow-lg border-0 bg-card/60 backdrop-blur-sm animate-fade-in">
           <div className="text-center space-y-4">
             <div className="p-4 rounded-full bg-destructive/10 mx-auto w-fit">
@@ -333,7 +333,7 @@ const HomePage = () => {
         </div>
       </div>
 
-      <div className="container mx-auto px-6 py-10 space-y-10">
+      <div className="space-y-10">
         {/* Busca Global */}
         <div className="max-w-lg animate-fade-in">
           <div className="relative">

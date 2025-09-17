@@ -48,20 +48,12 @@ export function AppSidebar() {
     return currentPath.startsWith(path);
   };
 
-  const getNavClassName = (path: string) => {
-    const baseClasses = "flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200";
-    if (isActive(path)) {
-      return `${baseClasses} bg-sidebar-active text-primary font-medium`;
-    }
-    return `${baseClasses} text-sidebar-foreground hover:bg-sidebar-hover hover:text-foreground`;
-  };
+  const getNavClasses = ({ isActive }: { isActive: boolean }) =>
+    isActive ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium" : "hover:bg-sidebar-accent/50";
 
   return (
-    <Sidebar 
-      className={`transition-all duration-300 ${collapsed ? "w-14" : "w-64"}`}
-      collapsible="icon"
-    >
-      <SidebarContent className="py-4">
+    <Sidebar collapsible="icon">
+      <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel className={collapsed ? "sr-only" : ""}>
             Navegação
@@ -72,14 +64,12 @@ export function AppSidebar() {
               {navigationItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
-                    <NavLink to={item.url} className={getNavClassName(item.url)}>
-                      <item.icon className="h-5 w-5 shrink-0" />
-                      {!collapsed && (
-                        <span className="truncate">{item.title}</span>
-                      )}
-                      {!collapsed && isActive(item.url) && (
-                        <ChevronRight className="h-4 w-4 ml-auto" />
-                      )}
+                    <NavLink 
+                      to={item.url} 
+                      className={getNavClasses({ isActive: isActive(item.url) })}
+                    >
+                      <item.icon className="h-4 w-4" />
+                      {!collapsed && <span>{item.title}</span>}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

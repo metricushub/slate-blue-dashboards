@@ -60,11 +60,6 @@ export function SidebarCliente() {
     { title: "Objetivos e Metas de KPI", url: link("objetivos", "/clientes"), icon: Target },
   ];
 
-  // Itens que vêm depois do Cadastro do Cliente
-  const navigationItemsAfterCadastro = [
-    // Onboarding moved to cadastroSubItems
-  ];
-
   const cadastroSubItems = [
     { title: "Ficha Cadastral", url: link("cadastro", "/clientes"), icon: User },
     { title: "Briefing", url: link("cadastro/briefing", "/clientes"), icon: FileText },
@@ -90,19 +85,11 @@ export function SidebarCliente() {
     return configDadosSubItems.some(item => isActive(item.url));
   };
 
-  const getNavClassName = (path: string) => {
-    const baseClasses = "flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200";
-    if (isActive(path)) {
-      return `${baseClasses} bg-sidebar-active text-primary font-medium`;
-    }
-    return `${baseClasses} text-sidebar-foreground hover:bg-sidebar-hover hover:text-foreground`;
-  };
+  const getNavClasses = ({ isActive }: { isActive: boolean }) =>
+    isActive ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium" : "hover:bg-sidebar-accent/50";
 
   return (
-    <Sidebar 
-      className={`transition-all duration-300 ${collapsed ? "w-[72px] lg:w-[72px]" : "w-[280px] lg:w-[280px]"} lg:fixed lg:inset-y-0 lg:left-0 lg:z-50`}
-      collapsible="icon"
-    >
+    <Sidebar collapsible="icon">
       <SidebarHeader className="p-4">
         <BrandLogo 
           showText={!collapsed}
@@ -111,7 +98,7 @@ export function SidebarCliente() {
         />
       </SidebarHeader>
       
-      <SidebarContent className="py-4">
+      <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel className={collapsed ? "sr-only" : ""}>
             Cliente
@@ -122,14 +109,12 @@ export function SidebarCliente() {
               {navigationItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
-                    <NavLink to={item.url} className={getNavClassName(item.url)}>
-                      <item.icon className="h-5 w-5 shrink-0" />
-                      {!collapsed && (
-                        <span className="truncate">{item.title}</span>
-                      )}
-                      {!collapsed && isActive(item.url) && (
-                        <ChevronRight className="h-4 w-4 ml-auto" />
-                      )}
+                    <NavLink 
+                      to={item.url} 
+                      className={getNavClasses({ isActive: isActive(item.url) })}
+                    >
+                      <item.icon className="h-4 w-4" />
+                      {!collapsed && <span>{item.title}</span>}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -143,12 +128,12 @@ export function SidebarCliente() {
                 <SidebarMenuItem>
                   <CollapsibleTrigger asChild>
                     <SidebarMenuButton 
-                      className={getNavClassName("")}
+                      className={getNavClasses({ isActive: isCadastroSectionActive() })}
                     >
-                      <User className="h-5 w-5 shrink-0" />
+                      <User className="h-4 w-4" />
                       {!collapsed && (
                         <>
-                          <span className="truncate">Cadastro do Cliente</span>
+                          <span>Cadastro do Cliente</span>
                           <ChevronDown className="h-4 w-4 ml-auto transition-transform group-data-[state=open]:rotate-180" />
                         </>
                       )}
@@ -160,12 +145,12 @@ export function SidebarCliente() {
                         {cadastroSubItems.map((item) => (
                           <SidebarMenuSubItem key={item.title}>
                             <SidebarMenuSubButton asChild>
-                              <NavLink to={item.url} className={getNavClassName(item.url)}>
-                                <item.icon className="h-4 w-4 shrink-0" />
-                                <span className="truncate">{item.title}</span>
-                                {isActive(item.url) && (
-                                  <ChevronRight className="h-3 w-3 ml-auto" />
-                                )}
+                              <NavLink 
+                                to={item.url} 
+                                className={getNavClasses({ isActive: isActive(item.url) })}
+                              >
+                                <item.icon className="h-3 w-3" />
+                                <span>{item.title}</span>
                               </NavLink>
                             </SidebarMenuSubButton>
                           </SidebarMenuSubItem>
@@ -184,12 +169,12 @@ export function SidebarCliente() {
                 <SidebarMenuItem>
                   <CollapsibleTrigger asChild>
                     <SidebarMenuButton 
-                      className={getNavClassName("")}
+                      className={getNavClasses({ isActive: isConfigDadosSectionActive() })}
                     >
-                      <Database className="h-5 w-5 shrink-0" />
+                      <Database className="h-4 w-4" />
                       {!collapsed && (
                         <>
-                          <span className="truncate">Configurações de Dados</span>
+                          <span>Configurações de Dados</span>
                           <ChevronDown className="h-4 w-4 ml-auto transition-transform group-data-[state=open]:rotate-180" />
                         </>
                       )}
@@ -201,12 +186,12 @@ export function SidebarCliente() {
                         {configDadosSubItems.map((item) => (
                           <SidebarMenuSubItem key={item.title}>
                             <SidebarMenuSubButton asChild>
-                              <NavLink to={item.url} className={getNavClassName(item.url)}>
-                                <item.icon className="h-4 w-4 shrink-0" />
-                                <span className="truncate">{item.title}</span>
-                                {isActive(item.url) && (
-                                  <ChevronRight className="h-3 w-3 ml-auto" />
-                                )}
+                              <NavLink 
+                                to={item.url} 
+                                className={getNavClasses({ isActive: isActive(item.url) })}
+                              >
+                                <item.icon className="h-3 w-3" />
+                                <span>{item.title}</span>
                               </NavLink>
                             </SidebarMenuSubButton>
                           </SidebarMenuSubItem>
@@ -216,23 +201,6 @@ export function SidebarCliente() {
                   )}
                 </SidebarMenuItem>
               </Collapsible>
-              
-              {/* Itens após o Cadastro do Cliente - now empty */}
-              {navigationItemsAfterCadastro.length > 0 && navigationItemsAfterCadastro.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <NavLink to={item.url} className={getNavClassName(item.url)}>
-                      <item.icon className="h-5 w-5 shrink-0" />
-                      {!collapsed && (
-                        <span className="truncate">{item.title}</span>
-                      )}
-                      {!collapsed && isActive(item.url) && (
-                        <ChevronRight className="h-4 w-4 ml-auto" />
-                      )}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

@@ -81,27 +81,14 @@ export function SidebarGlobal() {
     return currentPath.startsWith(path);
   };
 
-  const getNavClassName = (path: string) => {
-    const baseClasses = "flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200";
-    if (isActive(path)) {
-      return `${baseClasses} bg-sidebar-active text-primary font-medium`;
-    }
-    return `${baseClasses} text-sidebar-foreground hover:bg-sidebar-hover hover:text-foreground`;
-  };
+  const getNavClasses = ({ isActive }: { isActive: boolean }) =>
+    isActive ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium" : "hover:bg-sidebar-accent/50";
 
-  const getSubNavClassName = (path: string) => {
-    const baseClasses = "flex items-center gap-3 px-6 py-1.5 rounded-lg transition-all duration-200 text-sm";
-    if (isActive(path)) {
-      return `${baseClasses} bg-sidebar-active text-primary font-medium`;
-    }
-    return `${baseClasses} text-muted-foreground hover:bg-sidebar-hover hover:text-foreground`;
-  };
+  const getSubNavClasses = ({ isActive }: { isActive: boolean }) =>
+    isActive ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium text-sm ml-4" : "hover:bg-sidebar-accent/50 text-sm ml-4";
 
   return (
-    <Sidebar 
-      className={`transition-all duration-300 ${collapsed ? "w-[72px] lg:w-[72px]" : "w-[280px] lg:w-[280px]"} lg:fixed lg:inset-y-0 lg:left-0 lg:z-50`}
-      collapsible="icon"
-    >
+    <Sidebar collapsible="icon">
       <SidebarHeader className="p-4">
         <BrandLogo 
           showText={!collapsed}
@@ -110,7 +97,7 @@ export function SidebarGlobal() {
         />
       </SidebarHeader>
       
-      <SidebarContent className="py-4">
+      <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel className={collapsed ? "sr-only" : ""}>
             Navegação
@@ -125,10 +112,10 @@ export function SidebarGlobal() {
                       <SidebarMenuButton asChild>
                         <button 
                           onClick={() => toggleExpanded(item.title)}
-                          className={getNavClassName(item.url)}
+                          className={getNavClasses({ isActive: isActive(item.url) })}
                         >
-                          <item.icon className="h-5 w-5 shrink-0" />
-                          <span className="truncate">{item.title}</span>
+                          <item.icon className="h-4 w-4" />
+                          <span>{item.title}</span>
                           {expandedItems.includes(item.title) ? (
                             <ChevronDown className="h-4 w-4 ml-auto" />
                           ) : (
@@ -138,14 +125,12 @@ export function SidebarGlobal() {
                       </SidebarMenuButton>
                     ) : (
                       <SidebarMenuButton asChild>
-                        <NavLink to={item.url} className={getNavClassName(item.url)}>
-                          <item.icon className="h-5 w-5 shrink-0" />
-                          {!collapsed && (
-                            <span className="truncate">{item.title}</span>
-                          )}
-                          {!collapsed && !item.subItems && isActive(item.url) && (
-                            <ChevronRight className="h-4 w-4 ml-auto" />
-                          )}
+                        <NavLink 
+                          to={item.url} 
+                          className={getNavClasses({ isActive: isActive(item.url) })}
+                        >
+                          <item.icon className="h-4 w-4" />
+                          {!collapsed && <span>{item.title}</span>}
                         </NavLink>
                       </SidebarMenuButton>
                     )}
@@ -153,16 +138,19 @@ export function SidebarGlobal() {
                   
                   {/* Subitens */}
                   {item.subItems && expandedItems.includes(item.title) && !collapsed && (
-                    <div className="ml-4 mt-1 space-y-1">
+                    <div className="space-y-1">
                       {item.subItems.map((subItem) => (
-                        <NavLink
-                          key={subItem.url}
-                          to={subItem.url}
-                          className={getSubNavClassName(subItem.url)}
-                        >
-                          <FileText className="h-4 w-4 shrink-0" />
-                          <span className="truncate">{subItem.title}</span>
-                        </NavLink>
+                        <SidebarMenuItem key={subItem.url}>
+                          <SidebarMenuButton asChild>
+                            <NavLink
+                              to={subItem.url}
+                              className={getSubNavClasses({ isActive: isActive(subItem.url) })}
+                            >
+                              <FileText className="h-3 w-3" />
+                              <span>{subItem.title}</span>
+                            </NavLink>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
                       ))}
                     </div>
                   )}

@@ -65,8 +65,7 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <SidebarProvider defaultOpen={true}>
-            <div className="flex min-h-screen w-full bg-dashboard">
-              <AppLayout>
+            <AppLayout>
               <Routes>
                 {/* Global Routes */}
                 <Route path="/" element={<HomePage />} />
@@ -107,8 +106,7 @@ const App = () => (
                 
                 <Route path="*" element={<NotFound />} />
               </Routes>
-              </AppLayout>
-            </div>
+            </AppLayout>
           </SidebarProvider>
         </BrowserRouter>
       </TooltipProvider>
