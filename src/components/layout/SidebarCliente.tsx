@@ -15,6 +15,7 @@ import {
   ChevronDown,
   User,
   FileText,
+  Database,
 } from "lucide-react";
 import { NavLink, useLocation, useParams } from "react-router-dom";
 import { BrandLogo } from "@/components/ui/brand-logo";
@@ -48,6 +49,7 @@ export function SidebarCliente() {
   const resolvedClientId = isValidId(rawRouteId) ? rawRouteId! : (isValidId(fromPath) ? fromPath! : undefined);
   const collapsed = state === "collapsed";
   const [cadastroExpanded, setCadastroExpanded] = useState(false);
+  const [configDadosExpanded, setConfigDadosExpanded] = useState(false);
 
   const link = (segment: string, fallback: string) =>
     resolvedClientId ? `/cliente/${resolvedClientId}/${segment}` : fallback;
@@ -62,9 +64,6 @@ export function SidebarCliente() {
     { title: "Relatórios", url: link("relatorios", "/clientes"), icon: FileBarChart },
     { title: "Analytics", url: link("analytics", "/clientes"), icon: LineChart },
     { title: "Objetivos e Metas de KPI", url: link("objetivos", "/clientes"), icon: Target },
-    { title: "Integração Planilha", url: link("integracao-planilha", "/clientes"), icon: TableProperties },
-    { title: "Integração Google Ads", url: link("integracao-google-ads", "/clientes"), icon: BadgeDollarSign },
-    { title: "Integração Meta", url: link("integracao-meta", "/clientes"), icon: BadgePercent },
   ];
 
   // Itens que vêm depois do Cadastro do Cliente
@@ -78,12 +77,22 @@ export function SidebarCliente() {
     { title: "Documentos", url: link("cadastro/documentos", "/clientes"), icon: FileBarChart },
   ];
 
+  const configDadosSubItems = [
+    { title: "Planilhas", url: link("config-dados/planilhas", "/clientes"), icon: TableProperties },
+    { title: "Google Ads", url: link("config-dados/google-ads", "/clientes"), icon: BadgeDollarSign },
+    { title: "Meta Ads", url: link("config-dados/meta-ads", "/clientes"), icon: BadgePercent },
+  ];
+
   const isActive = (path: string) => {
     return currentPath === path;
   };
 
   const isCadastroSectionActive = () => {
     return cadastroSubItems.some(item => isActive(item.url));
+  };
+
+  const isConfigDadosSectionActive = () => {
+    return configDadosSubItems.some(item => isActive(item.url));
   };
 
   const getNavClassName = (path: string) => {
@@ -154,6 +163,47 @@ export function SidebarCliente() {
                     <CollapsibleContent>
                       <SidebarMenuSub>
                         {cadastroSubItems.map((item) => (
+                          <SidebarMenuSubItem key={item.title}>
+                            <SidebarMenuSubButton asChild>
+                              <NavLink to={item.url} className={getNavClassName(item.url)}>
+                                <item.icon className="h-4 w-4 shrink-0" />
+                                <span className="truncate">{item.title}</span>
+                                {isActive(item.url) && (
+                                  <ChevronRight className="h-3 w-3 ml-auto" />
+                                )}
+                              </NavLink>
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
+                        ))}
+                      </SidebarMenuSub>
+                    </CollapsibleContent>
+                  )}
+                </SidebarMenuItem>
+              </Collapsible>
+
+              {/* Configurações de Dados com submenu */}
+              <Collapsible 
+                open={configDadosExpanded || isConfigDadosSectionActive()}
+                onOpenChange={setConfigDadosExpanded}
+              >
+                <SidebarMenuItem>
+                  <CollapsibleTrigger asChild>
+                    <SidebarMenuButton 
+                      className={getNavClassName("")}
+                    >
+                      <Database className="h-5 w-5 shrink-0" />
+                      {!collapsed && (
+                        <>
+                          <span className="truncate">Configurações de Dados</span>
+                          <ChevronDown className="h-4 w-4 ml-auto transition-transform group-data-[state=open]:rotate-180" />
+                        </>
+                      )}
+                    </SidebarMenuButton>
+                  </CollapsibleTrigger>
+                  {!collapsed && (
+                    <CollapsibleContent>
+                      <SidebarMenuSub>
+                        {configDadosSubItems.map((item) => (
                           <SidebarMenuSubItem key={item.title}>
                             <SidebarMenuSubButton asChild>
                               <NavLink to={item.url} className={getNavClassName(item.url)}>

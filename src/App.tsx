@@ -42,9 +42,11 @@ import ClientTarefasAnotacoesPage from "./pages/client-dashboard/ClientTarefasAn
 import RelatoriosClienteWip from "./pages/wip/RelatoriosClienteWip";
 import AnalyticsClienteWip from "./pages/wip/AnalyticsClienteWip";
 import ObjetivosClienteWip from "./pages/wip/ObjetivosClienteWip";
-import IntegracaoPlanilhaWip from "./pages/wip/IntegracaoPlanilhaWip";
-import IntegracaoGoogleAdsWip from "./pages/wip/IntegracaoGoogleAdsWip";
-import IntegracaoMetaWip from "./pages/wip/IntegracaoMetaWip";
+
+// Config Dados Pages - Cliente
+import ConfigDadosPlanilhas from "./pages/client-dashboard/ConfigDadosPlanilhas";
+import ConfigDadosGoogleAds from "./pages/client-dashboard/ConfigDadosGoogleAds";
+import ConfigDadosMetaAds from "./pages/client-dashboard/ConfigDadosMetaAds";
 
 // Lazy pages
 const ClientDocumentosPageLazy = lazy(() => import("./pages/ClientDocumentosPage"));
@@ -97,9 +99,9 @@ const App = () => (
                 <Route path="/cliente/:clientId/relatorios" element={<RelatoriosClienteWip />} />
                 <Route path="/cliente/:clientId/analytics" element={<AnalyticsClienteWip />} />
                 <Route path="/cliente/:clientId/objetivos" element={<ObjetivosClienteWip />} />
-                <Route path="/cliente/:clientId/integracao-planilha" element={<IntegracaoPlanilhaWip />} />
-                <Route path="/cliente/:clientId/integracao-google-ads" element={<IntegracaoGoogleAdsWip />} />
-                <Route path="/cliente/:clientId/integracao-meta" element={<IntegracaoMetaWip />} />
+                <Route path="/cliente/:clientId/config-dados/planilhas" element={<ConfigDadosPlanilhas />} />
+                <Route path="/cliente/:clientId/config-dados/google-ads" element={<ConfigDadosGoogleAds />} />
+                <Route path="/cliente/:clientId/config-dados/meta-ads" element={<ConfigDadosMetaAds />} />
                 
                 <Route path="*" element={<NotFound />} />
               </Routes>
