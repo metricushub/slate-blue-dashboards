@@ -1,0 +1,464 @@
+import { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { 
+  ShoppingCart, 
+  Users, 
+  Megaphone, 
+  Code, 
+  Target,
+  Plus,
+  Download,
+  Filter,
+  CheckCircle2
+} from 'lucide-react';
+import { GoalTemplate } from '@/types/goals';
+
+interface GoalTemplatesProps {
+  clientId?: string;
+}
+
+const templates: GoalTemplate[] = [
+  {
+    id: '1',
+    name: 'E-commerce Performance',
+    description: 'Metas focadas em conversão e receita para lojas online',
+    category: 'E-commerce',
+    businessType: 'ecommerce',
+    goals: [
+      {
+        name: 'ROAS Mínimo',
+        description: 'Manter retorno sobre investimento acima de 4x',
+        metric: 'roas',
+        operator: 'gte',
+        targetValue: 4,
+        period: 'monthly',
+        startDate: '',
+        status: 'active',
+        priority: 'high',
+        // createdBy removed - will be set when applied
+        enableAlerts: true,
+        alertFrequency: 'daily',
+        alertThreshold: 80,
+        alertRecipients: [],
+        category: 'Receita'
+      },
+      {
+        name: 'CPL Máximo',
+        description: 'Manter custo por lead abaixo de R$ 30',
+        metric: 'cpl',
+        operator: 'lte',
+        targetValue: 30,
+        period: 'monthly',
+        startDate: '',
+        status: 'active',
+        priority: 'high',
+        createdBy: '',
+        enableAlerts: true,
+        alertFrequency: 'immediate',
+        alertThreshold: 90,
+        alertRecipients: [],
+        category: 'Eficiência'
+      },
+      {
+        name: 'Meta de Receita Mensal',
+        description: 'Gerar no mínimo R$ 50.000 em receita por mês',
+        metric: 'revenue',
+        operator: 'gte',
+        targetValue: 50000,
+        period: 'monthly',
+        startDate: '',
+        status: 'active',
+        priority: 'critical',
+        createdBy: '',
+        enableAlerts: true,
+        alertFrequency: 'weekly',
+        alertThreshold: 75,
+        alertRecipients: [],
+        category: 'Receita'
+      }
+    ]
+  },
+  {
+    id: '2',
+    name: 'Geração de Leads B2B',
+    description: 'Objetivos otimizados para empresas B2B focadas em lead generation',
+    category: 'Lead Generation',
+    businessType: 'lead_generation',
+    goals: [
+      {
+        name: 'Meta de Leads Qualificados',
+        description: 'Gerar 100 leads qualificados por mês',
+        metric: 'leads',
+        operator: 'gte',
+        targetValue: 100,
+        period: 'monthly',
+        startDate: '',
+        status: 'active',
+        priority: 'high',
+        createdBy: '',
+        enableAlerts: true,
+        alertFrequency: 'daily',
+        alertThreshold: 80,
+        alertRecipients: [],
+        category: 'Aquisição'
+      },
+      {
+        name: 'CPL Controle',
+        description: 'Manter custo por lead abaixo de R$ 60',
+        metric: 'cpl',
+        operator: 'lte',
+        targetValue: 60,
+        period: 'monthly',
+        startDate: '',
+        status: 'active',
+        priority: 'medium',
+        createdBy: '',
+        enableAlerts: true,
+        alertFrequency: 'weekly',
+        alertThreshold: 85,
+        alertRecipients: [],
+        category: 'Eficiência'
+      },
+      {
+        name: 'Taxa de Conversão',
+        description: 'Manter taxa de conversão acima de 2.5%',
+        metric: 'convRate',
+        operator: 'gte',
+        targetValue: 2.5,
+        period: 'monthly',
+        startDate: '',
+        status: 'active',
+        priority: 'medium',
+        createdBy: '',
+        enableAlerts: true,
+        alertFrequency: 'weekly',
+        alertThreshold: 80,
+        alertRecipients: [],
+        category: 'Conversão'
+      }
+    ]
+  },
+  {
+    id: '3',
+    name: 'SaaS Growth',
+    description: 'Metas específicas para empresas de software como serviço',
+    category: 'SaaS',
+    businessType: 'saas',
+    goals: [
+      {
+        name: 'Leads Mensais',
+        description: 'Adquirir 200 leads por mês',
+        metric: 'leads',
+        operator: 'gte',
+        targetValue: 200,
+        period: 'monthly',
+        startDate: '',
+        status: 'active',
+        priority: 'high',
+        createdBy: '',
+        enableAlerts: true,
+        alertFrequency: 'daily',
+        alertThreshold: 75,
+        alertRecipients: [],
+        category: 'Aquisição'
+      },
+      {
+        name: 'CPL Eficiente',
+        description: 'Manter CPL abaixo de R$ 40',
+        metric: 'cpl',
+        operator: 'lte',
+        targetValue: 40,
+        period: 'monthly',
+        startDate: '',
+        status: 'active',
+        priority: 'high',
+        createdBy: '',
+        enableAlerts: true,
+        alertFrequency: 'immediate',
+        alertThreshold: 90,
+        alertRecipients: [],
+        category: 'Eficiência'
+      },
+      {
+        name: 'ROI Sustentável',
+        description: 'Manter ROI acima de 300%',
+        metric: 'roas',
+        operator: 'gte',
+        targetValue: 3,
+        period: 'monthly',
+        startDate: '',
+        status: 'active',
+        priority: 'medium',
+        createdBy: '',
+        enableAlerts: true,
+        alertFrequency: 'weekly',
+        alertThreshold: 80,
+        alertRecipients: [],
+        category: 'Receita'
+      }
+    ]
+  },
+  {
+    id: '4',
+    name: 'Branding & Awareness',
+    description: 'Objetivos focados em visibilidade e reconhecimento de marca',
+    category: 'Branding',
+    businessType: 'branding',
+    goals: [
+      {
+        name: 'Impressões Mensais',
+        description: 'Atingir 1 milhão de impressões por mês',
+        metric: 'impressions',
+        operator: 'gte',
+        targetValue: 1000000,
+        period: 'monthly',
+        startDate: '',
+        status: 'active',
+        priority: 'high',
+        createdBy: '',
+        enableAlerts: true,
+        alertFrequency: 'weekly',
+        alertThreshold: 80,
+        alertRecipients: [],
+        category: 'Crescimento'
+      },
+      {
+        name: 'Alcance Eficiente',
+        description: 'Manter CPM abaixo de R$ 15',
+        metric: 'cpl', // Using CPL as proxy for CPM
+        operator: 'lte',
+        targetValue: 15,
+        period: 'monthly',
+        startDate: '',
+        status: 'active',
+        priority: 'medium',
+        createdBy: '',
+        enableAlerts: true,
+        alertFrequency: 'weekly',
+        alertThreshold: 85,
+        alertRecipients: [],
+        category: 'Eficiência'
+      }
+    ]
+  }
+];
+
+export function GoalTemplates({ clientId }: GoalTemplatesProps) {
+  const [filteredTemplates, setFilteredTemplates] = useState(templates);
+  const [filterCategory, setFilterCategory] = useState<string>('all');
+  const [filterBusinessType, setFilterBusinessType] = useState<string>('all');
+
+  const applyFilters = () => {
+    let filtered = templates;
+    
+    if (filterCategory !== 'all') {
+      filtered = filtered.filter(t => t.category === filterCategory);
+    }
+    
+    if (filterBusinessType !== 'all') {
+      filtered = filtered.filter(t => t.businessType === filterBusinessType);
+    }
+    
+    setFilteredTemplates(filtered);
+  };
+
+  const handleCategoryFilter = (category: string) => {
+    setFilterCategory(category);
+    applyFilters();
+  };
+
+  const handleBusinessTypeFilter = (type: string) => {
+    setFilterBusinessType(type);
+    applyFilters();
+  };
+
+  const getBusinessTypeIcon = (type: string) => {
+    switch (type) {
+      case 'ecommerce': return ShoppingCart;
+      case 'lead_generation': return Users;
+      case 'branding': return Megaphone;
+      case 'saas': return Code;
+      default: return Target;
+    }
+  };
+
+  const getBusinessTypeLabel = (type: string) => {
+    switch (type) {
+      case 'ecommerce': return 'E-commerce';
+      case 'lead_generation': return 'Lead Generation';
+      case 'branding': return 'Branding';
+      case 'saas': return 'SaaS';
+      default: return type;
+    }
+  };
+
+  const handleApplyTemplate = (template: GoalTemplate) => {
+    // Em uma implementação real, isso criaria as metas baseadas no template
+    console.log('Aplicando template:', template);
+    // Aqui você integraria com o GoalsManager para criar as metas
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-foreground">Templates de Metas</h2>
+          <p className="text-muted-foreground">
+            Use templates pré-configurados baseados no tipo de negócio
+          </p>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="flex items-center gap-4">
+        <Select value={filterCategory} onValueChange={handleCategoryFilter}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Categoria" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas Categorias</SelectItem>
+            <SelectItem value="E-commerce">E-commerce</SelectItem>
+            <SelectItem value="Lead Generation">Lead Generation</SelectItem>
+            <SelectItem value="SaaS">SaaS</SelectItem>
+            <SelectItem value="Branding">Branding</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={filterBusinessType} onValueChange={handleBusinessTypeFilter}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Tipo de negócio" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos os tipos</SelectItem>
+            <SelectItem value="ecommerce">E-commerce</SelectItem>
+            <SelectItem value="lead_generation">Lead Generation</SelectItem>
+            <SelectItem value="saas">SaaS</SelectItem>
+            <SelectItem value="branding">Branding</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Templates Grid */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        {filteredTemplates.map((template) => {
+          const BusinessIcon = getBusinessTypeIcon(template.businessType);
+          
+          return (
+            <Card key={template.id} className="hover:shadow-md transition-shadow">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <BusinessIcon className="h-6 w-6 text-chart-primary" />
+                    <div>
+                      <CardTitle className="text-lg">{template.name}</CardTitle>
+                      <p className="text-sm text-muted-foreground">{template.description}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline">{template.category}</Badge>
+                    <Badge variant="secondary">
+                      {getBusinessTypeLabel(template.businessType)}
+                    </Badge>
+                  </div>
+                </div>
+              </CardHeader>
+              
+              <CardContent className="space-y-4">
+                {/* Goals Preview */}
+                <div className="space-y-2">
+                  <h4 className="font-medium text-foreground">Metas Incluídas ({template.goals.length})</h4>
+                  <div className="space-y-2 max-h-32 overflow-y-auto">
+                    {template.goals.map((goal, index) => (
+                      <div key={index} className="flex items-center gap-2 text-sm p-2 bg-muted rounded">
+                        <Target className="h-3 w-3 text-chart-primary flex-shrink-0" />
+                        <span className="font-medium">{goal.name}</span>
+                        <Badge variant="outline" className="text-xs">
+                          {goal.category}
+                        </Badge>
+                        <Badge variant={
+                          goal.priority === 'critical' ? 'destructive' :
+                          goal.priority === 'high' ? 'default' : 'secondary'
+                        } className="text-xs">
+                          {goal.priority === 'critical' ? 'Crítica' :
+                           goal.priority === 'high' ? 'Alta' :
+                           goal.priority === 'medium' ? 'Média' : 'Baixa'}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Template Actions */}
+                <div className="flex items-center justify-between pt-2 border-t border-border">
+                  <div className="text-xs text-muted-foreground">
+                    {template.goals.length} metas • Configuração automática
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm">
+                      <Download className="mr-2 h-4 w-4" />
+                      Preview
+                    </Button>
+                    <Button size="sm" onClick={() => handleApplyTemplate(template)}>
+                      <CheckCircle2 className="mr-2 h-4 w-4" />
+                      Aplicar
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
+      {filteredTemplates.length === 0 && (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <Filter className="h-12 w-12 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-semibold text-foreground mb-2">
+              Nenhum template encontrado
+            </h3>
+            <p className="text-muted-foreground text-center mb-4">
+              Ajuste os filtros para encontrar templates adequados ao seu negócio
+            </p>
+            <Button onClick={() => {
+              setFilterCategory('all');
+              setFilterBusinessType('all');
+              setFilteredTemplates(templates);
+            }}>
+              Limpar Filtros
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Custom Template CTA */}
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-semibold text-foreground mb-1">Não encontrou o que procura?</h3>
+              <p className="text-sm text-muted-foreground">
+                Crie suas próprias metas personalizadas ou solicite um template customizado
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="outline">
+                <Plus className="mr-2 h-4 w-4" />
+                Criar Template
+              </Button>
+              <Button>
+                <Target className="mr-2 h-4 w-4" />
+                Meta Personalizada
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
