@@ -21,7 +21,8 @@ import {
   Edit,
   ChevronDown,
   Trash2,
-  ArchiveX
+  ArchiveX,
+  Plus
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -30,6 +31,7 @@ interface TaskKanbanProps {
   onTaskMove: (taskId: string, newStatus: TaskStatus, shouldArchive?: boolean) => void;
   onTaskClick?: (task: Task) => void;
   onTaskDelete?: (taskId: string) => void;
+  onTaskCreate?: (status: TaskStatus) => void;
   clients: any[];
 }
 
@@ -228,7 +230,7 @@ function SortableTaskCard({ task, clients, onTaskClick, onStatusChange, onArchiv
   );
 }
 
-export function TaskKanban({ tasks, onTaskMove, onTaskClick, onTaskDelete, clients }: TaskKanbanProps) {
+export function TaskKanban({ tasks, onTaskMove, onTaskClick, onTaskDelete, onTaskCreate, clients }: TaskKanbanProps) {
   const [showArchived, setShowArchived] = useState(false);
   const [archivedPage, setArchivedPage] = useState(1);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
@@ -366,6 +368,18 @@ export function TaskKanban({ tasks, onTaskMove, onTaskClick, onTaskDelete, clien
                     <Badge variant="secondary" className="ml-auto">
                       {columnTasks.length}
                     </Badge>
+                    {/* Botão de criação rápida - não mostrar para overdue e archived */}
+                    {column.id !== 'overdue' && column.id !== 'archived' && onTaskCreate && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 w-6 p-0 ml-1 hover:bg-primary/10"
+                        onClick={() => onTaskCreate(column.id as TaskStatus)}
+                        title={`Criar tarefa ${column.title.toLowerCase()}`}
+                      >
+                        <Plus className="h-3 w-3" />
+                      </Button>
+                    )}
                   </CardTitle>
                 </CardHeader>
                 

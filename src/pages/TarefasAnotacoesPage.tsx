@@ -57,6 +57,7 @@ export default function TarefasAnotacoesPage() {
   const [showEditTaskDrawer, setShowEditTaskDrawer] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [editingNote, setEditingNote] = useState<Note | null>(null);
+  const [initialTaskStatus, setInitialTaskStatus] = useState<TaskStatus | undefined>(undefined);
   
   // Filter states
   const [taskFilters, setTaskFilters] = useState<TaskFilters>({});
@@ -695,6 +696,11 @@ export default function TarefasAnotacoesPage() {
             onTaskMove={handleTaskMove}
             onTaskClick={handleTaskClick}
             onTaskDelete={handleDeleteTask}
+            onTaskCreate={(status) => {
+              // Abrir modal com status pré-definido
+              setInitialTaskStatus(status);
+              setShowNewTaskModal(true);
+            }}
             clients={clients}
           />
         </TabsContent>
@@ -834,8 +840,14 @@ export default function TarefasAnotacoesPage() {
       {/* Modals */}
       <NewTaskModal
         open={showNewTaskModal}
-        onOpenChange={setShowNewTaskModal}
+        onOpenChange={(open) => {
+          setShowNewTaskModal(open);
+          if (!open) {
+            setInitialTaskStatus(undefined);
+          }
+        }}
         onSave={handleCreateTask}
+        initialStatus={initialTaskStatus}
       />
 
       <NewTaskModal

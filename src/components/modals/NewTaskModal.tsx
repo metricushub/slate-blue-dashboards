@@ -13,12 +13,13 @@ interface NewTaskModalProps {
   onOpenChange: (open: boolean) => void;
   onSave: (task: Omit<Task, 'id' | 'created_at'>) => void;
   initialData?: Task;
+  initialStatus?: TaskStatus;
 }
 
 const TASK_PRIORITIES: TaskPriority[] = ["Baixa", "Média", "Alta"];
 const TASK_STATUS: TaskStatus[] = ["Aberta", "Em progresso", "Concluída"];
 
-export function NewTaskModal({ open, onOpenChange, onSave, initialData }: NewTaskModalProps) {
+export function NewTaskModal({ open, onOpenChange, onSave, initialData, initialStatus }: NewTaskModalProps) {
   const { dataSource } = useDataSource();
   const [loading, setLoading] = useState(false);
   const [clients, setClients] = useState<any[]>([]);
@@ -32,7 +33,7 @@ export function NewTaskModal({ open, onOpenChange, onSave, initialData }: NewTas
     client_id: '',
   });
 
-  // Load initial data if editing
+  // Load initial data if editing or set initial status
   useEffect(() => {
     if (initialData) {
       setFormData({
@@ -44,8 +45,14 @@ export function NewTaskModal({ open, onOpenChange, onSave, initialData }: NewTas
         status: initialData.status,
         client_id: initialData.client_id || '',
       });
+    } else if (initialStatus && open) {
+      // Set initial status for new tasks from Kanban
+      setFormData(prev => ({
+        ...prev,
+        status: initialStatus
+      }));
     }
-  }, [initialData]);
+  }, [initialData, initialStatus, open]);
 
   // Carregar clientes quando o modal abre
   useEffect(() => {
@@ -91,7 +98,7 @@ export function NewTaskModal({ open, onOpenChange, onSave, initialData }: NewTas
       due_date: '',
       owner: '',
       priority: 'Média',
-      status: 'Aberta',
+      status: initialStatus || 'Aberta', // Use initialStatus if provided
       client_id: '',
     });
     onOpenChange(false);
