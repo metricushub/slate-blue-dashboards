@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Save, FileText, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import { BriefingTemplate, BriefingField, BriefingResponse } from '@/types/briefing';
+import { BriefingTemplate, BriefingField, BriefingResponse, DEFAULT_BRIEFING_TEMPLATE } from '@/types/briefing';
 import { briefingTemplateOperations, briefingResponseOperations } from '@/shared/db/briefingStore';
 
 interface DynamicBriefingFormProps {
@@ -30,7 +30,7 @@ export function DynamicBriefingForm({ clientId, templateId }: DynamicBriefingFor
     loadTemplate();
   }, [templateId]);
 
-  const loadTemplate = async () => {
+const loadTemplate = async () => {
     try {
       setLoading(true);
       
@@ -40,6 +40,14 @@ export function DynamicBriefingForm({ clientId, templateId }: DynamicBriefingFor
         currentTemplate = await briefingTemplateOperations.getById(templateId);
       } else {
         currentTemplate = await briefingTemplateOperations.getDefault();
+        
+        // Se não encontrar template padrão, force a reinicialização
+        if (!currentTemplate) {
+          console.log('Template padrão não encontrado, forçando criação...');
+          currentTemplate = await briefingTemplateOperations.create({
+            ...DEFAULT_BRIEFING_TEMPLATE
+          });
+        }
       }
 
       if (!currentTemplate) {
