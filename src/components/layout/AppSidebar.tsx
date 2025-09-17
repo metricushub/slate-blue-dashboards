@@ -11,6 +11,7 @@ import {
   ClipboardCheck,
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
+import { UserMenu } from './UserMenu';
 
 import {
   Sidebar,
@@ -21,6 +22,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarHeader,
   useSidebar,
 } from "@/components/ui/sidebar";
 
@@ -53,6 +55,17 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon">
+      <SidebarHeader>
+        <div className="flex items-center justify-between px-2">
+          <div className="flex items-center gap-2 font-semibold">
+            <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+              <BarChart3 className="h-4 w-4" />
+            </div>
+            {!collapsed && <span>Metricus</span>}
+          </div>
+          {!collapsed && <UserMenu />}
+        </div>
+      </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel className={collapsed ? "sr-only" : ""}>

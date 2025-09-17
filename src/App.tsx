@@ -6,6 +6,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import { AuthProvider } from "@/components/auth/AuthProvider";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { Suspense, lazy } from "react";
 
 // Pages
@@ -13,6 +15,7 @@ import HomePage from "./pages/Home/HomePage";
 import ClientsPage from "./pages/ClientsPage";
 import LeadsPage from "./pages/LeadsPage";
 import WhatsAppPage from "./pages/WhatsAppPage";
+import AuthPage from "./pages/AuthPage";
 import { FinanceiroPage } from "./pages/FinanceiroPage";
 import OptimizationsPage from "./pages/OptimizationsPage";
 import AnalyticsPage from "./pages/AnalyticsPage";
@@ -61,12 +64,20 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider defaultTheme="light" storageKey="metricus-ui-theme">
       <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <SidebarProvider defaultOpen={true}>
-            <AppLayout>
-              <Routes>
+        <AuthProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              {/* Public routes */}
+              <Route path="/auth" element={<AuthPage />} />
+              
+              {/* Protected routes */}
+              <Route path="/*" element={
+                <ProtectedRoute>
+                  <SidebarProvider defaultOpen={true}>
+                    <AppLayout>
+                      <Routes>
                 {/* Global Routes */}
                 <Route path="/" element={<HomePage />} />
                 <Route path="/clientes" element={<ClientsPage />} />
@@ -104,11 +115,15 @@ const App = () => (
                 <Route path="/cliente/:clientId/config-dados/google-ads" element={<ConfigDadosGoogleAds />} />
                 <Route path="/cliente/:clientId/config-dados/meta-ads" element={<ConfigDadosMetaAds />} />
                 
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </AppLayout>
-          </SidebarProvider>
-        </BrowserRouter>
+                        <Route path="*" element={<NotFound />} />
+                      </Routes>
+                    </AppLayout>
+                  </SidebarProvider>
+                </ProtectedRoute>
+              } />
+            </Routes>
+          </BrowserRouter>
+        </AuthProvider>
       </TooltipProvider>
     </ThemeProvider>
   </QueryClientProvider>
