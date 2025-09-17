@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { Suspense, lazy } from "react";
 
 // Pages
 import HomePage from "./pages/Home/HomePage";
@@ -21,7 +22,7 @@ import { IntegrationsPage } from "./pages/IntegrationsPage";
 import { ClientOverview } from "./pages/client-dashboard/overview/ClientOverview";
 import ClientCadastroPage from "./pages/ClientCadastroPage";
 import ClientBriefingPage from "./components/briefing/ClientBriefingPage";
-import ClientDocumentosPage from "./pages/ClientDocumentosPage";
+// import ClientDocumentosPage from "./pages/ClientDocumentosPage";
 import NotFound from "./pages/NotFound";
 import DiagnosticsPage from "./pages/DiagnosticsPage";
 
@@ -43,6 +44,9 @@ import ObjetivosClienteWip from "./pages/wip/ObjetivosClienteWip";
 import IntegracaoPlanilhaWip from "./pages/wip/IntegracaoPlanilhaWip";
 import IntegracaoGoogleAdsWip from "./pages/wip/IntegracaoGoogleAdsWip";
 import IntegracaoMetaWip from "./pages/wip/IntegracaoMetaWip";
+
+// Lazy pages
+const ClientDocumentosPageLazy = lazy(() => import("./pages/ClientDocumentosPage"));
 
 const queryClient = new QueryClient();
 
@@ -78,7 +82,7 @@ const App = () => (
                 <Route path="/cliente/:clientId/overview" element={<ClientOverview />} />
             <Route path="/cliente/:clientId/cadastro" element={<ClientCadastroPage />} />
           <Route path="/cliente/:clientId/cadastro/briefing" element={<ClientBriefingPage />} />
-          <Route path="/cliente/:clientId/cadastro/documentos" element={<ClientDocumentosPage />} />
+          <Route path="/cliente/:clientId/cadastro/documentos" element={<Suspense fallback={<div className="p-4">Carregando…</div>}><ClientDocumentosPageLazy /></Suspense>} />
                 <Route path="/cliente/:clientId/otimizacoes" element={<CentralOtimizacoesWip />} />
                 <Route path="/cliente/:clientId/tarefas-alertas" element={<TarefasAlertasWip />} />
                 <Route path="/cliente/:clientId/chat" element={<ChatIaConfigWip />} />
