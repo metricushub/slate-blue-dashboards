@@ -61,10 +61,14 @@ export function SidebarCliente() {
     { title: "Relatórios", url: link("relatorios", "/clientes"), icon: FileBarChart },
     { title: "Analytics", url: link("analytics", "/clientes"), icon: LineChart },
     { title: "Objetivos e Metas de KPI", url: link("objetivos", "/clientes"), icon: Target },
-    { title: "Onboarding", url: link("onboarding", "/onboarding"), icon: ClipboardCheck },
     { title: "Integração Planilha", url: link("integracao-planilha", "/clientes"), icon: TableProperties },
     { title: "Integração Google Ads", url: link("integracao-google-ads", "/clientes"), icon: BadgeDollarSign },
     { title: "Integração Meta", url: link("integracao-meta", "/clientes"), icon: BadgePercent },
+  ];
+
+  // Itens que vêm depois do Cadastro do Cliente
+  const navigationItemsAfterCadastro = [
+    { title: "Onboarding", url: link("onboarding", "/onboarding"), icon: ClipboardCheck },
   ];
 
   const cadastroSubItems = [
@@ -166,6 +170,23 @@ export function SidebarCliente() {
                   )}
                 </SidebarMenuItem>
               </Collapsible>
+              
+              {/* Itens após o Cadastro do Cliente */}
+              {navigationItemsAfterCadastro.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild>
+                    <NavLink to={item.url} className={getNavClassName(item.url)}>
+                      <item.icon className="h-5 w-5 shrink-0" />
+                      {!collapsed && (
+                        <span className="truncate">{item.title}</span>
+                      )}
+                      {!collapsed && isActive(item.url) && (
+                        <ChevronRight className="h-4 w-4 ml-auto" />
+                      )}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
