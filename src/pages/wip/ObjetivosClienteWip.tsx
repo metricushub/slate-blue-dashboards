@@ -30,7 +30,7 @@ const ObjetivosClienteWip = () => {
         </TabsList>
 
         <TabsContent value="dashboard" className="mt-6">
-          <GoalsDashboard clientId={clientId} />
+          <GoalsDashboard clientId={clientId} onCreateGoal={() => setActiveTab('manager')} />
         </TabsContent>
 
         <TabsContent value="manager" className="mt-6">

@@ -26,117 +26,76 @@ import { ptBR } from 'date-fns/locale';
 
 interface GoalsDashboardProps {
   clientId?: string;
+  onCreateGoal?: () => void;
 }
 
-// Mock data - Em produção seria carregado do banco
-const mockGoals: Goal[] = [
-  {
-    id: '1',
-    clientId: 'client-1',
-    name: 'Meta de Leads Mensal',
-    description: 'Objetivo de gerar 150 leads por mês',
-    metric: 'leads',
-    operator: 'gte',
-    targetValue: 150,
-    period: 'monthly',
-    startDate: '2024-12-01',
-    endDate: '2024-12-31',
-    status: 'active',
-    priority: 'high',
-    createdAt: '2024-12-01',
-    updatedAt: '2024-12-01',
-    createdBy: 'user-1',
-    enableAlerts: true,
-    alertFrequency: 'daily',
-    alertThreshold: 80,
-    alertRecipients: ['gestor@empresa.com'],
-    currentValue: 127,
-    progress: 84.7,
-    lastCalculatedAt: '2024-12-15',
-    category: 'Aquisição'
-  },
-  {
-    id: '2',
-    clientId: 'client-1',
-    name: 'CPL Máximo',
-    description: 'Manter CPL abaixo de R$ 45',
-    metric: 'cpl',
-    operator: 'lte',
-    targetValue: 45,
-    period: 'monthly',
-    startDate: '2024-12-01',
-    endDate: '2024-12-31',
-    status: 'active',
-    priority: 'critical',
-    createdAt: '2024-12-01',
-    updatedAt: '2024-12-01',
-    createdBy: 'user-1',
-    enableAlerts: true,
-    alertFrequency: 'immediate',
-    alertThreshold: 90,
-    alertRecipients: ['gestor@empresa.com', 'cliente@empresa.com'],
-    currentValue: 52,
-    progress: 0, // Não atingida (acima do limite)
-    lastCalculatedAt: '2024-12-15',
-    category: 'Eficiência'
-  },
-  {
-    id: '3',
-    clientId: 'client-1',
-    name: 'ROAS Mínimo',
-    description: 'Manter ROAS acima de 3.5x',
-    metric: 'roas',
-    operator: 'gte',
-    targetValue: 3.5,
-    period: 'monthly',
-    startDate: '2024-12-01',
-    endDate: '2024-12-31',
-    status: 'active',
-    priority: 'medium',
-    createdAt: '2024-12-01',
-    updatedAt: '2024-12-01',
-    createdBy: 'user-1',
-    enableAlerts: true,
-    alertFrequency: 'weekly',
-    alertThreshold: 85,
-    alertRecipients: ['gestor@empresa.com'],
-    currentValue: 4.2,
-    progress: 100,
-    lastCalculatedAt: '2024-12-15',
-    category: 'Receita'
-  },
-  {
-    id: '4',
-    clientId: 'client-1',
-    name: 'Investimento Mensal',
-    description: 'Não ultrapassar R$ 15.000 de investimento',
-    metric: 'spend',
-    operator: 'lte',
-    targetValue: 15000,
-    period: 'monthly',
-    startDate: '2024-12-01',
-    endDate: '2024-12-31',
-    status: 'active',
-    priority: 'high',
-    createdAt: '2024-12-01',
-    updatedAt: '2024-12-01',
-    createdBy: 'user-1',
-    enableAlerts: true,
-    alertFrequency: 'daily',
-    alertThreshold: 90,
-    alertRecipients: ['gestor@empresa.com'],
-    currentValue: 12450,
-    progress: 83, // 83% do orçamento usado (bom)
-    lastCalculatedAt: '2024-12-15',
-    category: 'Orçamento'
-  }
-];
+const STORAGE_KEY = 'metricus_goals_v1';
 
-export function GoalsDashboard({ clientId }: GoalsDashboardProps) {
-  const [goals, setGoals] = useState<Goal[]>(mockGoals);
+function loadClientGoals(clientId: string): Goal[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as Record<string, Goal[]>;
+    return parsed[clientId] || [];
+  } catch {
+    return [];
+  }
+}
+
+// Mock some progress data for existing goals
+function calculateMockProgress(goal: Goal): { progress: number; currentValue: number } {
+  const baseProgress = Math.random() * 100;
+  let currentValue = 0;
+  
+  switch (goal.metric) {
+    case 'leads':
+      currentValue = goal.targetValue * (baseProgress / 100) * (0.8 + Math.random() * 0.4);
+      break;
+    case 'cpl':
+    case 'cpa':
+      currentValue = goal.targetValue * (1 + (Math.random() - 0.5) * 0.3);
+      break;
+    case 'roas':
+      currentValue = goal.targetValue * (0.8 + Math.random() * 0.6);
+      break;
+    case 'spend':
+      currentValue = goal.targetValue * (baseProgress / 100);
+      break;
+    case 'revenue':
+      currentValue = goal.targetValue * (baseProgress / 100) * (0.7 + Math.random() * 0.6);
+      break;
+    default:
+      currentValue = goal.targetValue * (baseProgress / 100);
+  }
+
+  return {
+    progress: Math.min(100, baseProgress + Math.random() * 20),
+    currentValue: Math.round(currentValue * 100) / 100
+  };
+}
+
+export function GoalsDashboard({ clientId, onCreateGoal }: GoalsDashboardProps) {
+  const cid = clientId || 'client-1';
+  const [goals, setGoals] = useState<Goal[]>([]);
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [filterPriority, setFilterPriority] = useState<string>('all');
   const [filterCategory, setFilterCategory] = useState<string>('all');
+
+  // Load goals from localStorage
+  useEffect(() => {
+    const loadedGoals = loadClientGoals(cid);
+    // Add mock progress to each goal
+    const goalsWithProgress = loadedGoals.map(goal => {
+      const { progress, currentValue } = calculateMockProgress(goal);
+      return {
+        ...goal,
+        progress,
+        currentValue,
+        lastCalculatedAt: new Date().toISOString()
+      };
+    });
+    setGoals(goalsWithProgress);
+  }, [cid]);
 
   const filteredGoals = goals.filter(goal => {
     if (filterStatus !== 'all' && goal.status !== filterStatus) return false;
@@ -404,7 +363,7 @@ export function GoalsDashboard({ clientId }: GoalsDashboardProps) {
                 : 'Configure suas primeiras metas para começar o acompanhamento'
               }
             </p>
-            <Button>
+            <Button onClick={onCreateGoal}>
               <Plus className="mr-2 h-4 w-4" />
               Criar Primeira Meta
             </Button>
