@@ -34,7 +34,8 @@ import {
   CheckCircle,
   Filter,
   ChevronRight,
-  Loader2
+  Loader2,
+  UserCheck
 } from "lucide-react";
 
 export default function TarefasAnotacoesPage() {
@@ -602,37 +603,102 @@ export default function TarefasAnotacoesPage() {
           tasks={filteredTasks}
         />
 
-        {/* Tasks Tab */}
-        <TabsContent value="tarefas" className="space-y-6">
-          {/* Dashboard Cards */}
-          <TaskDashboardCards tasks={filteredTasks} />
-          
-          {/* Alerts Banner */}
-          <TaskAlertsBanner 
-            tasks={filteredTasks}
-            onCompleteTask={handleCompleteTask}
-            onPostponeTask={handlePostponeTask}
-          />
-          
-          {/* Filters and Views */}
-          <TaskFiltersAndViews
-            filters={taskFilters}
-            onFiltersChange={setTaskFilters}
-            clients={clients}
-            tasks={tasks}
-          />
-          
-          {/* Kanban */}
+        <TabsContent value="tarefas" className="space-y-4">
+          <div className="space-y-4">
+            {filteredTasks.length === 0 ? (
+              <Card>
+                <CardContent className="p-6 text-center">
+                  <CheckSquare className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
+                  <h3 className="text-lg font-semibold mb-2">Nenhuma tarefa encontrada</h3>
+                  <p className="text-muted-foreground mb-4">
+                    {taskFilters.search || Object.keys(taskFilters).length > 0 
+                      ? "Nenhuma tarefa corresponde aos filtros aplicados."
+                      : "Ainda não há tarefas criadas. Crie a primeira tarefa!"
+                    }
+                  </p>
+                  <Button onClick={() => setShowNewTaskModal(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Criar Primeira Tarefa
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              filteredTasks.map((task) => (
+                <Card key={task.id} className="hover:shadow-md transition-shadow cursor-pointer">
+                  <CardContent className="p-4" onClick={() => handleTaskClick(task)}>
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-semibold">{task.title}</h3>
+                          <Badge variant={getStatusColor(task.status)}>
+                            {task.status}
+                          </Badge>
+                          <Badge variant={getPriorityColor(task.priority)}>
+                            {task.priority}
+                          </Badge>
+                        </div>
+                        
+                        {task.description && (
+                          <p className="text-sm text-muted-foreground line-clamp-2">
+                            {task.description}
+                          </p>
+                        )}
+                        
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          {task.due_date && (
+                            <div className="flex items-center gap-1">
+                              <Calendar className="h-3 w-3" />
+                              {new Date(task.due_date).toLocaleDateString('pt-BR')}
+                            </div>
+                          )}
+                          {task.owner && (
+                            <div className="flex items-center gap-1">
+                              <User className="h-3 w-3" />
+                              {task.owner}
+                            </div>
+                          )}
+                          {task.client_id && (
+                            <div className="flex items-center gap-1">
+                              <UserCheck className="h-3 w-3" />
+                              {getClientName(task.client_id)}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        {task.status !== 'Concluída' && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCompleteTask(task.id);
+                            }}
+                          >
+                            <CheckCircle className="h-3 w-3" />
+                          </Button>
+                        )}
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="kanban">
           <TaskKanban 
-            tasks={filteredTasks} 
+            tasks={filteredTasks}
             onTaskMove={handleTaskMove}
             onTaskClick={handleTaskClick}
             clients={clients}
           />
         </TabsContent>
 
-        {/* Calendar Tab */}
-        <TabsContent value="calendario" className="space-y-6">
+        <TabsContent value="calendario">
           <TaskCalendar 
             tasks={filteredTasks}
             onTaskClick={handleTaskClick}
