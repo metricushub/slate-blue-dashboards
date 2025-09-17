@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { NewOnboardingKanban } from '@/components/onboarding/NewOnboardingKanban';
 import { OnboardingFicha } from '@/components/onboarding/OnboardingFicha';
+import { DynamicBriefingForm } from '@/components/briefing/DynamicBriefingForm';
 import { OnboardingClientHeader } from '@/components/onboarding/OnboardingClientHeader';
 import { ClientNotFound } from '@/components/onboarding/ClientNotFound';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -254,6 +255,10 @@ export default function OnboardingClientPage() {
         
         <TabsContent value="ficha" className="h-full mt-0 p-6">
           <OnboardingFicha clientId={resolvedClientId as string} focusSection={focusSection} />
+        </TabsContent>
+        
+        <TabsContent value="briefing" className="h-full mt-0 p-6">
+          <DynamicBriefingForm clientId={resolvedClientId as string} />
         </TabsContent>
       </Tabs>
 
