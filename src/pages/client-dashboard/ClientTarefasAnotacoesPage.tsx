@@ -615,6 +615,53 @@ export default function ClientTarefasAnotacoesPage() {
         />
 
         <TabsContent value="tarefas" className="space-y-4">
+          {/* Quick Task Creation Buttons */}
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-medium text-muted-foreground">Criar tarefa rápida:</h3>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setInitialTaskStatus('Aberta');
+                    setShowNewTaskModal(true);
+                  }}
+                  className="flex items-center gap-1"
+                >
+                  <Plus className="h-3 w-3" />
+                  Nova Aberta
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setInitialTaskStatus('Em progresso');
+                    setShowNewTaskModal(true);
+                  }}
+                  className="flex items-center gap-1"
+                >
+                  <Plus className="h-3 w-3" />
+                  Em Progresso
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setInitialTaskStatus('Concluída');
+                    setShowNewTaskModal(true);
+                  }}
+                  className="flex items-center gap-1"
+                >
+                  <Plus className="h-3 w-3" />
+                  Concluída
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
           <div className="space-y-4">
             {filteredTasks.length === 0 ? (
               <Card>
