@@ -62,13 +62,14 @@ export function SidebarCliente() {
 
   // Itens que vêm depois do Cadastro do Cliente
   const navigationItemsAfterCadastro = [
-    { title: "Onboarding", url: link("onboarding", "/onboarding"), icon: ClipboardCheck },
+    // Onboarding moved to cadastroSubItems
   ];
 
   const cadastroSubItems = [
     { title: "Ficha Cadastral", url: link("cadastro", "/clientes"), icon: User },
     { title: "Briefing", url: link("cadastro/briefing", "/clientes"), icon: FileText },
     { title: "Documentos", url: link("cadastro/documentos", "/clientes"), icon: FileBarChart },
+    { title: "Onboarding", url: link("onboarding", "/onboarding"), icon: ClipboardCheck },
   ];
 
   const configDadosSubItems = [
@@ -216,8 +217,8 @@ export function SidebarCliente() {
                 </SidebarMenuItem>
               </Collapsible>
               
-              {/* Itens após o Cadastro do Cliente */}
-              {navigationItemsAfterCadastro.map((item) => (
+              {/* Itens após o Cadastro do Cliente - now empty */}
+              {navigationItemsAfterCadastro.length > 0 && navigationItemsAfterCadastro.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
                     <NavLink to={item.url} className={getNavClassName(item.url)}>
