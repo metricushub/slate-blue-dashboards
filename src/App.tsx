@@ -47,6 +47,9 @@ import IntegracaoMetaWip from "./pages/wip/IntegracaoMetaWip";
 
 // Lazy pages
 const ClientDocumentosPageLazy = lazy(() => import("./pages/ClientDocumentosPage"));
+// Fallback stub to prevent runtime reference errors if any stale code still refers to ClientDocumentosPage
+// Not used in routes; safe no-op
+const ClientDocumentosPage = () => null;
 
 const queryClient = new QueryClient();
 
