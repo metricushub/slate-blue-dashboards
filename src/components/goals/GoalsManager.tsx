@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,32 +7,54 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Plus, 
-  Edit, 
-  Trash2, 
-  Copy, 
-  Target, 
+import {
+  Plus,
+  Edit,
+  Trash2,
+  Copy,
+  Target,
   AlertCircle,
   Calendar,
-  Users,
-  Settings,
   Save,
   X
 } from 'lucide-react';
 import { Goal, GoalPeriod, GoalOperator, GOAL_CATEGORIES } from '@/types/goals';
 import { METRICS, MetricKey } from '@/shared/types/metrics';
 import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 
 interface GoalsManagerProps {
   clientId?: string;
 }
 
+const STORAGE_KEY = 'metricus_goals_v1';
+
+function loadClientGoals(clientId: string): Goal[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as Record<string, Goal[]>;
+    return parsed[clientId] || [];
+  } catch {
+    return [];
+  }
+}
+
+function saveClientGoals(clientId: string, goals: Goal[]) {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    const parsed = (raw ? JSON.parse(raw) : {}) as Record<string, Goal[]>;
+    parsed[clientId] = goals;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+  } catch (e) {
+    console.error('Erro ao salvar metas:', e);
+  }
+}
+
 export function GoalsManager({ clientId }: GoalsManagerProps) {
-  const [goals, setGoals] = useState<Goal[]>([]);
+  const cid = clientId || 'client-1';
+  const [goals, setGoals] = useState<Goal[]>(() => loadClientGoals(cid));
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
   const [formData, setFormData] = useState({
@@ -52,6 +74,11 @@ export function GoalsManager({ clientId }: GoalsManagerProps) {
     alertThreshold: '80',
     alertRecipients: ['']
   });
+
+  // persist whenever goals change
+  useEffect(() => {
+    saveClientGoals(cid, goals);
+  }, [cid, goals]);
 
   const handleCreateGoal = () => {
     setFormData({
@@ -99,7 +126,7 @@ export function GoalsManager({ clientId }: GoalsManagerProps) {
 
   const handleSaveGoal = () => {
     const goalData: Omit<Goal, 'id' | 'createdAt' | 'updatedAt'> = {
-      clientId: clientId || 'client-1',
+      clientId: cid,
       name: formData.name,
       description: formData.description,
       metric: formData.metric,
@@ -120,14 +147,12 @@ export function GoalsManager({ clientId }: GoalsManagerProps) {
     };
 
     if (editingGoal) {
-      // Update existing goal
-      setGoals(prev => prev.map(g => 
-        g.id === editingGoal.id 
+      setGoals(prev => prev.map(g =>
+        g.id === editingGoal.id
           ? { ...goalData, id: editingGoal.id, createdAt: editingGoal.createdAt, updatedAt: new Date().toISOString() }
           : g
       ));
     } else {
-      // Create new goal
       const newGoal: Goal = {
         ...goalData,
         id: Date.now().toString(),
@@ -214,9 +239,7 @@ export function GoalsManager({ clientId }: GoalsManagerProps) {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-foreground">Gerenciar Metas</h2>
-          <p className="text-muted-foreground">
-            Crie, edite e organize as metas de performance do cliente
-          </p>
+          <p className="text-muted-foreground">Crie, edite e organize as metas de performance do cliente</p>
         </div>
         <Button onClick={handleCreateGoal}>
           <Plus className="mr-2 h-4 w-4" />
@@ -267,9 +290,7 @@ export function GoalsManager({ clientId }: GoalsManagerProps) {
 
                 <div className="space-y-2">
                   <Label htmlFor="category">Categoria</Label>
-                  <Select value={formData.category} onValueChange={(value) => 
-                    setFormData(prev => ({ ...prev, category: value }))
-                  }>
+                  <Select value={formData.category} onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione uma categoria" />
                     </SelectTrigger>
@@ -285,9 +306,7 @@ export function GoalsManager({ clientId }: GoalsManagerProps) {
 
                 <div className="space-y-2">
                   <Label htmlFor="priority">Prioridade</Label>
-                  <Select value={formData.priority} onValueChange={(value) => 
-                    setFormData(prev => ({ ...prev, priority: value }))
-                  }>
+                  <Select value={formData.priority} onValueChange={(value) => setFormData(prev => ({ ...prev, priority: value }))}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -326,9 +345,7 @@ export function GoalsManager({ clientId }: GoalsManagerProps) {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="metric">Métrica</Label>
-                  <Select value={formData.metric} onValueChange={(value) => 
-                    setFormData(prev => ({ ...prev, metric: value as MetricKey }))
-                  }>
+                  <Select value={formData.metric} onValueChange={(value) => setFormData(prev => ({ ...prev, metric: value as MetricKey }))}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione uma métrica" />
                     </SelectTrigger>
@@ -344,9 +361,7 @@ export function GoalsManager({ clientId }: GoalsManagerProps) {
 
                 <div className="space-y-2">
                   <Label htmlFor="operator">Condição</Label>
-                  <Select value={formData.operator} onValueChange={(value) => 
-                    setFormData(prev => ({ ...prev, operator: value as GoalOperator }))
-                  }>
+                  <Select value={formData.operator} onValueChange={(value) => setFormData(prev => ({ ...prev, operator: value as GoalOperator }))}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -385,9 +400,7 @@ export function GoalsManager({ clientId }: GoalsManagerProps) {
 
                 <div className="space-y-2">
                   <Label htmlFor="period">Período</Label>
-                  <Select value={formData.period} onValueChange={(value) => 
-                    setFormData(prev => ({ ...prev, period: value as GoalPeriod }))
-                  }>
+                  <Select value={formData.period} onValueChange={(value) => setFormData(prev => ({ ...prev, period: value as GoalPeriod }))}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -408,9 +421,7 @@ export function GoalsManager({ clientId }: GoalsManagerProps) {
                 <Label>Ativar Alertas</Label>
                 <Switch
                   checked={formData.enableAlerts}
-                  onCheckedChange={(checked) => 
-                    setFormData(prev => ({ ...prev, enableAlerts: checked }))
-                  }
+                  onCheckedChange={(checked) => setFormData(prev => ({ ...prev, enableAlerts: checked }))}
                 />
               </div>
 
@@ -419,9 +430,7 @@ export function GoalsManager({ clientId }: GoalsManagerProps) {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="alertFrequency">Frequência</Label>
-                      <Select value={formData.alertFrequency} onValueChange={(value) => 
-                        setFormData(prev => ({ ...prev, alertFrequency: value }))
-                      }>
+                      <Select value={formData.alertFrequency} onValueChange={(value) => setFormData(prev => ({ ...prev, alertFrequency: value }))}>
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
@@ -502,7 +511,7 @@ export function GoalsManager({ clientId }: GoalsManagerProps) {
                     <Target className="h-5 w-5 text-chart-primary" />
                     <h3 className="font-semibold text-foreground">{goal.name}</h3>
                     <Badge variant={getPriorityColor(goal.priority) === 'warning' ? 'outline' : getPriorityColor(goal.priority) as any}>
-                      {goal.priority === 'critical' ? 'Crítica' : 
+                      {goal.priority === 'critical' ? 'Crítica' :
                        goal.priority === 'high' ? 'Alta' :
                        goal.priority === 'medium' ? 'Média' : 'Baixa'}
                     </Badge>
@@ -510,11 +519,11 @@ export function GoalsManager({ clientId }: GoalsManagerProps) {
                       <Badge variant="outline">{goal.category}</Badge>
                     )}
                   </div>
-                  
+
                   <p className="text-sm text-muted-foreground">{goal.description}</p>
-                  
+
                   <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                    <span>{METRICS[goal.metric].label}</span>
+                    <span>{METRICS[goal.metric]?.label || goal.metric}</span>
                     <span>{getOperatorLabel(goal.operator)}</span>
                     <span className="font-medium">{goal.targetValue}</span>
                     <span>•</span>
@@ -536,14 +545,14 @@ export function GoalsManager({ clientId }: GoalsManagerProps) {
                     <Edit className="mr-2 h-4 w-4" />
                     Editar
                   </Button>
-                  
+
                   <Button variant="outline" size="sm" onClick={() => handleDuplicateGoal(goal)}>
                     <Copy className="mr-2 h-4 w-4" />
                     Duplicar
                   </Button>
 
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     size="sm"
                     onClick={() => handleDeleteGoal(goal.id)}
                   >

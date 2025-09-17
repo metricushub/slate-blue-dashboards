@@ -1,20 +1,25 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { 
-  ShoppingCart, 
-  Users, 
-  Megaphone, 
-  Code, 
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { toast } from '@/hooks/use-toast';
+import {
+  ShoppingCart,
+  Users,
+  Megaphone,
+  Code,
   Target,
   Plus,
   Download,
   Filter,
-  CheckCircle2
+  CheckCircle2,
+  Eye
 } from 'lucide-react';
-import { GoalTemplate } from '@/types/goals';
+import { Goal, GoalTemplate } from '@/types/goals';
+import { format } from 'date-fns';
 
 interface GoalTemplatesProps {
   clientId?: string;
@@ -38,7 +43,6 @@ const templates: GoalTemplate[] = [
         startDate: '',
         status: 'active',
         priority: 'high',
-        // createdBy removed - will be set when applied
         enableAlerts: true,
         alertFrequency: 'daily',
         alertThreshold: 80,
@@ -55,7 +59,6 @@ const templates: GoalTemplate[] = [
         startDate: '',
         status: 'active',
         priority: 'high',
-        // createdBy will be set when applied
         enableAlerts: true,
         alertFrequency: 'immediate',
         alertThreshold: 90,
@@ -72,7 +75,6 @@ const templates: GoalTemplate[] = [
         startDate: '',
         status: 'active',
         priority: 'critical',
-        // createdBy will be set when applied
         enableAlerts: true,
         alertFrequency: 'weekly',
         alertThreshold: 75,
@@ -98,7 +100,6 @@ const templates: GoalTemplate[] = [
         startDate: '',
         status: 'active',
         priority: 'high',
-        // createdBy will be set when applied
         enableAlerts: true,
         alertFrequency: 'daily',
         alertThreshold: 80,
@@ -115,7 +116,6 @@ const templates: GoalTemplate[] = [
         startDate: '',
         status: 'active',
         priority: 'medium',
-        // createdBy will be set when applied
         enableAlerts: true,
         alertFrequency: 'weekly',
         alertThreshold: 85,
@@ -132,7 +132,6 @@ const templates: GoalTemplate[] = [
         startDate: '',
         status: 'active',
         priority: 'medium',
-        // createdBy will be set when applied
         enableAlerts: true,
         alertFrequency: 'weekly',
         alertThreshold: 80,
@@ -158,7 +157,6 @@ const templates: GoalTemplate[] = [
         startDate: '',
         status: 'active',
         priority: 'high',
-        // createdBy will be set when applied
         enableAlerts: true,
         alertFrequency: 'daily',
         alertThreshold: 75,
@@ -175,7 +173,6 @@ const templates: GoalTemplate[] = [
         startDate: '',
         status: 'active',
         priority: 'high',
-        // createdBy will be set when applied
         enableAlerts: true,
         alertFrequency: 'immediate',
         alertThreshold: 90,
@@ -192,7 +189,6 @@ const templates: GoalTemplate[] = [
         startDate: '',
         status: 'active',
         priority: 'medium',
-        // createdBy will be set when applied
         enableAlerts: true,
         alertFrequency: 'weekly',
         alertThreshold: 80,
@@ -218,7 +214,6 @@ const templates: GoalTemplate[] = [
         startDate: '',
         status: 'active',
         priority: 'high',
-        // createdBy will be set when applied
         enableAlerts: true,
         alertFrequency: 'weekly',
         alertThreshold: 80,
@@ -228,14 +223,13 @@ const templates: GoalTemplate[] = [
       {
         name: 'Alcance Eficiente',
         description: 'Manter CPM abaixo de R$ 15',
-        metric: 'cpl', // Using CPL as proxy for CPM
+        metric: 'cpl', // proxy
         operator: 'lte',
         targetValue: 15,
         period: 'monthly',
         startDate: '',
         status: 'active',
         priority: 'medium',
-        // createdBy will be set when applied
         enableAlerts: true,
         alertFrequency: 'weekly',
         alertThreshold: 85,
@@ -246,34 +240,48 @@ const templates: GoalTemplate[] = [
   }
 ];
 
+const STORAGE_KEY = 'metricus_goals_v1';
+
+function loadClientGoals(clientId: string): Goal[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as Record<string, Goal[]>;
+    return parsed[clientId] || [];
+  } catch {
+    return [];
+  }
+}
+
+function saveClientGoals(clientId: string, goals: Goal[]) {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    const parsed = (raw ? JSON.parse(raw) : {}) as Record<string, Goal[]>;
+    parsed[clientId] = goals;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+  } catch (e) {
+    console.error('Erro ao salvar metas:', e);
+  }
+}
+
+function uid() {
+  if ('randomUUID' in crypto) return crypto.randomUUID();
+  return 'goal-' + Math.random().toString(36).slice(2) + Date.now();
+}
+
 export function GoalTemplates({ clientId }: GoalTemplatesProps) {
-  const [filteredTemplates, setFilteredTemplates] = useState(templates);
+  const cid = clientId || 'client-1';
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [filterBusinessType, setFilterBusinessType] = useState<string>('all');
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewTemplate, setPreviewTemplate] = useState<GoalTemplate | null>(null);
 
-  const applyFilters = () => {
-    let filtered = templates;
-    
-    if (filterCategory !== 'all') {
-      filtered = filtered.filter(t => t.category === filterCategory);
-    }
-    
-    if (filterBusinessType !== 'all') {
-      filtered = filtered.filter(t => t.businessType === filterBusinessType);
-    }
-    
-    setFilteredTemplates(filtered);
-  };
-
-  const handleCategoryFilter = (category: string) => {
-    setFilterCategory(category);
-    applyFilters();
-  };
-
-  const handleBusinessTypeFilter = (type: string) => {
-    setFilterBusinessType(type);
-    applyFilters();
-  };
+  const filteredTemplates = useMemo(() => {
+    return templates.filter(t =>
+      (filterCategory === 'all' || t.category === filterCategory) &&
+      (filterBusinessType === 'all' || t.businessType === filterBusinessType)
+    );
+  }, [filterCategory, filterBusinessType]);
 
   const getBusinessTypeIcon = (type: string) => {
     switch (type) {
@@ -295,10 +303,51 @@ export function GoalTemplates({ clientId }: GoalTemplatesProps) {
     }
   };
 
+  const openPreview = (template: GoalTemplate) => {
+    setPreviewTemplate(template);
+    setPreviewOpen(true);
+  };
+
   const handleApplyTemplate = (template: GoalTemplate) => {
-    // Em uma implementação real, isso criaria as metas baseadas no template
-    console.log('Aplicando template:', template);
-    // Aqui você integraria com o GoalsManager para criar as metas
+    const existing = loadClientGoals(cid);
+    const today = format(new Date(), 'yyyy-MM-dd');
+
+    const newGoals: Goal[] = template.goals.map(g => ({
+      id: uid(),
+      clientId: cid,
+      name: g.name,
+      description: g.description,
+      metric: g.metric,
+      operator: g.operator,
+      targetValue: g.targetValue,
+      maxValue: (g as any).maxValue,
+      period: g.period,
+      startDate: g.startDate || today,
+      endDate: (g as any).endDate,
+      status: g.status as Goal['status'],
+      priority: g.priority as Goal['priority'],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      createdBy: 'template',
+      enableAlerts: g.enableAlerts,
+      alertFrequency: g.alertFrequency,
+      alertThreshold: g.alertThreshold,
+      alertRecipients: g.alertRecipients,
+      category: g.category,
+      tags: [],
+      isTemplate: false,
+      currentValue: undefined,
+      progress: 0,
+      lastCalculatedAt: undefined,
+    }));
+
+    const merged = [...existing, ...newGoals];
+    saveClientGoals(cid, merged);
+
+    toast({
+      title: 'Template aplicado',
+      description: `${newGoals.length} metas foram criadas. Abra a aba "Gerenciar" para editar.`,
+    });
   };
 
   return (
@@ -307,15 +356,13 @@ export function GoalTemplates({ clientId }: GoalTemplatesProps) {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-foreground">Templates de Metas</h2>
-          <p className="text-muted-foreground">
-            Use templates pré-configurados baseados no tipo de negócio
-          </p>
+          <p className="text-muted-foreground">Use templates pré-configurados baseados no tipo de negócio</p>
         </div>
       </div>
 
       {/* Filters */}
       <div className="flex items-center gap-4">
-        <Select value={filterCategory} onValueChange={handleCategoryFilter}>
+        <Select value={filterCategory} onValueChange={setFilterCategory}>
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Categoria" />
           </SelectTrigger>
@@ -328,7 +375,7 @@ export function GoalTemplates({ clientId }: GoalTemplatesProps) {
           </SelectContent>
         </Select>
 
-        <Select value={filterBusinessType} onValueChange={handleBusinessTypeFilter}>
+        <Select value={filterBusinessType} onValueChange={setFilterBusinessType}>
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Tipo de negócio" />
           </SelectTrigger>
@@ -346,7 +393,7 @@ export function GoalTemplates({ clientId }: GoalTemplatesProps) {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {filteredTemplates.map((template) => {
           const BusinessIcon = getBusinessTypeIcon(template.businessType);
-          
+
           return (
             <Card key={template.id} className="hover:shadow-md transition-shadow">
               <CardHeader>
@@ -360,13 +407,11 @@ export function GoalTemplates({ clientId }: GoalTemplatesProps) {
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge variant="outline">{template.category}</Badge>
-                    <Badge variant="secondary">
-                      {getBusinessTypeLabel(template.businessType)}
-                    </Badge>
+                    <Badge variant="secondary">{getBusinessTypeLabel(template.businessType)}</Badge>
                   </div>
                 </div>
               </CardHeader>
-              
+
               <CardContent className="space-y-4">
                 {/* Goals Preview */}
                 <div className="space-y-2">
@@ -376,9 +421,7 @@ export function GoalTemplates({ clientId }: GoalTemplatesProps) {
                       <div key={index} className="flex items-center gap-2 text-sm p-2 bg-muted rounded">
                         <Target className="h-3 w-3 text-chart-primary flex-shrink-0" />
                         <span className="font-medium">{goal.name}</span>
-                        <Badge variant="outline" className="text-xs">
-                          {goal.category}
-                        </Badge>
+                        <Badge variant="outline" className="text-xs">{goal.category}</Badge>
                         <Badge variant={
                           goal.priority === 'critical' ? 'destructive' :
                           goal.priority === 'high' ? 'default' : 'secondary'
@@ -397,10 +440,10 @@ export function GoalTemplates({ clientId }: GoalTemplatesProps) {
                   <div className="text-xs text-muted-foreground">
                     {template.goals.length} metas • Configuração automática
                   </div>
-                  
+
                   <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm">
-                      <Download className="mr-2 h-4 w-4" />
+                    <Button variant="outline" size="sm" onClick={() => openPreview(template)}>
+                      <Eye className="mr-2 h-4 w-4" />
                       Preview
                     </Button>
                     <Button size="sm" onClick={() => handleApplyTemplate(template)}>
@@ -419,46 +462,52 @@ export function GoalTemplates({ clientId }: GoalTemplatesProps) {
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Filter className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold text-foreground mb-2">
-              Nenhum template encontrado
-            </h3>
-            <p className="text-muted-foreground text-center mb-4">
-              Ajuste os filtros para encontrar templates adequados ao seu negócio
-            </p>
-            <Button onClick={() => {
-              setFilterCategory('all');
-              setFilterBusinessType('all');
-              setFilteredTemplates(templates);
-            }}>
+            <h3 className="text-lg font-semibold text-foreground mb-2">Nenhum template encontrado</h3>
+            <p className="text-muted-foreground text-center mb-4">Ajuste os filtros para encontrar templates adequados ao seu negócio</p>
+            <Button onClick={() => { setFilterCategory('all'); setFilterBusinessType('all'); }}>
               Limpar Filtros
             </Button>
           </CardContent>
         </Card>
       )}
 
-      {/* Custom Template CTA */}
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between">
+      {/* Preview Dialog */}
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Preview do Template</DialogTitle>
+            <DialogDescription>
+              Visualize as metas que serão criadas ao aplicar este template.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
             <div>
-              <h3 className="font-semibold text-foreground mb-1">Não encontrou o que procura?</h3>
-              <p className="text-sm text-muted-foreground">
-                Crie suas próprias metas personalizadas ou solicite um template customizado
-              </p>
+              <p className="font-semibold text-foreground">{previewTemplate?.name}</p>
+              <p className="text-sm text-muted-foreground">{previewTemplate?.description}</p>
             </div>
-            <div className="flex items-center gap-2">
-              <Button variant="outline">
-                <Plus className="mr-2 h-4 w-4" />
-                Criar Template
-              </Button>
-              <Button>
-                <Target className="mr-2 h-4 w-4" />
-                Meta Personalizada
-              </Button>
+            <ScrollArea className="h-[280px]">
+              <div className="space-y-2">
+                {previewTemplate?.goals.map((g, i) => (
+                  <div key={i} className="p-3 border border-border rounded-lg">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-medium">{g.name}</span>
+                      <Badge variant="outline">{g.category}</Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">{g.description}</p>
+                    <div className="mt-2 text-xs text-muted-foreground">
+                      Métrica: {g.metric} • Condição: {g.operator} • Meta: {g.targetValue} • Período: {g.period}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setPreviewOpen(false)}>Fechar</Button>
+              <Button onClick={() => { if (previewTemplate) { handleApplyTemplate(previewTemplate); setPreviewOpen(false); } }}>Aplicar Template</Button>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
