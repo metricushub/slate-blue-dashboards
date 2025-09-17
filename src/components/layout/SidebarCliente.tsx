@@ -57,7 +57,6 @@ export function SidebarCliente() {
   const navigationItems = [
     { title: "Visão e análise Geral", url: link("overview", "/clientes"), icon: LayoutDashboard },
     { title: "Central de Otimizações", url: link("otimizacoes", "/clientes"), icon: Wand2 },
-    { title: "Tarefas e Alertas", url: link("tarefas-alertas", "/clientes"), icon: BellDot },
     { title: "Tarefas e Anotações", url: link("tarefas-anotacoes", "/clientes"), icon: ClipboardCheck },
     { title: "Chat IA e Configuração", url: link("chat", "/clientes"), icon: MessageSquare },
     { title: "Anotações", url: link("anotacoes", "/clientes"), icon: StickyNote },
