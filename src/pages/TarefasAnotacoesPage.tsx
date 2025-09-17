@@ -66,19 +66,23 @@ export default function TarefasAnotacoesPage() {
   }, []);
 
   const loadAllData = async () => {
+    console.log('Loading all tasks and notes data');
     setLoading(true);
     try {
       // Load tasks from all clients
       const allTasks = await dashboardDb.tasks.orderBy('created_at').reverse().toArray();
+      console.log('All tasks loaded:', allTasks.length);
       setTasks(allTasks);
       
       // Load notes
       const allNotes = await noteOperations.getAll();
+      console.log('All notes loaded:', allNotes.length);
       setNotes(allNotes);
       
       // Load clients if available
       if (dataSource) {
         const clientsData = await dataSource.getClients();
+        console.log('Clients loaded:', clientsData.length);
         setClients(clientsData);
       }
     } catch (error) {
@@ -96,6 +100,7 @@ export default function TarefasAnotacoesPage() {
   // Task handlers
   const handleCreateTask = async (taskData: Omit<Task, 'id' | 'created_at'>) => {
     try {
+      console.log('Creating task:', taskData);
       const newTask = await taskOperations.create(taskData);
       setTasks(prev => [newTask, ...prev]);
       toast({
@@ -103,6 +108,7 @@ export default function TarefasAnotacoesPage() {
         description: "Tarefa criada com sucesso"
       });
     } catch (error) {
+      console.error('Error creating task:', error);
       toast({
         title: "Erro",
         description: "Erro ao criar tarefa",
@@ -243,6 +249,7 @@ export default function TarefasAnotacoesPage() {
   };
 
   const handleCreateTasksBulk = async (newTasks: Task[]) => {
+    console.log('Creating bulk tasks:', newTasks.length);
     setTasks(prev => [...newTasks, ...prev]);
     toast({
       title: "Tarefas criadas",
@@ -253,6 +260,7 @@ export default function TarefasAnotacoesPage() {
   // Note handlers
   const handleCreateNote = async (noteData: Omit<Note, 'id' | 'created_at'>) => {
     try {
+      console.log('Creating note:', noteData);
       const newNote = await noteOperations.create(noteData);
       setNotes(prev => [newNote, ...prev]);
       toast({
@@ -260,6 +268,7 @@ export default function TarefasAnotacoesPage() {
         description: "Anotação criada com sucesso"
       });
     } catch (error) {
+      console.error('Error creating note:', error);
       toast({
         title: "Erro",
         description: "Erro ao criar anotação",
@@ -497,53 +506,101 @@ export default function TarefasAnotacoesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Tarefas & Anotações</h1>
-          <p className="text-muted-foreground">Gerencie suas tarefas e anotações</p>
+          <p className="text-muted-foreground">
+            Gerencie tarefas e anotações de todos os clientes
+          </p>
+          <div className="mt-2 text-xs text-muted-foreground">
+            Debug: {tasks.length} tarefas, {notes.length} anotações carregadas
+          </div>
         </div>
-
-        <div className="flex items-center gap-3">
-          {/* Bulk Add Button (only for tasks) */}
-          {(activeTab === "tarefas" || activeTab === "calendario") && (
-            <Button 
-              variant="outline"
-              onClick={() => setShowBulkAddModal(true)}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Adicionar em Lote
-            </Button>
-          )}
-
-          {/* New Button */}
+        
+        <div className="flex items-center gap-2">
           <Button 
-            onClick={() => {
-              if (activeTab === "tarefas" || activeTab === "calendario") {
-                setShowNewTaskModal(true);
-              } else {
-                setShowNewNoteModal(true);
-              }
-            }}
+            onClick={() => setShowBulkAddModal(true)} 
+            variant="outline"
+            className="flex items-center gap-2"
           >
-            <Plus className="h-4 w-4 mr-2" />
-            Novo
+            <Plus className="h-4 w-4" />
+            Lote
+          </Button>
+          <Button 
+            onClick={() => setShowNewTaskModal(true)}
+            className="flex items-center gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            Nova Tarefa
           </Button>
         </div>
       </div>
 
+      {/* Quick Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Total de Tarefas</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{tasks.length}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Concluídas</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-success">
+              {tasks.filter(t => t.status === 'Concluída').length}
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Em Progresso</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-warning">
+              {tasks.filter(t => t.status === 'Em progresso').length}
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Anotações</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{notes.length}</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Task Alerts Banner */}
+      <TaskAlertsBanner 
+        tasks={filteredTasks} 
+        onCompleteTask={handleCompleteTask}
+        onPostponeTask={handlePostponeTask}  
+      />
+
+      {/* Task Dashboard Cards */}
+      <TaskDashboardCards 
+        tasks={filteredTasks} 
+      />
+
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full max-w-lg grid-cols-3">
-          <TabsTrigger value="tarefas" className="flex items-center gap-2">
-            <CheckSquare className="h-4 w-4" />
-            Tarefas
-          </TabsTrigger>
-          <TabsTrigger value="calendario" className="flex items-center gap-2">
-            <Calendar className="h-4 w-4" />
-            Calendário
-          </TabsTrigger>
-          <TabsTrigger value="anotacoes" className="flex items-center gap-2">
-            <StickyNote className="h-4 w-4" />
-            Anotações
-          </TabsTrigger>
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="tarefas">Lista de Tarefas</TabsTrigger>
+          <TabsTrigger value="kanban">Kanban</TabsTrigger>
+          <TabsTrigger value="calendario">Calendário</TabsTrigger>
+          <TabsTrigger value="anotacoes">Anotações</TabsTrigger>
         </TabsList>
+
+        {/* Filters */}
+        <TaskFiltersAndViews 
+          filters={taskFilters}
+          onFiltersChange={setTaskFilters}
+          clients={clients}
+          tasks={filteredTasks}
+        />
 
         {/* Tasks Tab */}
         <TabsContent value="tarefas" className="space-y-6">
