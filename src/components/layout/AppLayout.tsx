@@ -2,6 +2,7 @@ import { SidebarGlobal } from "@/components/layout/SidebarGlobal";
 import { SidebarCliente } from "@/components/layout/SidebarCliente";
 import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { BrandLogo } from "@/components/ui/brand-logo";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { useLocation } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -26,10 +27,13 @@ export function AppLayout({ children }: AppLayoutProps) {
   return (
     <>
       {/* Global header with trigger */}
-      <header className="h-14 flex items-center justify-between border-b bg-card px-4 sticky top-0 z-40">
+      <header className="h-14 flex items-center justify-between border-b bg-card/95 backdrop-blur-sm px-4 sticky top-0 z-40">
         <div className="flex items-center gap-4">
           <SidebarTrigger className="h-8 w-8" />
           <BrandLogo linkTo="/" />
+        </div>
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
         </div>
       </header>
 

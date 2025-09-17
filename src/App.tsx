@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { ThemeProvider } from "@/contexts/ThemeContext";
 import { Suspense, lazy } from "react";
 
 // Pages
@@ -58,13 +59,14 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <SidebarProvider defaultOpen={true}>
-          <div className="flex min-h-screen w-full bg-dashboard">
-            <AppLayout>
+    <ThemeProvider defaultTheme="light" storageKey="metricus-ui-theme">
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <SidebarProvider defaultOpen={true}>
+            <div className="flex min-h-screen w-full bg-dashboard">
+              <AppLayout>
               <Routes>
                 {/* Global Routes */}
                 <Route path="/" element={<HomePage />} />
@@ -105,11 +107,12 @@ const App = () => (
                 
                 <Route path="*" element={<NotFound />} />
               </Routes>
-            </AppLayout>
-          </div>
-        </SidebarProvider>
-      </BrowserRouter>
-    </TooltipProvider>
+              </AppLayout>
+            </div>
+          </SidebarProvider>
+        </BrowserRouter>
+      </TooltipProvider>
+    </ThemeProvider>
   </QueryClientProvider>
 );
 
