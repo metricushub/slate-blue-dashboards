@@ -648,31 +648,31 @@ export default function DiagnosticsPage() {
               <CardTitle>Resultados Detalhados</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {diagnostics.map((test) => (
-                  <div key={test.id} className="flex items-start gap-4 p-4 border rounded-lg">
-                    <div className="flex-shrink-0 mt-0.5">
-                      {getStatusIcon(test.status)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="font-medium">{test.name}</h3>
-                        {getStatusBadge(test.status)}
-                      </div>
-                      <p className="text-sm text-muted-foreground mb-2">
-                        {test.description}
-                      </p>
-                      {test.details && (
-                        <p className="text-xs text-muted-foreground bg-muted p-2 rounded">
-                          {test.details}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+               <div className="space-y-4">
+                 {diagnostics.map((test) => (
+                   <div key={test.id} className="flex items-start gap-4 p-4 border rounded-lg">
+                     <div className="flex-shrink-0 mt-0.5">
+                       {getStatusIcon(test.status)}
+                     </div>
+                     <div className="flex-1 min-w-0">
+                       <div className="flex items-center gap-3 mb-2">
+                         <h3 className="font-medium">{test.name}</h3>
+                         {getStatusBadge(test.status)}
+                       </div>
+                       <p className="text-sm text-muted-foreground mb-2">
+                         {test.description}
+                       </p>
+                       {test.details && (
+                         <p className="text-xs text-muted-foreground bg-muted p-2 rounded">
+                           {test.details}
+                         </p>
+                       )}
+                     </div>
+                   </div>
+                 ))}
+               </div>
+             </CardContent>
+           </Card>
 
           {/* Build Report */}
           <Card>
@@ -696,13 +696,13 @@ export default function DiagnosticsPage() {
                   <li>/cliente/:id/onboarding</li>
                   <li>/diagnosticos</li>
                 </ul>
-                <div className="mt-4 text-green-700">
-                  <strong>✓ Onboarding com subestágio swimlane e filtros por cliente/responsável</strong>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+                 <div className="mt-4 text-green-700">
+                   <strong>✓ Onboarding com subestágio swimlane e filtros por cliente/responsável</strong>
+                 </div>
+               </div>
+             </CardContent>
+           </Card>
+         </div>
       </div>
     </div>
   );
