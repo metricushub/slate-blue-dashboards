@@ -82,7 +82,6 @@ const App = () => (
                 <Route path="/diagnosticos" element={<DiagnosticsPage />} />
                 
                 {/* Client Routes */}
-                <Route path="/cliente/:clientId/financeiro" element={<FinanceiroPage />} />
                 <Route path="/cliente/:clientId/overview" element={<ClientOverview />} />
             <Route path="/cliente/:clientId/cadastro" element={<ClientCadastroPage />} />
           <Route path="/cliente/:clientId/cadastro/briefing" element={<ClientBriefingPage />} />
