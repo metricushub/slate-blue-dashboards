@@ -49,10 +49,7 @@ export const briefingTemplateOperations = {
 
     // Se for definido como padrão, remover padrão dos outros
     if (template.isDefault) {
-      await briefingDb.briefingTemplates
-        .where('isDefault')
-        .equals(1)
-        .modify({ isDefault: false });
+      await briefingDb.briefingTemplates.toCollection().modify({ isDefault: false });
     }
 
     await briefingDb.briefingTemplates.add(newTemplate);
@@ -68,7 +65,8 @@ export const briefingTemplateOperations = {
   },
 
   async getDefault(): Promise<BriefingTemplate | undefined> {
-    return await briefingDb.briefingTemplates.where('isDefault').equals(1).first();
+    const all = await briefingDb.briefingTemplates.toArray();
+    return all.find(t => t.isDefault) || all[0];
   },
 
   async update(id: string, updates: Partial<BriefingTemplate>): Promise<void> {
@@ -76,10 +74,7 @@ export const briefingTemplateOperations = {
     
     // Se for definido como padrão, remover padrão dos outros
     if (updates.isDefault) {
-      await briefingDb.briefingTemplates
-        .where('isDefault')
-        .equals(1)
-        .modify({ isDefault: false });
+      await briefingDb.briefingTemplates.toCollection().modify({ isDefault: false });
     }
 
     await briefingDb.briefingTemplates.update(id, {
@@ -126,10 +121,7 @@ export const briefingTemplateOperations = {
 
   async setDefault(templateId: string): Promise<void> {
     // Remover padrão de todos
-    await briefingDb.briefingTemplates
-      .where('isDefault')
-      .equals(1)
-      .modify({ isDefault: false });
+    await briefingDb.briefingTemplates.toCollection().modify({ isDefault: false });
 
     // Definir novo padrão
     await briefingDb.briefingTemplates.update(templateId, { isDefault: true });
