@@ -24,9 +24,10 @@ export function ThemeToggle({
       onClick={toggleTheme}
       className={cn(
         "relative transition-all duration-300 hover:scale-105",
-        "border border-border/50 hover:border-border",
-        "bg-background/80 backdrop-blur-sm",
-        "hover:bg-accent/80 hover:text-accent-foreground",
+        "border-2 border-primary/20 hover:border-primary/40",
+        "bg-primary/5 hover:bg-primary/10",
+        "shadow-sm hover:shadow-md",
+        "ring-2 ring-primary/10",
         className
       )}
       aria-label={theme === 'dark' ? 'Ativar modo claro' : 'Ativar modo escuro'}
