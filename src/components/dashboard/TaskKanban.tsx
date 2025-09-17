@@ -19,7 +19,9 @@ import {
   Eye,
   EyeOff,
   Edit,
-  ChevronDown
+  ChevronDown,
+  Trash2,
+  ArchiveX
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -27,6 +29,7 @@ interface TaskKanbanProps {
   tasks: Task[];
   onTaskMove: (taskId: string, newStatus: TaskStatus, shouldArchive?: boolean) => void;
   onTaskClick?: (task: Task) => void;
+  onTaskDelete?: (taskId: string) => void;
   clients: any[];
 }
 
@@ -63,9 +66,11 @@ interface SortableTaskCardProps {
   clients: any[];
   onTaskClick?: (task: Task) => void;
   onStatusChange?: (taskId: string, newStatus: TaskStatus) => void;
+  onArchive?: (taskId: string) => void;
+  onDelete?: (taskId: string) => void;
 }
 
-function SortableTaskCard({ task, clients, onTaskClick, onStatusChange }: SortableTaskCardProps) {
+function SortableTaskCard({ task, clients, onTaskClick, onStatusChange, onArchive, onDelete }: SortableTaskCardProps) {
   const {
     attributes,
     listeners,
@@ -128,13 +133,46 @@ function SortableTaskCard({ task, clients, onTaskClick, onStatusChange }: Sortab
             >
               {task.title}
             </h4>
-            <div 
-              className="flex-shrink-0 mt-0.5 cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
-              onClick={handleTitleClick}
-              onPointerDown={(e) => e.stopPropagation()}
-              title="Editar tarefa"
-            >
-              <Edit className="h-3 w-3 text-muted-foreground/50 hover:text-primary" />
+            <div className="flex-shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-6 w-6 p-0 hover:bg-blue-100"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onTaskClick?.(task);
+                }}
+                onPointerDown={(e) => e.stopPropagation()}
+                title="Editar tarefa"
+              >
+                <Edit className="h-3 w-3 text-muted-foreground hover:text-blue-600" />
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-6 w-6 p-0 hover:bg-orange-100"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onArchive?.(task.id);
+                }}
+                onPointerDown={(e) => e.stopPropagation()}
+                title="Arquivar tarefa"
+              >
+                <ArchiveX className="h-3 w-3 text-muted-foreground hover:text-orange-600" />
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-6 w-6 p-0 hover:bg-red-100"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete?.(task.id);
+                }}
+                onPointerDown={(e) => e.stopPropagation()}
+                title="Excluir tarefa"
+              >
+                <Trash2 className="h-3 w-3 text-muted-foreground hover:text-red-600" />
+              </Button>
             </div>
           </div>
           
@@ -190,26 +228,36 @@ function SortableTaskCard({ task, clients, onTaskClick, onStatusChange }: Sortab
   );
 }
 
-export function TaskKanban({ tasks, onTaskMove, onTaskClick, clients }: TaskKanbanProps) {
+export function TaskKanban({ tasks, onTaskMove, onTaskClick, onTaskDelete, clients }: TaskKanbanProps) {
   const [showArchived, setShowArchived] = useState(false);
   const [archivedPage, setArchivedPage] = useState(1);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   
   const today = new Date().toISOString().split('T')[0];
   
-  // Organize tasks by columns
+  // Organize tasks by columns - ensures no task appears in multiple columns
   const getTasksForColumn = (columnId: string) => {
     switch (columnId) {
-      case 'Aberta':
-        return tasks.filter(t => t.status === 'Aberta' && !t.archived_at);
-      case 'Em progresso':
-        return tasks.filter(t => t.status === 'Em progresso' && !t.archived_at);
       case 'overdue':
+        // Priority 1: Overdue tasks (not completed and past due date)
         return tasks.filter(t => 
           t.due_date && t.due_date < today && t.status !== 'Concluída' && !t.archived_at
         );
       case 'Concluída':
+        // Priority 2: Completed tasks
         return tasks.filter(t => t.status === 'Concluída' && !t.archived_at);
+      case 'Em progresso':
+        // Priority 3: In progress tasks (excluding overdue)
+        return tasks.filter(t => 
+          t.status === 'Em progresso' && !t.archived_at &&
+          !(t.due_date && t.due_date < today)
+        );
+      case 'Aberta':
+        // Priority 4: Open tasks (excluding overdue)
+        return tasks.filter(t => 
+          t.status === 'Aberta' && !t.archived_at &&
+          !(t.due_date && t.due_date < today)
+        );
       case 'archived':
         if (!showArchived) return [];
         const archivedTasks = tasks.filter(t => t.archived_at);
@@ -340,6 +388,8 @@ export function TaskKanban({ tasks, onTaskMove, onTaskClick, clients }: TaskKanb
                             clients={clients}
                             onTaskClick={onTaskClick}
                             onStatusChange={onTaskMove}
+                            onArchive={(taskId) => onTaskMove(taskId, 'Aberta', true)}
+                            onDelete={onTaskDelete}
                           />
                         ))
                       )}
@@ -369,6 +419,8 @@ export function TaskKanban({ tasks, onTaskMove, onTaskClick, clients }: TaskKanb
               task={activeTask} 
               clients={clients} 
               onStatusChange={onTaskMove}
+              onArchive={(taskId) => onTaskMove(taskId, 'Aberta', true)}
+              onDelete={onTaskDelete}
             />
           )}
         </DragOverlay>

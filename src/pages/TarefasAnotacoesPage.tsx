@@ -694,6 +694,7 @@ export default function TarefasAnotacoesPage() {
             tasks={filteredTasks}
             onTaskMove={handleTaskMove}
             onTaskClick={handleTaskClick}
+            onTaskDelete={handleDeleteTask}
             clients={clients}
           />
         </TabsContent>
