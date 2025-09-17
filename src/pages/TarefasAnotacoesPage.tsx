@@ -587,29 +587,6 @@ export default function TarefasAnotacoesPage() {
         tasks={filteredTasks} 
       />
 
-      {/* Quick Task Creation */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-medium text-muted-foreground">Criar tarefa:</h3>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                setInitialTaskStatus('Aberta');
-                setShowNewTaskModal(true);
-              }}
-              className="flex items-center gap-1"
-            >
-              <Plus className="h-3 w-3" />
-              Nova Tarefa
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid w-full grid-cols-4">
@@ -628,6 +605,29 @@ export default function TarefasAnotacoesPage() {
         />
 
         <TabsContent value="tarefas" className="space-y-4">
+          {/* Quick Task Creation Buttons */}
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-medium text-muted-foreground">Criar tarefa:</h3>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setInitialTaskStatus('Aberta');
+                    setShowNewTaskModal(true);
+                  }}
+                  className="flex items-center gap-1"
+                >
+                  <Plus className="h-3 w-3" />
+                  Nova Tarefa
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
           <div className="space-y-4">
             {filteredTasks.length === 0 ? (
               <Card>
