@@ -19,7 +19,6 @@ import { EnhancedFiltersToolbar } from "./EnhancedFiltersToolbar";
 import { EnhancedKpiBoard } from "./EnhancedKpiBoard";
 import { EnhancedTrendChart } from "./EnhancedTrendChart";
 import { FunnelV2 } from "./FunnelV2";
-import { OptimizationsModal } from "./OptimizationsModal";
 import { ChatIaPanel } from "./ChatIaPanel";
 import { CustomizeModal } from "./CustomizeModal";
 
@@ -51,7 +50,6 @@ export function ClientOverview() {
   const { prefs, patch } = useClientPrefs(clientId!);
   
   // Modals and panels
-  const [showOptimizationsModal, setShowOptimizationsModal] = useState(false);
   const [showTasksModal, setShowTasksModal] = useState(false);
   const [showChatPanel, setShowChatPanel] = useState(false);
   const [showCustomizeModal, setShowCustomizeModal] = useState(false);
@@ -136,9 +134,9 @@ export function ClientOverview() {
         <div className="space-y-6">
           {/* Enhanced Header with Action Buttons */}
           <div className="flex items-start justify-between">
-            <DashboardHeader client={client} onRegisterOptimization={() => setShowOptimizationsModal(true)} />
+            <DashboardHeader client={client} onRegisterOptimization={() => navigate(`/cliente/${clientId}/otimizacoes`)} />
             <div className="flex items-center gap-3">
-              <Button variant="outline" onClick={() => setShowOptimizationsModal(true)} className="gap-2">
+              <Button variant="outline" onClick={() => navigate(`/cliente/${clientId}/otimizacoes`)} className="gap-2">
                 <Target className="h-4 w-4" />
                 Otimizações
               </Button>
@@ -263,14 +261,6 @@ export function ClientOverview() {
         isOpen={showCustomizeModal}
         onClose={() => setShowCustomizeModal(false)}
         clientId={clientId!}
-      />
-
-      <OptimizationsModal
-        isOpen={showOptimizationsModal}
-        onClose={() => setShowOptimizationsModal(false)}
-        clientId={clientId!}
-        clientName={client.name}
-        onOptimizationCreated={() => setOptimizationsKey(prev => prev + 1)}
       />
 
       <TasksAlertsModal

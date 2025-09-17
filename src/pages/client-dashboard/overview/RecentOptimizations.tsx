@@ -178,10 +178,20 @@ export function RecentOptimizations({ clientId }: RecentOptimizationsProps) {
     <>
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Target className="h-5 w-5" />
-            Otimizações Recentes ({optimizations.length})
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Target className="h-5 w-5" />
+              Otimizações Recentes ({optimizations.length})
+            </CardTitle>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => window.location.href = `/cliente/${clientId}/otimizacoes`}
+              className="text-xs"
+            >
+              Ver Central
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {optimizations.length === 0 ? (
@@ -253,6 +263,29 @@ export function RecentOptimizations({ clientId }: RecentOptimizationsProps) {
                   </div>
                 );
               })}
+            </div>
+          )}
+          
+          {/* Call to action for Central de Otimizações */}
+          {optimizations.length > 0 && (
+            <div className="mt-4 p-4 bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <h4 className="font-medium text-sm text-purple-900 mb-1">
+                    🚀 Turbine suas otimizações!
+                  </h4>
+                  <p className="text-xs text-purple-700">
+                    Acesse a Central completa com IA, analytics e insights
+                  </p>
+                </div>
+                <Button 
+                  size="sm"
+                  onClick={() => window.location.href = `/cliente/${clientId}/otimizacoes`}
+                  className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
+                >
+                  Ir para Central
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>
