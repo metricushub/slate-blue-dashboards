@@ -585,16 +585,16 @@ export default function ClientTarefasAnotacoesPage() {
         </Card>
       </div>
 
+      {/* Task Dashboard Cards */}
+      <TaskDashboardCards 
+        tasks={filteredTasks} 
+      />
+
       {/* Task Alerts Banner */}
       <TaskAlertsBanner 
         tasks={filteredTasks} 
         onCompleteTask={handleCompleteTask}
         onPostponeTask={handlePostponeTask}  
-      />
-
-      {/* Task Dashboard Cards */}
-      <TaskDashboardCards 
-        tasks={filteredTasks} 
       />
 
       {/* Tabs */}
