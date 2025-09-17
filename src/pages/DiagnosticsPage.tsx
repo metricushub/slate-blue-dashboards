@@ -461,7 +461,8 @@ export default function DiagnosticsPage() {
           clientCreationWizard: 'PASS - 3-step wizard implemented',
           leadConversion: 'PASS - Convert button added to LeadDrawer',
           onboardingIntegration: 'PASS - Auto-creates onboarding cards',
-          navigationUpdates: 'PASS - Onboarding added to global sidebar',
+          navigationUpdates: 'PASS - Onboarding added to global sidebar'
+      },
       files: [
         {"file": "OnboardingHubPage", "summary": "Hub Global com abas Visão Geral e Templates"},
         {"file": "OnboardingOverview", "summary": "Lista de clientes com status, progresso e filtros"},
@@ -543,11 +544,7 @@ export default function DiagnosticsPage() {
       user_flow: "Lead → Fechado → Pré-cadastro → Cliente → Onboarding automático"
     };
     
-    localStorage.setItem('buildReport:last', JSON.stringify(finalBuildReport));
-
-    // Update kanban report with sidebar changes
-    const { updateKanbanReport } = await import('@/lib/kanbanReport');
-    updateKanbanReport();
+     localStorage.setItem('buildReport:last', JSON.stringify(finalBuildReport));
 
     setDiagnostics(tests);
   };
