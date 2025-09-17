@@ -8,7 +8,7 @@ export default function OnboardingHubPage() {
   const [activeTab, setActiveTab] = useState('overview');
 
   return (
-    <div className="h-full max-w-7xl mx-auto">
+    <div className="h-full">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
         <ClipboardCheck className="h-8 w-8 text-primary" />

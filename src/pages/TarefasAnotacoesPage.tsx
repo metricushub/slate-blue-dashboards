@@ -493,7 +493,7 @@ export default function TarefasAnotacoesPage() {
 
   if (loading) {
     return (
-      <div className="p-6 flex items-center justify-center min-h-96">
+      <div className="flex items-center justify-center min-h-96">
         <div className="flex items-center gap-2">
           <Loader2 className="h-6 w-6 animate-spin" />
           <span>Carregando...</span>
@@ -503,7 +503,7 @@ export default function TarefasAnotacoesPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

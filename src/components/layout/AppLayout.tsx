@@ -31,8 +31,8 @@ export function AppLayout({ children }: AppLayoutProps) {
         {/* Sidebar - will auto-adjust layout */}
         {isClientRoute ? <SidebarCliente /> : <SidebarGlobal />}
         
-        {/* Main content - no manual padding needed */}
-        <main className={`flex-1 p-6 ${isOnboardingRoute ? 'bg-muted' : ''}`}>
+        {/* Main content - consistent padding for all pages */}
+        <main className={`flex-1 pl-8 pr-6 py-6 ${isOnboardingRoute ? 'bg-muted' : ''}`}>
           {children}
         </main>
       </div>

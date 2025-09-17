@@ -104,12 +104,12 @@ export function IntegrationsPage() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold">Integrações Gerais</h1>
-        <p className="text-muted-foreground mt-1">
-          Gerencie conexões com suas fontes de dados • <span className="text-green-600">Não quebra nada</span>: erros mostram mensagem amigável
+        <h1 className="text-3xl font-bold tracking-tight">Integrações</h1>
+        <p className="text-muted-foreground">
+          Configure e gerencie integrações com ferramentas externas
         </p>
       </div>
 

@@ -526,11 +526,11 @@ export default function CalendarioPage() {
 
   return (
     <DndContext onDragEnd={handleDragEnd}>
-      <div className="p-6 space-y-6">
+      <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <h1 className="text-2xl font-bold">Calendário</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Calendário</h1>
             <Button variant="outline" size="sm" onClick={goToToday}>
               Hoje
             </Button>

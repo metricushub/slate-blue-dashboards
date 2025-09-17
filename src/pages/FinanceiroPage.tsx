@@ -143,8 +143,8 @@ export function FinanceiroPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto p-6">
-        <div className="flex items-center justify-between mb-8">
+      <div className="space-y-8">
+        <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-foreground">Financeiro</h1>
             <p className="text-muted-foreground">Gerencie receitas, despesas e metas da agência</p>
