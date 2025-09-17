@@ -86,53 +86,17 @@ export function FinancialAlertsWidget() {
           </div>
         </div>
 
-        {totalCriticalAlerts > 0 && (
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-sm font-medium text-destructive">
-              <AlertTriangle className="h-4 w-4" />
-              Atenção necessária
-            </div>
-            {overdueAmount > 0 && (
-              <div className="text-sm p-2 bg-destructive/5 rounded-lg border border-destructive/10">
-                <span className="font-medium text-destructive">
-                  R$ {overdueAmount.toLocaleString('pt-BR')} em atraso
-                </span>
-              </div>
-            )}
-            {criticalExpenses.map(expense => (
-              <div 
-                key={expense.id} 
-                className="text-sm p-3 bg-muted/30 rounded-lg flex items-center justify-between"
-              >
-                <div className="min-w-0 flex-1">
-                  <div className="font-medium truncate">{expense.description}</div>
-                  <div className="text-muted-foreground text-xs">
-                    R$ {expense.amount.toLocaleString('pt-BR')}
-                  </div>
-                </div>
-                {getSeverityBadge(expense)}
-              </div>
-            ))}
-          </div>
-        )}
-
-        {totalUpcomingAmount > 0 && (
-          <div className="text-sm p-3 bg-warning/5 rounded-lg border border-warning/10">
-            <div className="flex items-center gap-2 mb-1">
-              <Clock className="h-4 w-4 text-warning" />
-              <span className="font-medium">Próximos 7 dias</span>
-            </div>
-            <span className="text-warning font-medium">
-              R$ {totalUpcomingAmount.toLocaleString('pt-BR')} a vencer
+        {totalCriticalAlerts > 0 && overdueAmount > 0 && (
+          <div className="text-sm p-2 bg-destructive/5 rounded-lg border border-destructive/10 text-center">
+            <span className="font-medium text-destructive">
+              R$ {overdueAmount.toLocaleString('pt-BR')} em atraso
             </span>
           </div>
         )}
 
         {pendingExpenses.length === 0 && (
-          <div className="text-center py-4 text-muted-foreground">
-            <DollarSign className="h-8 w-8 mx-auto mb-2 text-success opacity-50" />
-            <p className="text-sm">Nenhuma despesa pendente</p>
-            <p className="text-xs">Finanças em dia! 🎉</p>
+          <div className="text-center py-2 text-muted-foreground">
+            <p className="text-sm">Finanças em dia! 🎉</p>
           </div>
         )}
 
