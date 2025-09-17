@@ -1,17 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { NewOnboardingKanban } from '@/components/onboarding/NewOnboardingKanban';
-import { OnboardingFicha } from '@/components/onboarding/OnboardingFicha';
 import { DynamicBriefingForm } from '@/components/briefing/DynamicBriefingForm';
 import { OnboardingClientHeader } from '@/components/onboarding/OnboardingClientHeader';
 import { ClientNotFound } from '@/components/onboarding/ClientNotFound';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui/badge';
 import { OnboardingCard, onboardingCardOperations } from '@/shared/db/onboardingStore';
 import { OnboardingCardModal } from '@/components/onboarding/OnboardingCardModal';
 import { useDataSource } from '@/hooks/useDataSource';
 import { Client } from '@/types';
 import { toast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
+import { FileText, Clock, Link, ClipboardCheck } from 'lucide-react';
 
 export default function OnboardingClientPage() {
   const params = useParams<{ clientId?: string; id?: string }>();
@@ -234,11 +237,28 @@ export default function OnboardingClientPage() {
     <div className="h-full" key={resolvedClientId}>
       <OnboardingClientHeader client={client} />
       
+      {/* Header da página */}
+      <div className="border-b bg-card">
+        <div className="flex items-center gap-4 p-6">
+          <div className="p-2 bg-primary/10 rounded-lg">
+            <ClipboardCheck className="h-6 w-6 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Onboarding do Cliente</h1>
+            <p className="text-muted-foreground">
+              Processo de onboarding, briefing e acompanhamento das atividades
+            </p>
+          </div>
+        </div>
+      </div>
+      
       <Tabs value={activeTab} onValueChange={handleTabChange} className="h-full">
         <div className="border-b">
-          <TabsList className="grid w-full grid-cols-2 max-w-md">
+          <TabsList className="grid w-full grid-cols-4 max-w-2xl">
             <TabsTrigger value="kanban">Kanban</TabsTrigger>
-            <TabsTrigger value="ficha">Ficha</TabsTrigger>
+            <TabsTrigger value="briefing">Briefing</TabsTrigger>
+            <TabsTrigger value="documentos">Documentos</TabsTrigger>
+            <TabsTrigger value="timeline">Timeline</TabsTrigger>
           </TabsList>
         </div>
         
@@ -253,12 +273,69 @@ export default function OnboardingClientPage() {
           />
         </TabsContent>
         
-        <TabsContent value="ficha" className="h-full mt-0 p-6">
-          <OnboardingFicha clientId={resolvedClientId as string} focusSection={focusSection} />
-        </TabsContent>
-        
         <TabsContent value="briefing" className="h-full mt-0 p-6">
           <DynamicBriefingForm clientId={resolvedClientId as string} />
+        </TabsContent>
+        
+        <TabsContent value="documentos" className="h-full mt-0 p-6">
+          <Card className="h-full">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5 text-primary" />
+                Documentos e Anexos
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-8 text-muted-foreground">
+                <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>Documentos e anexos serão exibidos aqui</p>
+                <p className="text-sm">Em breve: upload de arquivos, links úteis e recursos</p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="timeline" className="h-full mt-0 p-6">
+          <Card className="h-full">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Clock className="h-5 w-5 text-primary" />
+                Timeline do Onboarding
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="h-[400px]">
+                <div className="space-y-4">
+                  {cards.length > 0 ? (
+                    cards
+                      .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+                      .map((card) => (
+                        <div key={card.id} className="flex items-center gap-4 p-4 border rounded-lg">
+                          <div className="p-2 bg-primary/10 rounded-full">
+                            <ClipboardCheck className="h-4 w-4 text-primary" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">{card.title}</span>
+                              <Badge variant="outline">{card.stage}</Badge>
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              Atualizado em {new Date(card.updated_at).toLocaleDateString()}
+                            </p>
+                          </div>
+                        </div>
+                      ))
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Clock className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p>Nenhuma atividade registrada ainda</p>
+                      <p className="text-sm">O histórico de atividades aparecerá aqui conforme o progresso</p>
+                    </div>
+                  )}
+                </div>
+              </ScrollArea>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
 

@@ -12,6 +12,7 @@ import {
   BadgeDollarSign,
   BadgePercent,
   ChevronRight,
+  User,
 } from "lucide-react";
 import { NavLink, useLocation, useParams } from "react-router-dom";
 import { BrandLogo } from "@/components/ui/brand-logo";
@@ -49,7 +50,8 @@ export function SidebarCliente() {
     { title: "Tarefas e Alertas", url: link("tarefas-alertas", "/clientes"), icon: BellDot },
     { title: "Chat IA e Configuração", url: link("chat", "/clientes"), icon: MessageSquare },
     { title: "Anotações", url: link("anotacoes", "/clientes"), icon: StickyNote },
-    { title: "Cadastro e Onboarding do Cliente", url: link("onboarding", "/onboarding"), icon: ClipboardCheck },
+    { title: "Cadastro do Cliente", url: link("cadastro", "/clientes"), icon: User },
+    { title: "Onboarding", url: link("onboarding", "/onboarding"), icon: ClipboardCheck },
     { title: "Relatórios", url: link("relatorios", "/clientes"), icon: FileBarChart },
     { title: "Analytics", url: link("analytics", "/clientes"), icon: LineChart },
     { title: "Objetivos e Metas de KPI", url: link("objetivos", "/clientes"), icon: Target },

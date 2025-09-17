@@ -19,6 +19,7 @@ import { SettingsPage } from "./pages/SettingsPage";
 import { BriefingConfigPage } from "./pages/BriefingConfigPage";
 import { IntegrationsPage } from "./pages/IntegrationsPage";
 import { ClientOverview } from "./pages/client-dashboard/overview/ClientOverview";
+import ClientCadastroPage from "./pages/ClientCadastroPage";
 import NotFound from "./pages/NotFound";
 import DiagnosticsPage from "./pages/DiagnosticsPage";
 
@@ -73,6 +74,7 @@ const App = () => (
                 
                 {/* Client Routes */}
                 <Route path="/cliente/:clientId/overview" element={<ClientOverview />} />
+                <Route path="/cliente/:clientId/cadastro" element={<ClientCadastroPage />} />
                 <Route path="/cliente/:clientId/otimizacoes" element={<CentralOtimizacoesWip />} />
                 <Route path="/cliente/:clientId/tarefas-alertas" element={<TarefasAlertasWip />} />
                 <Route path="/cliente/:clientId/chat" element={<ChatIaConfigWip />} />
