@@ -48,11 +48,6 @@ export interface OnboardingFicha {
     prazo?: string;
     observacoes?: string;
   };
-  briefing: {
-    responsavel?: string;
-    prazo?: string;
-    observacoes?: string;
-  };
   configuracao: {
     responsavel?: string;
     prazo?: string;
