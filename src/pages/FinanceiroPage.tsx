@@ -11,6 +11,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { NewEntryModal } from "@/components/financial/NewEntryModal";
 import { NewGoalModal } from "@/components/financial/NewGoalModal";
 import { FinancialTable } from "@/components/financial/FinancialTable";
+import { AlertsTab } from "@/components/financial/AlertsTab";
 
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--destructive))', 'hsl(var(--warning))', 'hsl(var(--success))'];
 
@@ -256,6 +257,7 @@ export function FinanceiroPage() {
           <TabsList>
             <TabsTrigger value="overview">Visão Geral</TabsTrigger>
             <TabsTrigger value="entries">Entradas</TabsTrigger>
+            <TabsTrigger value="alerts">Alertas</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
           </TabsList>
 
@@ -312,6 +314,10 @@ export function FinanceiroPage() {
 
           <TabsContent value="entries">
             <FinancialTable entries={entries} onRefresh={loadFinancialData} />
+          </TabsContent>
+
+          <TabsContent value="alerts">
+            <AlertsTab onRefresh={loadFinancialData} />
           </TabsContent>
 
           <TabsContent value="analytics">

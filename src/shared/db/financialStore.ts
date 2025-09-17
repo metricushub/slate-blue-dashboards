@@ -20,16 +20,30 @@ export interface FinancialGoal {
   created_at: string;
 }
 
+export interface PendingExpense {
+  id?: string;
+  description: string;
+  amount: number;
+  category: string;
+  dueDate: string;
+  recurring: 'monthly' | 'quarterly' | 'yearly' | 'none';
+  status: 'pending' | 'paid' | 'overdue';
+  clientId?: string;
+  created_at: string;
+}
+
 interface FinancialDatabase extends Dexie {
   entries: Table<FinancialEntry>;
   goals: Table<FinancialGoal>;
+  pendingExpenses: Table<PendingExpense>;
 }
 
 const db = new Dexie('FinancialDatabase') as FinancialDatabase;
 
 db.version(1).stores({
   entries: '++id, type, category, date, clientId, created_at',
-  goals: '++id, type, month, created_at'
+  goals: '++id, type, month, created_at',
+  pendingExpenses: '++id, category, dueDate, status, clientId, created_at'
 });
 
 // Financial Entries Operations
@@ -88,6 +102,53 @@ export const financialStore = {
   async getCurrentGoals(): Promise<FinancialGoal[]> {
     const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
     return await this.getGoalsByMonth(currentMonth);
+  },
+
+  // Pending Expenses
+  async createPendingExpense(expense: Omit<PendingExpense, 'id' | 'created_at'>): Promise<PendingExpense> {
+    const id = crypto.randomUUID();
+    const created_at = new Date().toISOString();
+    const newExpense = { ...expense, id, created_at };
+    await db.pendingExpenses.add(newExpense);
+    return newExpense;
+  },
+
+  async updatePendingExpense(id: string, updates: Partial<PendingExpense>): Promise<void> {
+    await db.pendingExpenses.update(id, updates);
+  },
+
+  async deletePendingExpense(id: string): Promise<void> {
+    await db.pendingExpenses.delete(id);
+  },
+
+  async getPendingExpenses(): Promise<PendingExpense[]> {
+    return await db.pendingExpenses.orderBy('dueDate').toArray();
+  },
+
+  async getOverdueExpenses(): Promise<PendingExpense[]> {
+    const today = new Date().toISOString().split('T')[0];
+    return await db.pendingExpenses
+      .where('dueDate')
+      .below(today)
+      .and(expense => expense.status === 'pending')
+      .toArray();
+  },
+
+  async getDueSoonExpenses(days: number = 7): Promise<PendingExpense[]> {
+    const today = new Date();
+    const futureDate = new Date(today.getTime() + (days * 24 * 60 * 60 * 1000));
+    const todayStr = today.toISOString().split('T')[0];
+    const futureDateStr = futureDate.toISOString().split('T')[0];
+    
+    return await db.pendingExpenses
+      .where('dueDate')
+      .between(todayStr, futureDateStr, true, true)
+      .and(expense => expense.status === 'pending')
+      .toArray();
+  },
+
+  async markExpenseAsPaid(id: string): Promise<void> {
+    await this.updatePendingExpense(id, { status: 'paid' });
   }
 };
 
@@ -134,6 +195,21 @@ export const financialCalculations = {
       amount: data.amount,
       type: data.type
     }));
+  },
+
+  // Alert calculations
+  getDaysUntilDue: (dueDate: string): number => {
+    const today = new Date();
+    const due = new Date(dueDate);
+    const diffTime = due.getTime() - today.getTime();
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  },
+
+  getAlertSeverity: (daysUntil: number): 'high' | 'medium' | 'low' => {
+    if (daysUntil < 0) return 'high'; // Overdue
+    if (daysUntil <= 3) return 'high'; // Due in 3 days or less
+    if (daysUntil <= 7) return 'medium'; // Due in a week
+    return 'low'; // Due later
   }
 };
 
