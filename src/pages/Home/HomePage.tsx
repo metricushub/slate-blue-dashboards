@@ -15,6 +15,7 @@ import { useTelemetry } from "@/hooks/useTelemetry";
 import { NewLeadModal } from "@/components/leads/NewLeadModal";
 import { NewTaskModal } from "@/components/modals/NewTaskModal";
 import { NewOptimizationModal } from "@/components/modals/NewOptimizationModal";
+import { FinancialAlertsWidget } from "@/components/home/FinancialAlertsWidget";
 import { Task, Optimization } from "@/types";
 import { 
   Bell, 
@@ -575,6 +576,11 @@ const HomePage = () => {
               </Button>
             </CardContent>
           </Card>
+        </div>
+
+        {/* Alertas Financeiros */}
+        <div className="mb-6">
+          <FinancialAlertsWidget />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
