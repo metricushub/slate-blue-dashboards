@@ -71,22 +71,28 @@ export default function ClientTarefasAnotacoesPage() {
   const loadClientData = async () => {
     if (!clientId) return;
     
+    console.log('Loading data for client:', clientId);
     setLoading(true);
     try {
       // Load client-specific tasks
       const allTasks = await dashboardDb.tasks.orderBy('created_at').reverse().toArray();
+      console.log('All tasks loaded:', allTasks.length);
       const clientTasks = allTasks.filter(task => task.client_id === clientId);
+      console.log('Client tasks filtered:', clientTasks.length, clientTasks);
       setTasks(clientTasks);
       
       // Load client-specific notes
       const allNotes = await noteOperations.getAll();
+      console.log('All notes loaded:', allNotes.length);
       const clientNotes = allNotes.filter(note => note.client_id === clientId);
+      console.log('Client notes filtered:', clientNotes.length, clientNotes);
       setNotes(clientNotes);
       
       // Load client info if available
       if (dataSource) {
         const clients = await dataSource.getClients();
         const client = clients.find(c => c.id === clientId);
+        console.log('Client info loaded:', client);
         setClientInfo(client);
       }
     } catch (error) {
@@ -105,6 +111,7 @@ export default function ClientTarefasAnotacoesPage() {
   const handleCreateTask = async (taskData: Omit<Task, 'id' | 'created_at'>) => {
     try {
       const taskWithClient = { ...taskData, client_id: clientId };
+      console.log('Creating task for client:', clientId, taskWithClient);
       const newTask = await taskOperations.create(taskWithClient);
       setTasks(prev => [newTask, ...prev]);
       toast({
@@ -112,6 +119,7 @@ export default function ClientTarefasAnotacoesPage() {
         description: "Tarefa criada com sucesso para este cliente"
       });
     } catch (error) {
+      console.error('Error creating task:', error);
       toast({
         title: "Erro",
         description: "Erro ao criar tarefa",
@@ -252,6 +260,7 @@ export default function ClientTarefasAnotacoesPage() {
   };
 
   const handleCreateTasksBulk = async (newTasks: Task[]) => {
+    console.log('Creating bulk tasks for client:', clientId, newTasks);
     // Pre-fill all tasks with current clientId
     const tasksWithClient = newTasks.map(task => ({ ...task, client_id: clientId }));
     setTasks(prev => [...tasksWithClient, ...prev]);
@@ -265,6 +274,7 @@ export default function ClientTarefasAnotacoesPage() {
   const handleCreateNote = async (noteData: Omit<Note, 'id' | 'created_at'>) => {
     try {
       const noteWithClient = { ...noteData, client_id: clientId };
+      console.log('Creating note for client:', clientId, noteWithClient);
       const newNote = await noteOperations.create(noteWithClient);
       setNotes(prev => [newNote, ...prev]);
       toast({
@@ -272,6 +282,7 @@ export default function ClientTarefasAnotacoesPage() {
         description: "Anotação criada com sucesso para este cliente"
       });
     } catch (error) {
+      console.error('Error creating note:', error);
       toast({
         title: "Erro",
         description: "Erro ao criar anotação",
@@ -509,6 +520,9 @@ export default function ClientTarefasAnotacoesPage() {
           <p className="text-muted-foreground">
             Gerencie tarefas e anotações específicas deste cliente
           </p>
+          <div className="mt-2 text-xs text-muted-foreground">
+            Debug: {tasks.length} tarefas, {notes.length} anotações carregadas
+          </div>
         </div>
         
         <div className="flex items-center gap-2">
@@ -787,8 +801,57 @@ export default function ClientTarefasAnotacoesPage() {
         </TabsContent>
       </Tabs>
 
-      {/* Modals - Simplified for now */}
-      {/* NewTaskModal and other modals temporarily disabled to fix build errors */}
+      {/* Modals - Reativados e corrigidos */}
+      <NewTaskModal
+        open={showNewTaskModal}
+        onOpenChange={setShowNewTaskModal}
+        onSave={(taskData) => {
+          handleCreateTask(taskData);
+          setShowNewTaskModal(false);
+        }}
+      />
+
+      <NewNoteModal
+        open={showNewNoteModal}
+        onOpenChange={setShowNewNoteModal}
+        onSave={(noteData) => {
+          if (editingNote) {
+            handleUpdateNote(noteData);
+          } else {
+            handleCreateNote(noteData);
+          }
+          setShowNewNoteModal(false);
+        }}
+        initialData={editingNote || undefined}
+      />
+
+      <BulkAddTasksModal
+        open={showBulkAddModal}
+        onOpenChange={setShowBulkAddModal}
+        onTasksCreated={(newTasks) => {
+          // Ensure all tasks have the current clientId
+          const tasksWithClient = newTasks.map(task => ({
+            ...task,
+            client_id: clientId
+          }));
+          handleCreateTasksBulk(tasksWithClient);
+        }}
+      />
+
+      {showEditTaskDrawer && editingTask && (
+        <TaskEditDrawer
+          task={editingTask}
+          open={showEditTaskDrawer}
+          onOpenChange={(open) => {
+            setShowEditTaskDrawer(open);
+            if (!open) setEditingTask(null);
+          }}
+          clients={clientInfo ? [clientInfo] : []}
+          onSave={handleSaveEditTask}
+          onDelete={handleDeleteTask}
+          onDuplicate={handleDuplicateTaskForDrawer}
+        />
+      )}
     </div>
   );
 }
