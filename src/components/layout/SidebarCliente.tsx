@@ -68,8 +68,9 @@ export function SidebarCliente() {
   ];
 
   const cadastroSubItems = [
-    { title: "Dados do Cliente", url: link("cadastro", "/clientes"), icon: User },
+    { title: "Ficha Cadastral", url: link("cadastro", "/clientes"), icon: User },
     { title: "Briefing", url: link("cadastro/briefing", "/clientes"), icon: FileText },
+    { title: "Documentos", url: link("cadastro/documentos", "/clientes"), icon: FileBarChart },
   ];
 
   const isActive = (path: string) => {

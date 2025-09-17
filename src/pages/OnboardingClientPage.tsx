@@ -1,20 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { NewOnboardingKanban } from '@/components/onboarding/NewOnboardingKanban';
-import { DynamicBriefingForm } from '@/components/briefing/DynamicBriefingForm';
 import { OnboardingClientHeader } from '@/components/onboarding/OnboardingClientHeader';
 import { ClientNotFound } from '@/components/onboarding/ClientNotFound';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Badge } from '@/components/ui/badge';
 import { OnboardingCard, onboardingCardOperations } from '@/shared/db/onboardingStore';
 import { OnboardingCardModal } from '@/components/onboarding/OnboardingCardModal';
 import { useDataSource } from '@/hooks/useDataSource';
 import { Client } from '@/types';
 import { toast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
-import { FileText, Clock, Link, ClipboardCheck } from 'lucide-react';
+import { ClipboardCheck } from 'lucide-react';
 
 export default function OnboardingClientPage() {
   const params = useParams<{ clientId?: string; id?: string }>();
@@ -27,9 +22,6 @@ export default function OnboardingClientPage() {
   // Diagnostic logging
   console.info('onboarding: clientId via rota =', resolvedClientId);
   const { dataSource } = useDataSource();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = searchParams.get('tab') || 'kanban';
-  const focusSection = searchParams.get('section');
 
   const [cards, setCards] = useState<OnboardingCard[]>([]);
   const [client, setClient] = useState<Client | null>(null);
@@ -94,7 +86,7 @@ export default function OnboardingClientPage() {
         setError(null);
         
         // Boot initial board if first access
-        const isFirstAccess = searchParams.get('first') === 'true';
+        const isFirstAccess = window.location.search.includes('first=true');
         if (isFirstAccess && clientCards.length === 0) {
           await bootInitialBoard(resolvedClientId, foundClient);
           // Reload cards after creating initial board
@@ -145,14 +137,6 @@ export default function OnboardingClientPage() {
     }
   };
 
-  const handleTabChange = (value: string) => {
-    const params = new URLSearchParams(searchParams);
-    params.set('tab', value);
-    if (value === 'kanban') {
-      params.delete('section');
-    }
-    setSearchParams(params);
-  };
 
   const handleCardMove = async (cardId: string, newStage: string) => {
     try {
@@ -252,92 +236,16 @@ export default function OnboardingClientPage() {
         </div>
       </div>
       
-      <Tabs value={activeTab} onValueChange={handleTabChange} className="h-full">
-        <div className="border-b">
-          <TabsList className="grid w-full grid-cols-4 max-w-2xl">
-            <TabsTrigger value="kanban">Kanban</TabsTrigger>
-            <TabsTrigger value="briefing">Briefing</TabsTrigger>
-            <TabsTrigger value="documentos">Documentos</TabsTrigger>
-            <TabsTrigger value="timeline">Timeline</TabsTrigger>
-          </TabsList>
-        </div>
-        
-        <TabsContent value="kanban" className="h-full mt-0 p-6">
-          <NewOnboardingKanban 
-            clientId={resolvedClientId as string}
-            cards={cards}
-            onCardMove={handleCardMove}
-            onCardClick={handleCardClick}
-            onCreateCard={handleCreateCard}
-            onCardsReload={loadData}
-          />
-        </TabsContent>
-        
-        <TabsContent value="briefing" className="h-full mt-0 p-6">
-          <DynamicBriefingForm clientId={resolvedClientId as string} />
-        </TabsContent>
-        
-        <TabsContent value="documentos" className="h-full mt-0 p-6">
-          <Card className="h-full">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5 text-primary" />
-                Documentos e Anexos
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-8 text-muted-foreground">
-                <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>Documentos e anexos serão exibidos aqui</p>
-                <p className="text-sm">Em breve: upload de arquivos, links úteis e recursos</p>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="timeline" className="h-full mt-0 p-6">
-          <Card className="h-full">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Clock className="h-5 w-5 text-primary" />
-                Timeline do Onboarding
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ScrollArea className="h-[400px]">
-                <div className="space-y-4">
-                  {cards.length > 0 ? (
-                    cards
-                      .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
-                      .map((card) => (
-                        <div key={card.id} className="flex items-center gap-4 p-4 border rounded-lg">
-                          <div className="p-2 bg-primary/10 rounded-full">
-                            <ClipboardCheck className="h-4 w-4 text-primary" />
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium">{card.title}</span>
-                              <Badge variant="outline">{card.stage}</Badge>
-                            </div>
-                            <p className="text-sm text-muted-foreground">
-                              Atualizado em {new Date(card.updated_at).toLocaleDateString()}
-                            </p>
-                          </div>
-                        </div>
-                      ))
-                  ) : (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <Clock className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <p>Nenhuma atividade registrada ainda</p>
-                      <p className="text-sm">O histórico de atividades aparecerá aqui conforme o progresso</p>
-                    </div>
-                  )}
-                </div>
-              </ScrollArea>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+      <div className="p-6 h-full">
+        <NewOnboardingKanban 
+          clientId={resolvedClientId as string}
+          cards={cards}
+          onCardMove={handleCardMove}
+          onCardClick={handleCardClick}
+          onCreateCard={handleCreateCard}
+          onCardsReload={loadData}
+        />
+      </div>
 
       <OnboardingCardModal
         open={showCardModal}
