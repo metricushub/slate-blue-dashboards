@@ -48,14 +48,16 @@ export function NewEntryModal({ isOpen, onClose, onSubmit }: NewEntryModalProps)
       return;
     }
 
-    onSubmit({
-      type: formData.type,
-      description: formData.description,
-      amount: parseFloat(formData.amount),
-      category: formData.category,
-      date: formData.date,
-      clientId: formData.clientId || undefined
-    });
+      onSubmit({
+        type: formData.type,
+        description: formData.description,
+        amount: parseFloat(formData.amount),
+        category: formData.category,
+        date: formData.date,
+        status: formData.type === 'income' ? 'pending' : 'paid',
+        dueDate: formData.type === 'income' ? formData.date : undefined,
+        clientId: formData.clientId || undefined
+      });
 
     // Reset form
     setFormData({
@@ -139,7 +141,7 @@ export function NewEntryModal({ isOpen, onClose, onSubmit }: NewEntryModalProps)
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="date">Data</Label>
+            <Label htmlFor="date">{formData.type === 'income' ? 'Data Prevista' : 'Data'}</Label>
             <Input
               id="date"
               type="date"
@@ -147,6 +149,11 @@ export function NewEntryModal({ isOpen, onClose, onSubmit }: NewEntryModalProps)
               onChange={(e) => setFormData({...formData, date: e.target.value})}
               required
             />
+            {formData.type === 'income' && (
+              <p className="text-xs text-muted-foreground">
+                Data prevista para recebimento. A receita será considerada provisória até confirmação.
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">

@@ -8,6 +8,9 @@ export interface FinancialEntry {
   category: string;
   date: string;
   clientId?: string;
+  status?: 'pending' | 'paid' | 'cancelled'; // For income tracking
+  dueDate?: string; // Expected payment date for income
+  paidDate?: string; // Actual payment date
   created_at: string;
 }
 
@@ -41,7 +44,7 @@ interface FinancialDatabase extends Dexie {
 const db = new Dexie('FinancialDatabase') as FinancialDatabase;
 
 db.version(1).stores({
-  entries: '++id, type, category, date, clientId, created_at',
+  entries: '++id, type, category, date, status, dueDate, clientId, created_at',
   goals: '++id, type, month, created_at',
   pendingExpenses: '++id, category, dueDate, status, clientId, created_at'
 });
@@ -149,6 +152,37 @@ export const financialStore = {
 
   async markExpenseAsPaid(id: string): Promise<void> {
     await this.updatePendingExpense(id, { status: 'paid' });
+  },
+
+  // Income status management
+  async markIncomeAsPaid(id: string, paidDate?: string): Promise<void> {
+    const actualPaidDate = paidDate || new Date().toISOString().split('T')[0];
+    await this.updateEntry(id, { 
+      status: 'paid', 
+      paidDate: actualPaidDate,
+      date: actualPaidDate // Update main date to paid date for calculations
+    });
+  },
+
+  async markIncomeAsCancelled(id: string): Promise<void> {
+    await this.updateEntry(id, { status: 'cancelled' });
+  },
+
+  async getPendingIncomes(): Promise<FinancialEntry[]> {
+    return await db.entries
+      .where('type')
+      .equals('income')
+      .and(entry => entry.status === 'pending')
+      .toArray();
+  },
+
+  async getOverdueIncomes(): Promise<FinancialEntry[]> {
+    const today = new Date().toISOString().split('T')[0];
+    return await db.entries
+      .where('type')
+      .equals('income')
+      .and(entry => entry.status === 'pending' && entry.dueDate && entry.dueDate < today)
+      .toArray();
   }
 };
 
@@ -156,7 +190,7 @@ export const financialStore = {
 export const financialCalculations = {
   calculateNetProfit: (entries: FinancialEntry[]): number => {
     const income = entries
-      .filter(entry => entry.type === 'income')
+      .filter(entry => entry.type === 'income' && entry.status === 'paid')
       .reduce((sum, entry) => sum + entry.amount, 0);
     
     const expenses = entries
@@ -168,7 +202,19 @@ export const financialCalculations = {
 
   calculateTotalIncome: (entries: FinancialEntry[]): number => {
     return entries
-      .filter(entry => entry.type === 'income')
+      .filter(entry => entry.type === 'income' && entry.status !== 'cancelled')
+      .reduce((sum, entry) => sum + entry.amount, 0);
+  },
+
+  calculateConfirmedIncome: (entries: FinancialEntry[]): number => {
+    return entries
+      .filter(entry => entry.type === 'income' && entry.status === 'paid')
+      .reduce((sum, entry) => sum + entry.amount, 0);
+  },
+
+  calculatePendingIncome: (entries: FinancialEntry[]): number => {
+    return entries
+      .filter(entry => entry.type === 'income' && entry.status === 'pending')
       .reduce((sum, entry) => sum + entry.amount, 0);
   },
 

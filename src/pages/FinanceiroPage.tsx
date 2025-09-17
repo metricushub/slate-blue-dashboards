@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, TrendingUp, TrendingDown, DollarSign, Target, Users } from "lucide-react";
+import { Plus, TrendingUp, TrendingDown, DollarSign, Target, Users, Clock } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -12,6 +12,7 @@ import { NewEntryModal } from "@/components/financial/NewEntryModal";
 import { NewGoalModal } from "@/components/financial/NewGoalModal";
 import { FinancialTable } from "@/components/financial/FinancialTable";
 import { AlertsTab } from "@/components/financial/AlertsTab";
+import { IncomeAlertsTab } from "@/components/financial/IncomeAlertsTab";
 
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--destructive))', 'hsl(var(--warning))', 'hsl(var(--success))'];
 
@@ -99,6 +100,8 @@ export function FinanceiroPage() {
   }
 
   const totalIncome = financialCalculations.calculateTotalIncome(entries);
+  const confirmedIncome = financialCalculations.calculateConfirmedIncome(entries);
+  const pendingIncome = financialCalculations.calculatePendingIncome(entries);
   const totalExpenses = financialCalculations.calculateTotalExpenses(entries);
   const netProfit = financialCalculations.calculateNetProfit(entries);
   const categorySummary = financialCalculations.getCategorySummary(entries);
@@ -106,9 +109,14 @@ export function FinanceiroPage() {
   const revenueGoal = goals.find(g => g.type === 'revenue');
   const clientsGoal = goals.find(g => g.type === 'clients');
 
-  const chartData = entries
+  // Only use confirmed income for charts
+  const confirmedEntries = entries.filter(entry => 
+    entry.type === 'expense' || (entry.type === 'income' && entry.status === 'paid')
+  );
+
+  const chartData = confirmedEntries
     .reduce((acc: any[], entry) => {
-      const date = entry.date;
+      const date = entry.paidDate || entry.date; // Use paid date if available
       const existing = acc.find(item => item.date === date);
       if (existing) {
         if (entry.type === 'income') {
@@ -161,16 +169,30 @@ export function FinanceiroPage() {
         </div>
 
         {/* KPIs Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Receita Total</CardTitle>
+              <CardTitle className="text-sm font-medium">Receita Confirmada</CardTitle>
               <TrendingUp className="h-4 w-4 text-success" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-success">
-                R$ {totalIncome.toLocaleString('pt-BR')}
+                R$ {confirmedIncome.toLocaleString('pt-BR')}
               </div>
+              <p className="text-xs text-muted-foreground mt-1">Efetivamente recebida</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Receita Pendente</CardTitle>
+              <Clock className="h-4 w-4 text-warning" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-warning">
+                R$ {pendingIncome.toLocaleString('pt-BR')}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Aguardando confirmação</p>
             </CardContent>
           </Card>
 
@@ -215,14 +237,14 @@ export function FinanceiroPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    <div className="flex justify-between text-sm">
-                      <span>Progresso</span>
-                      <span>R$ {totalIncome.toLocaleString('pt-BR')} / R$ {revenueGoal.target.toLocaleString('pt-BR')}</span>
-                    </div>
-                    <Progress value={(totalIncome / revenueGoal.target) * 100} className="h-2" />
-                    <div className="text-center text-sm text-muted-foreground">
-                      {((totalIncome / revenueGoal.target) * 100).toFixed(1)}% concluído
-                    </div>
+                     <div className="flex justify-between text-sm">
+                       <span>Progresso</span>
+                       <span>R$ {confirmedIncome.toLocaleString('pt-BR')} / R$ {revenueGoal.target.toLocaleString('pt-BR')}</span>
+                     </div>
+                     <Progress value={(confirmedIncome / revenueGoal.target) * 100} className="h-2" />
+                     <div className="text-center text-sm text-muted-foreground">
+                       {((confirmedIncome / revenueGoal.target) * 100).toFixed(1)}% concluído
+                     </div>
                   </div>
                 </CardContent>
               </Card>
@@ -257,7 +279,8 @@ export function FinanceiroPage() {
           <TabsList>
             <TabsTrigger value="overview">Visão Geral</TabsTrigger>
             <TabsTrigger value="entries">Entradas</TabsTrigger>
-            <TabsTrigger value="alerts">Alertas</TabsTrigger>
+            <TabsTrigger value="income-control">Receitas</TabsTrigger>
+            <TabsTrigger value="alerts">Despesas</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
           </TabsList>
 
@@ -314,6 +337,10 @@ export function FinanceiroPage() {
 
           <TabsContent value="entries">
             <FinancialTable entries={entries} onRefresh={loadFinancialData} />
+          </TabsContent>
+
+          <TabsContent value="income-control">
+            <IncomeAlertsTab onRefresh={loadFinancialData} />
           </TabsContent>
 
           <TabsContent value="alerts">
