@@ -43,10 +43,13 @@ export function TemplateApplicator({ open, onOpenChange, clientId, onApplied }: 
       const allTemplates = await onboardingTemplateV2Operations.getAll();
       setTemplates(allTemplates);
       
-      // Auto-select default template
-      const defaultTemplate = allTemplates.find(t => t.isDefault);
-      if (defaultTemplate) {
-        setSelectedTemplateId(defaultTemplate.id);
+      // Auto-select a template with cards (prefer default)
+      const hasCards = (t: any) => t.blocks?.some((b: any) => (b.cards?.length || 0) > 0);
+      const defaultWithCards = allTemplates.find(t => t.isDefault && hasCards(t));
+      const firstWithCards = allTemplates.find(hasCards);
+      const choice = defaultWithCards || firstWithCards || allTemplates[0];
+      if (choice) {
+        setSelectedTemplateId(choice.id);
       }
     } catch (error) {
       console.error('Error loading templates:', error);

@@ -1,4 +1,5 @@
 import Dexie, { Table } from 'dexie';
+import { DEFAULT_TEMPLATE_BLOCKS } from '@/types/template';
 
 export interface OnboardingCard {
   id: string;
@@ -172,6 +173,47 @@ db.on('ready', async () => {
     await db.onboardingSubStages.bulkAdd([
       { id: '2.1-cadastrar-financeiro', stageId: 'financeiro', title: '2.1 Cadastrar no Financeiro', order: 1 }
     ]);
+  }
+
+  // Seed a default V2 template with starter cards if none of the existing templates has cards
+  try {
+    const templates = await db.onboardingTemplatesV2.toArray();
+    const hasTemplateWithCards = templates.some(t => t.blocks?.some(b => (b.cards?.length || 0) > 0));
+    if (!hasTemplateWithCards) {
+      const now = new Date().toISOString();
+      const hasDefault = templates.some(t => !!t.isDefault);
+
+      const blocks = DEFAULT_TEMPLATE_BLOCKS.map((b, idx) => ({
+        id: crypto.randomUUID(),
+        name: b.name,
+        color: b.color,
+        icon: b.icon,
+        order: b.order,
+        cards: [
+          {
+            id: crypto.randomUUID(),
+            title: `Iniciar: ${b.name}`,
+            description: `Tarefas iniciais para ${b.name}`,
+            responsavel: '',
+            prazoOffset: idx === 0 ? '+0d' : '+3d',
+            tags: [],
+            order: 1
+          }
+        ]
+      }));
+
+      await db.onboardingTemplatesV2.add({
+        id: crypto.randomUUID(),
+        name: 'Template Padrão (Auto)',
+        description: 'Gerado automaticamente com tarefas iniciais por bloco',
+        isDefault: !hasDefault,
+        blocks,
+        created_at: now,
+        updated_at: now
+      });
+    }
+  } catch (e) {
+    console.warn('Template seeding skipped:', e);
   }
 });
 
