@@ -1,12 +1,9 @@
 import { 
   LayoutDashboard,
   Wand2,
-  BellDot,
   MessageSquare,
-  StickyNote,
   ClipboardCheck,
   FileBarChart,
-  LineChart,
   Target,
   TableProperties,
   BadgeDollarSign,
@@ -59,9 +56,7 @@ export function SidebarCliente() {
     { title: "Central de Otimizações", url: link("otimizacoes", "/clientes"), icon: Wand2 },
     { title: "Tarefas e Anotações", url: link("tarefas-anotacoes", "/clientes"), icon: ClipboardCheck },
     { title: "Chat IA e Configuração", url: link("chat", "/clientes"), icon: MessageSquare },
-    { title: "Anotações", url: link("anotacoes", "/clientes"), icon: StickyNote },
     { title: "Relatórios", url: link("relatorios", "/clientes"), icon: FileBarChart },
-    { title: "Analytics", url: link("analytics", "/clientes"), icon: LineChart },
     { title: "Objetivos e Metas de KPI", url: link("objetivos", "/clientes"), icon: Target },
   ];
 
