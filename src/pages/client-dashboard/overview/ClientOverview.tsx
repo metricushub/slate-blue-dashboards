@@ -28,6 +28,7 @@ import { RecentOptimizations } from "./RecentOptimizations";
 import { TasksAlertsModal, useNextTasks } from "./TasksAlertsModal";
 import { useClientPrefs } from "@/shared/prefs/useClientPrefs";
 import { QuickChecklist } from "@/components/client/QuickChecklist";
+import { NewOptimizationModal } from "@/components/modals/NewOptimizationModal";
 
 export function ClientOverview() {
   const { clientId } = useParams<{ clientId: string }>();
@@ -53,6 +54,7 @@ export function ClientOverview() {
   const [showTasksModal, setShowTasksModal] = useState(false);
   const [showChatPanel, setShowChatPanel] = useState(false);
   const [showCustomizeModal, setShowCustomizeModal] = useState(false);
+  const [showOptimizationModal, setShowOptimizationModal] = useState(false);
 
   // Get next tasks for overview - using useNextTasks hook
   const nextTasks = useNextTasks(clientId || "");
@@ -134,11 +136,11 @@ export function ClientOverview() {
         <div className="space-y-6">
           {/* Enhanced Header with Action Buttons */}
           <div className="flex items-start justify-between">
-            <DashboardHeader client={client} onRegisterOptimization={() => navigate(`/cliente/${clientId}/otimizacoes`)} />
+            <DashboardHeader client={client} onRegisterOptimization={() => setShowOptimizationModal(true)} />
             <div className="flex items-center gap-3">
-              <Button variant="outline" onClick={() => navigate(`/cliente/${clientId}/otimizacoes`)} className="gap-2">
+              <Button variant="outline" onClick={() => setShowOptimizationModal(true)} className="gap-2">
                 <Target className="h-4 w-4" />
-                Otimizações
+                Nova Otimização
               </Button>
               <Button variant="outline" onClick={() => setShowTasksModal(true)} className="gap-2">
                 <CheckSquare className="h-4 w-4" />
@@ -273,6 +275,19 @@ export function ClientOverview() {
         isOpen={showChatPanel}
         onClose={() => setShowChatPanel(false)}
         client={client}
+      />
+
+      <NewOptimizationModal
+        open={showOptimizationModal}
+        onOpenChange={setShowOptimizationModal}
+        onSave={(optimization) => {
+          console.log('Nova otimização criada:', optimization);
+          setOptimizationsKey(prev => prev + 1); // Refresh optimizations list
+          toast({
+            title: "Otimização criada com sucesso!",
+            description: `A otimização "${optimization.title}" foi registrada.`,
+          });
+        }}
       />
 
       {/* Floating Chat IA Button - Desktop Only */}
