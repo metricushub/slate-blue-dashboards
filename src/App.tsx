@@ -20,7 +20,7 @@ import { BriefingConfigPage } from "./pages/BriefingConfigPage";
 import { IntegrationsPage } from "./pages/IntegrationsPage";
 import { ClientOverview } from "./pages/client-dashboard/overview/ClientOverview";
 import ClientCadastroPage from "./pages/ClientCadastroPage";
-import { ClientBriefingPage } from "./components/briefing/ClientBriefingPage";
+import ClientBriefingPage from "./components/briefing/ClientBriefingPage";
 import NotFound from "./pages/NotFound";
 import DiagnosticsPage from "./pages/DiagnosticsPage";
 

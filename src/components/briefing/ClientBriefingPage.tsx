@@ -1,7 +1,7 @@
 import { useParams } from "react-router-dom";
 import { DynamicBriefingForm } from "./DynamicBriefingForm";
 
-export function ClientBriefingPage() {
+export default function ClientBriefingPage() {
   const { clientId } = useParams<{ clientId: string }>();
 
   return (
