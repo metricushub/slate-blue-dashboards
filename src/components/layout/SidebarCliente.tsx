@@ -12,7 +12,9 @@ import {
   BadgeDollarSign,
   BadgePercent,
   ChevronRight,
+  ChevronDown,
   User,
+  FileText,
 } from "lucide-react";
 import { NavLink, useLocation, useParams } from "react-router-dom";
 import { BrandLogo } from "@/components/ui/brand-logo";
@@ -26,9 +28,14 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubItem,
+  SidebarMenuSubButton,
   SidebarHeader,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { useState } from "react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 export function SidebarCliente() {
   const { state } = useSidebar();
@@ -40,6 +47,7 @@ export function SidebarCliente() {
   const isValidId = (v?: string) => !!(v && v !== 'undefined' && v !== 'null' && v.trim() !== '');
   const resolvedClientId = isValidId(rawRouteId) ? rawRouteId! : (isValidId(fromPath) ? fromPath! : undefined);
   const collapsed = state === "collapsed";
+  const [cadastroExpanded, setCadastroExpanded] = useState(false);
 
   const link = (segment: string, fallback: string) =>
     resolvedClientId ? `/cliente/${resolvedClientId}/${segment}` : fallback;
@@ -50,7 +58,6 @@ export function SidebarCliente() {
     { title: "Tarefas e Alertas", url: link("tarefas-alertas", "/clientes"), icon: BellDot },
     { title: "Chat IA e Configuração", url: link("chat", "/clientes"), icon: MessageSquare },
     { title: "Anotações", url: link("anotacoes", "/clientes"), icon: StickyNote },
-    { title: "Cadastro do Cliente", url: link("cadastro", "/clientes"), icon: User },
     { title: "Onboarding", url: link("onboarding", "/onboarding"), icon: ClipboardCheck },
     { title: "Relatórios", url: link("relatorios", "/clientes"), icon: FileBarChart },
     { title: "Analytics", url: link("analytics", "/clientes"), icon: LineChart },
@@ -60,8 +67,17 @@ export function SidebarCliente() {
     { title: "Integração Meta", url: link("integracao-meta", "/clientes"), icon: BadgePercent },
   ];
 
+  const cadastroSubItems = [
+    { title: "Dados do Cliente", url: link("cadastro", "/clientes"), icon: User },
+    { title: "Briefing", url: link("cadastro/briefing", "/clientes"), icon: FileText },
+  ];
+
   const isActive = (path: string) => {
     return currentPath === path;
+  };
+
+  const isCadastroSectionActive = () => {
+    return cadastroSubItems.some(item => isActive(item.url));
   };
 
   const getNavClassName = (path: string) => {
@@ -108,6 +124,47 @@ export function SidebarCliente() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
+              
+              {/* Cadastro do Cliente com submenu */}
+              <Collapsible 
+                open={cadastroExpanded || isCadastroSectionActive()}
+                onOpenChange={setCadastroExpanded}
+              >
+                <SidebarMenuItem>
+                  <CollapsibleTrigger asChild>
+                    <SidebarMenuButton 
+                      className={getNavClassName("")}
+                    >
+                      <User className="h-5 w-5 shrink-0" />
+                      {!collapsed && (
+                        <>
+                          <span className="truncate">Cadastro do Cliente</span>
+                          <ChevronDown className="h-4 w-4 ml-auto transition-transform group-data-[state=open]:rotate-180" />
+                        </>
+                      )}
+                    </SidebarMenuButton>
+                  </CollapsibleTrigger>
+                  {!collapsed && (
+                    <CollapsibleContent>
+                      <SidebarMenuSub>
+                        {cadastroSubItems.map((item) => (
+                          <SidebarMenuSubItem key={item.title}>
+                            <SidebarMenuSubButton asChild>
+                              <NavLink to={item.url} className={getNavClassName(item.url)}>
+                                <item.icon className="h-4 w-4 shrink-0" />
+                                <span className="truncate">{item.title}</span>
+                                {isActive(item.url) && (
+                                  <ChevronRight className="h-3 w-3 ml-auto" />
+                                )}
+                              </NavLink>
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
+                        ))}
+                      </SidebarMenuSub>
+                    </CollapsibleContent>
+                  )}
+                </SidebarMenuItem>
+              </Collapsible>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
