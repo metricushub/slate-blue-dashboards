@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Plus, 
@@ -231,6 +231,9 @@ export function GoalsManager({ clientId }: GoalsManagerProps) {
             <DialogTitle>
               {editingGoal ? 'Editar Meta' : 'Criar Nova Meta'}
             </DialogTitle>
+            <DialogDescription>
+              {editingGoal ? 'Modifique os parâmetros da meta existente' : 'Configure uma nova meta de performance para acompanhar'}
+            </DialogDescription>
           </DialogHeader>
 
           <Tabs defaultValue="basic" className="w-full">
@@ -330,7 +333,7 @@ export function GoalsManager({ clientId }: GoalsManagerProps) {
                       <SelectValue placeholder="Selecione uma métrica" />
                     </SelectTrigger>
                     <SelectContent>
-                      {Object.values(METRICS).map((metric) => (
+                      {Object.values(METRICS).filter(metric => metric && metric.label).map((metric) => (
                         <SelectItem key={metric.key} value={metric.key}>
                           {metric.label}
                         </SelectItem>

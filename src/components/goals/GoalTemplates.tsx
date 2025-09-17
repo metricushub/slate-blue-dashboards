@@ -55,7 +55,7 @@ const templates: GoalTemplate[] = [
         startDate: '',
         status: 'active',
         priority: 'high',
-        createdBy: '',
+        // createdBy will be set when applied
         enableAlerts: true,
         alertFrequency: 'immediate',
         alertThreshold: 90,
@@ -72,7 +72,7 @@ const templates: GoalTemplate[] = [
         startDate: '',
         status: 'active',
         priority: 'critical',
-        createdBy: '',
+        // createdBy will be set when applied
         enableAlerts: true,
         alertFrequency: 'weekly',
         alertThreshold: 75,
@@ -98,7 +98,7 @@ const templates: GoalTemplate[] = [
         startDate: '',
         status: 'active',
         priority: 'high',
-        createdBy: '',
+        // createdBy will be set when applied
         enableAlerts: true,
         alertFrequency: 'daily',
         alertThreshold: 80,
@@ -115,7 +115,7 @@ const templates: GoalTemplate[] = [
         startDate: '',
         status: 'active',
         priority: 'medium',
-        createdBy: '',
+        // createdBy will be set when applied
         enableAlerts: true,
         alertFrequency: 'weekly',
         alertThreshold: 85,
@@ -132,7 +132,7 @@ const templates: GoalTemplate[] = [
         startDate: '',
         status: 'active',
         priority: 'medium',
-        createdBy: '',
+        // createdBy will be set when applied
         enableAlerts: true,
         alertFrequency: 'weekly',
         alertThreshold: 80,
@@ -158,7 +158,7 @@ const templates: GoalTemplate[] = [
         startDate: '',
         status: 'active',
         priority: 'high',
-        createdBy: '',
+        // createdBy will be set when applied
         enableAlerts: true,
         alertFrequency: 'daily',
         alertThreshold: 75,
@@ -175,7 +175,7 @@ const templates: GoalTemplate[] = [
         startDate: '',
         status: 'active',
         priority: 'high',
-        createdBy: '',
+        // createdBy will be set when applied
         enableAlerts: true,
         alertFrequency: 'immediate',
         alertThreshold: 90,
@@ -192,7 +192,7 @@ const templates: GoalTemplate[] = [
         startDate: '',
         status: 'active',
         priority: 'medium',
-        createdBy: '',
+        // createdBy will be set when applied
         enableAlerts: true,
         alertFrequency: 'weekly',
         alertThreshold: 80,
@@ -218,7 +218,7 @@ const templates: GoalTemplate[] = [
         startDate: '',
         status: 'active',
         priority: 'high',
-        createdBy: '',
+        // createdBy will be set when applied
         enableAlerts: true,
         alertFrequency: 'weekly',
         alertThreshold: 80,
@@ -235,7 +235,7 @@ const templates: GoalTemplate[] = [
         startDate: '',
         status: 'active',
         priority: 'medium',
-        createdBy: '',
+        // createdBy will be set when applied
         enableAlerts: true,
         alertFrequency: 'weekly',
         alertThreshold: 85,
