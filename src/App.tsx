@@ -38,6 +38,7 @@ import TarefasAlertasWip from "./pages/wip/TarefasAlertasWip";
 import ChatIaConfigWip from "./pages/wip/ChatIaConfigWip";
 import AnotacoesClienteWip from "./pages/wip/AnotacoesClienteWip";
 import OnboardingClientPage from "./pages/OnboardingClientPage";
+import ClientTarefasAnotacoesPage from "./pages/client-dashboard/ClientTarefasAnotacoesPage";
 import RelatoriosClienteWip from "./pages/wip/RelatoriosClienteWip";
 import AnalyticsClienteWip from "./pages/wip/AnalyticsClienteWip";
 import ObjetivosClienteWip from "./pages/wip/ObjetivosClienteWip";
@@ -88,6 +89,7 @@ const App = () => (
           <Route path="/cliente/:clientId/cadastro/documentos" element={<Suspense fallback={<div className="p-4">Carregando…</div>}><ClientDocumentosPageLazy /></Suspense>} />
                 <Route path="/cliente/:clientId/otimizacoes" element={<CentralOtimizacoesWip />} />
                 <Route path="/cliente/:clientId/tarefas-alertas" element={<TarefasAlertasWip />} />
+                <Route path="/cliente/:clientId/tarefas-anotacoes" element={<ClientTarefasAnotacoesPage />} />
                 <Route path="/cliente/:clientId/chat" element={<ChatIaConfigWip />} />
                 <Route path="/cliente/:clientId/anotacoes" element={<AnotacoesClienteWip />} />
                 <Route path="/cliente/:clientId/onboarding" element={<OnboardingClientPage />} />
