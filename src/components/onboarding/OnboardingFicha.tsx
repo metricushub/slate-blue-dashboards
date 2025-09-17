@@ -144,9 +144,22 @@ export function OnboardingFicha({ clientId, focusSection }: OnboardingFichaProps
       { key: 'financeiro.dadosBancarios', label: 'Dados Bancários', section: 'Financeiro' },
       { key: 'financeiro.cicloCobranca', label: 'Ciclo de Cobrança', section: 'Financeiro' },
       { key: 'financeiro.limiteInvestimento', label: 'Limite de Investimento', section: 'Financeiro' },
+      { key: 'briefing.objetivos', label: 'Objetivos do Cliente', section: 'Briefing' },
+      { key: 'briefing.publicoAlvo', label: 'Público-Alvo', section: 'Briefing' },
+      { key: 'briefing.concorrentes', label: 'Principais Concorrentes', section: 'Briefing' },
+      { key: 'briefing.budget', label: 'Budget Mensal', section: 'Briefing' },
+      { key: 'briefing.plataformas', label: 'Plataformas de Interesse', section: 'Briefing' },
+      { key: 'briefing.resultados', label: 'Resultados Esperados', section: 'Briefing' },
       { key: 'briefing.responsavel', label: 'Responsável', section: 'Briefing' },
       { key: 'briefing.observacoes', label: 'Observações', section: 'Briefing' },
+      { key: 'implementacao.status', label: 'Status da Implementação', section: 'Implementação' },
+      { key: 'implementacao.acessos', label: 'Acessos Necessários', section: 'Implementação' },
+      { key: 'implementacao.configuracoes', label: 'Configurações Pendentes', section: 'Implementação' },
       { key: 'implementacao.responsavel', label: 'Responsável', section: 'Implementação' },
+      { key: 'configuracao.pixels', label: 'Pixel/Tags Instalados', section: 'Configuração' },
+      { key: 'configuracao.conversoes', label: 'Conversões Configuradas', section: 'Configuração' },
+      { key: 'configuracao.crm', label: 'Integração CRM', section: 'Configuração' },
+      { key: 'configuracao.statusConfig', label: 'Status Configuração', section: 'Configuração' },
       { key: 'configuracao.responsavel', label: 'Responsável', section: 'Configuração' },
     ];
   };
@@ -284,6 +297,162 @@ export function OnboardingFicha({ clientId, focusSection }: OnboardingFichaProps
                   onChange={(e) => updateFichaSection(stageId, { limiteInvestimento: e.target.value })}
                   placeholder="R$ 0,00"
                 />
+              </div>
+            </div>
+            {commonFields}
+          </div>
+        );
+
+      case 'briefing':
+        return (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Objetivos do Cliente</Label>
+                <Textarea
+                  value={data.objetivos || ''}
+                  onChange={(e) => updateFichaSection(stageId, { objetivos: e.target.value })}
+                  placeholder="Quais são os principais objetivos?"
+                  rows={3}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Público-Alvo</Label>
+                <Textarea
+                  value={data.publicoAlvo || ''}
+                  onChange={(e) => updateFichaSection(stageId, { publicoAlvo: e.target.value })}
+                  placeholder="Descreva o público-alvo"
+                  rows={3}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Principais Concorrentes</Label>
+                <Textarea
+                  value={data.concorrentes || ''}
+                  onChange={(e) => updateFichaSection(stageId, { concorrentes: e.target.value })}
+                  placeholder="Liste os principais concorrentes"
+                  rows={3}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Budget Mensal</Label>
+                <Input
+                  value={data.budget || ''}
+                  onChange={(e) => updateFichaSection(stageId, { budget: e.target.value })}
+                  placeholder="R$ 0,00"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Plataformas de Interesse</Label>
+                <Textarea
+                  value={data.plataformas || ''}
+                  onChange={(e) => updateFichaSection(stageId, { plataformas: e.target.value })}
+                  placeholder="Google Ads, Meta Ads, etc."
+                  rows={2}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Resultados Esperados</Label>
+                <Textarea
+                  value={data.resultados || ''}
+                  onChange={(e) => updateFichaSection(stageId, { resultados: e.target.value })}
+                  placeholder="Leads, conversões, vendas..."
+                  rows={2}
+                />
+              </div>
+            </div>
+            {commonFields}
+          </div>
+        );
+
+      case 'implementacao':
+        return (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Status da Implementação</Label>
+                <Select 
+                  value={data.status || ''} 
+                  onValueChange={(value) => updateFichaSection(stageId, { status: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecionar status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pendente">Pendente</SelectItem>
+                    <SelectItem value="em-andamento">Em Andamento</SelectItem>
+                    <SelectItem value="concluido">Concluído</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Acessos Necessários</Label>
+                <Textarea
+                  value={data.acessos || ''}
+                  onChange={(e) => updateFichaSection(stageId, { acessos: e.target.value })}
+                  placeholder="Google Ads, Meta, Analytics, etc."
+                  rows={2}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Configurações Pendentes</Label>
+                <Textarea
+                  value={data.configuracoes || ''}
+                  onChange={(e) => updateFichaSection(stageId, { configuracoes: e.target.value })}
+                  placeholder="Lista de configurações pendentes"
+                  rows={3}
+                />
+              </div>
+            </div>
+            {commonFields}
+          </div>
+        );
+
+      case 'configuracao':
+        return (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Pixel/Tags Instalados</Label>
+                <Textarea
+                  value={data.pixels || ''}
+                  onChange={(e) => updateFichaSection(stageId, { pixels: e.target.value })}
+                  placeholder="Facebook Pixel, Google Tag, etc."
+                  rows={2}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Conversões Configuradas</Label>
+                <Textarea
+                  value={data.conversoes || ''}
+                  onChange={(e) => updateFichaSection(stageId, { conversoes: e.target.value })}
+                  placeholder="Eventos de conversão configurados"
+                  rows={2}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Integração CRM</Label>
+                <Input
+                  value={data.crm || ''}
+                  onChange={(e) => updateFichaSection(stageId, { crm: e.target.value })}
+                  placeholder="Nome do CRM utilizado"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Status Configuração</Label>
+                <Select 
+                  value={data.statusConfig || ''} 
+                  onValueChange={(value) => updateFichaSection(stageId, { statusConfig: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecionar status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="nao-iniciado">Não Iniciado</SelectItem>
+                    <SelectItem value="em-andamento">Em Andamento</SelectItem>
+                    <SelectItem value="concluido">Concluído</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             {commonFields}
