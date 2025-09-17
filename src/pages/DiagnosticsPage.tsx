@@ -461,9 +461,8 @@ export default function DiagnosticsPage() {
           clientCreationWizard: 'PASS - 3-step wizard implemented',
           leadConversion: 'PASS - Convert button added to LeadDrawer',
           onboardingIntegration: 'PASS - Auto-creates onboarding cards',
-          navigationUpdates: 'PASS - Onboarding added to global sidebar'
-      },
-      files: [
+          navigationUpdates: 'PASS - Onboarding added to global sidebar',
+          files: [
         {"file": "OnboardingHubPage", "summary": "Hub Global com abas Visão Geral e Templates"},
         {"file": "OnboardingOverview", "summary": "Lista de clientes com status, progresso e filtros"},
         {"file": "OnboardingTemplatesManager", "summary": "Gestão de templates movida do cliente para global"},
@@ -702,8 +701,6 @@ export default function DiagnosticsPage() {
                </div>
              </CardContent>
            </Card>
-         </div>
-      </div>
-    </div>
+        </div>
   );
 }
