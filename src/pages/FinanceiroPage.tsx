@@ -29,7 +29,7 @@ export function FinanceiroPage() {
   });
   const { toast } = useToast();
 
-  // Simulated admin check - in production this would come from authentication
+  // Simulated admin check - in production this would come from authentication context
   const isAdmin = true; // For now, always true
 
   useEffect(() => {
