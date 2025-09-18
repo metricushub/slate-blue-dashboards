@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { format, subMonths, startOfMonth, endOfMonth } from "date-fns";
-import { Calendar as CalendarIcon, ChevronDown } from "lucide-react";
+import { Calendar as CalendarIcon, ChevronDown, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -34,8 +34,10 @@ export function DateRangePicker({ onDateRangeChange, initialRange }: DateRangePi
       to: endOfMonth(new Date()),
     }
   );
+  const [tempDateRange, setTempDateRange] = useState<DateRange>(dateRange);
   const [selectedPreset, setSelectedPreset] = useState("current-month");
   const [isCustom, setIsCustom] = useState(false);
+  const [isPopoverOpen, setIsPopoverOpen] = useState(false);
 
   const presets = [
     {
@@ -89,21 +91,33 @@ export function DateRangePicker({ onDateRangeChange, initialRange }: DateRangePi
     setSelectedPreset(value);
     if (value === "custom") {
       setIsCustom(true);
+      setTempDateRange(dateRange);
       return;
     }
 
     setIsCustom(false);
+    setIsPopoverOpen(false);
     const preset = presets.find(p => p.value === value);
     if (preset) {
       setDateRange(preset.range);
+      setTempDateRange(preset.range);
       onDateRangeChange(preset.range);
     }
   };
 
-  const handleCustomDateChange = (newRange: DateRange) => {
-    setDateRange(newRange);
-    onDateRangeChange(newRange);
+  const handleApplyCustomRange = () => {
+    setDateRange(tempDateRange);
+    onDateRangeChange(tempDateRange);
+    setIsPopoverOpen(false);
   };
+
+  const handleCancelCustomRange = () => {
+    setTempDateRange(dateRange);
+    setIsPopoverOpen(false);
+  };
+
+  const isRangeChanged = tempDateRange.from?.getTime() !== dateRange.from?.getTime() || 
+                        tempDateRange.to?.getTime() !== dateRange.to?.getTime();
 
   const formatDateRange = (range: DateRange) => {
     if (selectedPreset !== "custom") {
@@ -129,7 +143,7 @@ export function DateRangePicker({ onDateRangeChange, initialRange }: DateRangePi
       </Select>
 
       {isCustom && (
-        <Popover>
+        <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
           <PopoverTrigger asChild>
             <Button
               variant="outline"
@@ -143,22 +157,47 @@ export function DateRangePicker({ onDateRangeChange, initialRange }: DateRangePi
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
-            <Calendar
-              initialFocus
-              mode="range"
-              defaultMonth={dateRange?.from}
-              selected={{
-                from: dateRange?.from,
-                to: dateRange?.to,
-              }}
-              onSelect={(range) => {
-                if (range?.from && range?.to) {
-                  handleCustomDateChange({ from: range.from, to: range.to });
-                }
-              }}
-              numberOfMonths={2}
-              className="pointer-events-auto"
-            />
+            <div className="p-3">
+              <Calendar
+                initialFocus
+                mode="range"
+                defaultMonth={tempDateRange?.from}
+                selected={{
+                  from: tempDateRange?.from,
+                  to: tempDateRange?.to,
+                }}
+                onSelect={(range) => {
+                  if (range?.from && range?.to) {
+                    setTempDateRange({ from: range.from, to: range.to });
+                  } else if (range?.from && !range?.to) {
+                    setTempDateRange({ from: range.from, to: range.from });
+                  }
+                }}
+                numberOfMonths={2}
+                className="pointer-events-auto"
+              />
+              <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t">
+                <div className="text-sm text-muted-foreground">
+                  {tempDateRange.from && tempDateRange.to ? 
+                    `${format(tempDateRange.from, "dd/MM/yyyy")} - ${format(tempDateRange.to, "dd/MM/yyyy")}` 
+                    : "Selecione as datas"
+                  }
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={handleCancelCustomRange}>
+                    Cancelar
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    onClick={handleApplyCustomRange}
+                    disabled={!tempDateRange.from || !tempDateRange.to}
+                  >
+                    <Check className="h-4 w-4 mr-1" />
+                    Aplicar
+                  </Button>
+                </div>
+              </div>
+            </div>
           </PopoverContent>
         </Popover>
       )}
