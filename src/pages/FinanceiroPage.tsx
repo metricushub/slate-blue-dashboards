@@ -13,6 +13,8 @@ import { NewGoalModal } from "@/components/financial/NewGoalModal";
 import { FinancialTable } from "@/components/financial/FinancialTable";
 import { AlertsTab } from "@/components/financial/AlertsTab";
 import { IncomeAlertsTab } from "@/components/financial/IncomeAlertsTab";
+import { DateRangePicker } from "@/components/financial/DateRangePicker";
+import { format, startOfMonth, endOfMonth } from "date-fns";
 
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--destructive))', 'hsl(var(--warning))', 'hsl(var(--success))'];
 
@@ -21,7 +23,10 @@ export function FinanceiroPage() {
   const [goals, setGoals] = useState<FinancialGoal[]>([]);
   const [isNewEntryModalOpen, setIsNewEntryModalOpen] = useState(false);
   const [isNewGoalModalOpen, setIsNewGoalModalOpen] = useState(false);
-  const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [dateRange, setDateRange] = useState({
+    from: startOfMonth(new Date()),
+    to: endOfMonth(new Date()),
+  });
   const { toast } = useToast();
 
   // Simulated admin check - in production this would come from authentication
@@ -31,20 +36,20 @@ export function FinanceiroPage() {
     if (isAdmin) {
       loadFinancialData();
     }
-  }, [selectedMonth, isAdmin]);
+  }, [dateRange, isAdmin]);
 
   const loadFinancialData = async () => {
     try {
-      const startDate = selectedMonth + '-01';
-      // Calculate the last day of the month properly
-      const year = parseInt(selectedMonth.split('-')[0]);
-      const month = parseInt(selectedMonth.split('-')[1]);
-      const lastDay = new Date(year, month, 0).getDate(); // Get last day of month
-      const endDate = selectedMonth + '-' + lastDay.toString().padStart(2, '0');
+      const startDate = format(dateRange.from, 'yyyy-MM-dd');
+      const endDate = format(dateRange.to, 'yyyy-MM-dd');
       
-      const monthEntries = await financialStore.getFinancialEntries(startDate, endDate);
-      const currentGoals = await financialStore.getFinancialGoals(selectedMonth);
-      setEntries(monthEntries);
+      const rangeEntries = await financialStore.getFinancialEntries(startDate, endDate);
+      
+      // For goals, use the current month format for now
+      const currentMonth = format(new Date(), 'yyyy-MM');
+      const currentGoals = await financialStore.getFinancialGoals(currentMonth);
+      
+      setEntries(rangeEntries);
       setGoals(currentGoals);
     } catch (error) {
       console.error('Error loading financial data:', error);
@@ -76,7 +81,7 @@ export function FinanceiroPage() {
 
   const handleCreateGoal = async (goalData: Omit<FinancialGoal, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
     try {
-      await financialStore.addFinancialGoal({ ...goalData, month: selectedMonth });
+      await financialStore.addFinancialGoal({ ...goalData, month: format(new Date(), 'yyyy-MM') });
       await loadFinancialData();
       setIsNewGoalModalOpen(false);
       toast({
@@ -159,11 +164,11 @@ export function FinanceiroPage() {
           </div>
           
           <div className="flex items-center gap-4">
-            <input
-              type="month"
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
-              className="px-3 py-2 border border-border rounded-md bg-background text-foreground"
+            <DateRangePicker
+              onDateRangeChange={(range) => {
+                setDateRange(range);
+              }}
+              initialRange={dateRange}
             />
             <Button onClick={() => setIsNewEntryModalOpen(true)}>
               <Plus className="h-4 w-4 mr-2" />
