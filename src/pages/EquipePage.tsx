@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabaseTeamStore, type TeamMember } from '@/shared/db/supabaseTeamStore';
+import { UITeamMember } from '@/types/team';
 import { Search, Plus, MoreHorizontal, Edit, Archive, RotateCcw, Users, Badge as BadgeIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,66 +13,10 @@ import { InviteTeamMemberModal } from '@/components/modals/InviteTeamMemberModal
 import { EditTeamMemberDrawer } from '@/components/modals/EditTeamMemberDrawer';
 import { toast } from '@/hooks/use-toast';
 
-// Create a local interface that matches the UI expectations
-interface UITeamMember {
-  id: string;
-  name: string;
-  email: string;
-  role: 'Admin' | 'Gestor' | 'Leitor';
-  status: 'Ativo' | 'Arquivado' | 'Pendente';
-  clientsCount: number;
-  lastActivity: string;
-  avatar?: string;
-  joinedAt: string;
-  notes?: string;
-}
+// Export the UI interface for modal components
+export type { UITeamMember as TeamMember };
 
-const mockTeamMembers: TeamMember[] = [
-  {
-    id: '1',
-    name: 'Ana Silva',
-    email: 'ana.silva@empresa.com',
-    role: 'Admin',
-    status: 'Ativo',
-    clientsCount: 12,
-    lastActivity: '2025-01-14 09:30',
-    joinedAt: '2024-01-15',
-    notes: 'Administradora principal do sistema'
-  },
-  {
-    id: '2', 
-    name: 'Carlos Santos',
-    email: 'carlos.santos@empresa.com',
-    role: 'Gestor',
-    status: 'Ativo',
-    clientsCount: 8,
-    lastActivity: '2025-01-14 14:22',
-    joinedAt: '2024-03-20',
-    notes: 'Gestor de contas premium'
-  },
-  {
-    id: '3',
-    name: 'Maria Oliveira', 
-    email: 'maria.oliveira@empresa.com',
-    role: 'Leitor',
-    status: 'Ativo',
-    clientsCount: 3,
-    lastActivity: '2025-01-13 16:45',
-    joinedAt: '2024-06-10'
-  },
-  {
-    id: '4',
-    name: 'João Ferreira',
-    email: 'joao.ferreira@empresa.com', 
-    role: 'Gestor',
-    status: 'Arquivado',
-    clientsCount: 0,
-    lastActivity: '2024-12-20 11:15',
-    joinedAt: '2024-02-28',
-    notes: 'Arquivado - saiu da empresa'
-  }
-];
-
+// Remove mock data - we'll load from Supabase
 const roleColors = {
   'Admin': 'bg-red-100 text-red-800',
   'Gestor': 'bg-blue-100 text-blue-800',
@@ -81,7 +26,7 @@ const roleColors = {
 const statusColors = {
   'Ativo': 'bg-green-100 text-green-800',
   'Arquivado': 'bg-gray-100 text-gray-800',
-  'Convite pendente': 'bg-yellow-100 text-yellow-800'
+  'Pendente': 'bg-yellow-100 text-yellow-800'
 };
 
 export default function EquipePage() {
@@ -99,13 +44,16 @@ export default function EquipePage() {
     const loadMembers = async () => {
       try {
         const data = await supabaseTeamStore.getTeamMembers();
-        const mappedData = data.map(member => ({
-          ...member,
+        const mappedData: UITeamMember[] = data.map(member => ({
+          id: member.id,
+          name: member.name,
+          email: member.email,
+          role: member.role as 'Admin' | 'Gestor' | 'Leitor',
+          status: member.status === 'Pendente' ? 'Pendente' : member.status as 'Ativo' | 'Arquivado',
           clientsCount: member.clients_count,
           lastActivity: member.last_activity,
-          role: member.role as 'Admin' | 'Gestor' | 'Leitor',
-          status: member.status === 'Pendente' ? 'Pendente' : member.status as 'Ativo' | 'Arquivado' | 'Pendente',
           joinedAt: member.created_at.split('T')[0],
+          notes: ''
         }));
         setMembers(mappedData);
         setFilteredMembers(mappedData);
@@ -143,66 +91,117 @@ export default function EquipePage() {
     setFilteredMembers(filtered);
   };
 
-  const saveMembers = (updatedMembers: TeamMember[]) => {
+  const saveMembers = (updatedMembers: UITeamMember[]) => {
     setMembers(updatedMembers);
-    localStorage.setItem('teamMembers', JSON.stringify(updatedMembers));
+    // Data is automatically saved to Supabase via the store methods
   };
 
-  const handleInviteMember = (memberData: Omit<TeamMember, 'id' | 'status' | 'clientsCount' | 'lastActivity' | 'joinedAt'>) => {
-    const newMember: TeamMember = {
-      ...memberData,
-      id: `member_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      status: 'Convite pendente',
-      clientsCount: 0,
-      lastActivity: 'Nunca',
-      joinedAt: new Date().toISOString().split('T')[0]
-    };
-
-    const updatedMembers = [...members, newMember];
-    saveMembers(updatedMembers);
-    
-    toast({
-      title: "Convite enviado",
-      description: `Convite enviado para ${memberData.email} com papel ${memberData.role}`
-    });
+  const handleInviteMember = async (memberData: Omit<UITeamMember, 'id' | 'status' | 'clientsCount' | 'lastActivity' | 'joinedAt'>) => {
+    try {
+      const newMember = await supabaseTeamStore.addTeamMember({
+        name: memberData.name,
+        email: memberData.email,
+        role: memberData.role,
+        status: 'Pendente',
+        clients_count: 0,
+        last_activity: new Date().toISOString(),
+      });
+      
+      const uiMember: UITeamMember = {
+        id: newMember.id,
+        name: newMember.name,
+        email: newMember.email,
+        role: newMember.role as 'Admin' | 'Gestor' | 'Leitor',
+        status: 'Pendente',
+        clientsCount: 0,
+        lastActivity: new Date().toISOString(),
+        joinedAt: newMember.created_at.split('T')[0],
+        notes: memberData.notes || ''
+      };
+      
+      const updatedMembers = [...members, uiMember];
+      saveMembers(updatedMembers);
+      
+      toast({
+        title: "Convite enviado",
+        description: `Convite enviado para ${memberData.email} com papel ${memberData.role}`
+      });
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Erro ao enviar convite",
+        variant: "destructive"
+      });
+    }
   };
 
-  const handleEditMember = (memberData: Partial<TeamMember>) => {
+  const handleEditMember = async (memberData: Partial<UITeamMember>) => {
     if (!selectedMember) return;
 
-    const updatedMembers = members.map(member =>
-      member.id === selectedMember.id 
-        ? { ...member, ...memberData }
-        : member
-    );
-    
-    saveMembers(updatedMembers);
-    setSelectedMember(null);
-    setIsEditDrawerOpen(false);
-    
-    toast({
-      title: "Membro atualizado",
-      description: "Informações do membro foram atualizadas com sucesso"
-    });
+    try {
+      await supabaseTeamStore.updateTeamMember(selectedMember.id, {
+        name: memberData.name,
+        email: memberData.email,
+        role: memberData.role,
+        status: memberData.status,
+        clients_count: memberData.clientsCount,
+        last_activity: memberData.lastActivity,
+      });
+      
+      const updatedMembers = members.map(member =>
+        member.id === selectedMember.id 
+          ? { ...member, ...memberData }
+          : member
+      );
+      
+      saveMembers(updatedMembers);
+      setSelectedMember(null);
+      setIsEditDrawerOpen(false);
+      
+      toast({
+        title: "Membro atualizado",
+        description: "Informações do membro foram atualizadas com sucesso"
+      });
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Erro ao atualizar membro",
+        variant: "destructive"
+      });
+    }
   };
 
-  const handleArchiveMember = (member: TeamMember) => {
-    const updatedMembers = members.map(m =>
-      m.id === member.id 
-        ? { ...m, status: member.status === 'Arquivado' ? 'Ativo' : 'Arquivado' as TeamMember['status'] }
-        : m
-    );
-    
-    saveMembers(updatedMembers);
-    
-    const action = member.status === 'Arquivado' ? 'reativado' : 'arquivado';
-    toast({
-      title: `Membro ${action}`,
-      description: `${member.name} foi ${action} com sucesso`
-    });
+  const handleArchiveMember = async (member: UITeamMember) => {
+    try {
+      const newStatus: 'Ativo' | 'Arquivado' = member.status === 'Arquivado' ? 'Ativo' : 'Arquivado';
+      
+      await supabaseTeamStore.updateTeamMember(member.id, {
+        status: newStatus,
+      });
+      
+      const updatedMembers = members.map(m =>
+        m.id === member.id 
+          ? { ...m, status: newStatus }
+          : m
+      );
+      
+      saveMembers(updatedMembers);
+      
+      const action = newStatus === 'Arquivado' ? 'arquivado' : 'reativado';
+      toast({
+        title: `Membro ${action}`,
+        description: `${member.name} foi ${action} com sucesso`
+      });
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Erro ao atualizar status do membro",
+        variant: "destructive"
+      });
+    }
   };
 
-  const handleEditClick = (member: TeamMember) => {
+  const handleEditClick = (member: UITeamMember) => {
     setSelectedMember(member);
     setIsEditDrawerOpen(true);
   };
@@ -265,7 +264,7 @@ export default function EquipePage() {
             <div className="flex items-center gap-2">
               <Users className="h-5 w-5 text-yellow-500" />
               <div>
-                <div className="text-2xl font-bold">{members.filter(m => m.status === 'Convite pendente').length}</div>
+                <div className="text-2xl font-bold">{members.filter(m => m.status === 'Pendente').length}</div>
                 <div className="text-sm text-muted-foreground">Convites Pendentes</div>
               </div>
             </div>
@@ -309,7 +308,7 @@ export default function EquipePage() {
                 <SelectItem value="all">Todos os status</SelectItem>
                 <SelectItem value="Ativo">Ativo</SelectItem>
                 <SelectItem value="Arquivado">Arquivado</SelectItem>
-                <SelectItem value="Convite pendente">Convite pendente</SelectItem>
+                <SelectItem value="Pendente">Pendente</SelectItem>
               </SelectContent>
             </Select>
           </div>
