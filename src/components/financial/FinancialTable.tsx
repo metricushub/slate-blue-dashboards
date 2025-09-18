@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FinancialEntry, supabaseFinancialStore as financialStore } from "@/shared/db/supabaseFinancialStore";
 import { useToast } from "@/hooks/use-toast";
+import { PaymentConfirmationModal } from "./PaymentConfirmationModal";
 
 interface FinancialTableProps {
   entries: FinancialEntry[];
@@ -25,6 +26,11 @@ export function FinancialTable({ entries, onRefresh }: FinancialTableProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState<"all" | "income" | "expense">("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [modalState, setModalState] = useState<{
+    isOpen: boolean;
+    entry?: FinancialEntry;
+    action: 'pay' | 'cancel' | 'reactivate';
+  }>({ isOpen: false, action: 'pay' });
   const { toast } = useToast();
 
   const handleDelete = async (id: string) => {
@@ -46,9 +52,18 @@ export function FinancialTable({ entries, onRefresh }: FinancialTableProps) {
     }
   };
 
-  const handleUpdateStatus = async (id: string, status: 'pending' | 'paid' | 'cancelled') => {
+  const handleUpdateStatus = async (status: 'pending' | 'paid' | 'cancelled', paidAt?: string) => {
+    if (!modalState.entry) return;
+    
     try {
-      await financialStore.updateFinancialEntry(id, { status });
+      const updates: Partial<FinancialEntry> = { status };
+      if (status === 'paid' && paidAt) {
+        updates.paid_at = paidAt;
+      } else if (status !== 'paid') {
+        updates.paid_at = undefined;
+      }
+      
+      await financialStore.updateFinancialEntry(modalState.entry.id, updates);
       onRefresh();
       toast({
         title: "Sucesso",
@@ -63,9 +78,28 @@ export function FinancialTable({ entries, onRefresh }: FinancialTableProps) {
     }
   };
 
-  const handleMarkAsPaid = (id: string) => handleUpdateStatus(id, 'paid');
-  const handleCancel = (id: string) => handleUpdateStatus(id, 'cancelled');
-  const handleReactivate = (id: string) => handleUpdateStatus(id, 'pending');
+  const openModal = (entry: FinancialEntry, action: 'pay' | 'cancel' | 'reactivate') => {
+    setModalState({ isOpen: true, entry, action });
+  };
+
+  const closeModal = () => {
+    setModalState({ isOpen: false, action: 'pay' });
+  };
+
+  const handleConfirmAction = (paidAt: string) => {
+    const { action } = modalState;
+    switch (action) {
+      case 'pay':
+        handleUpdateStatus('paid', paidAt);
+        break;
+      case 'cancel':
+        handleUpdateStatus('cancelled');
+        break;
+      case 'reactivate':
+        handleUpdateStatus('pending');
+        break;
+    }
+  };
 
   const filteredEntries = entries.filter(entry => {
     const matchesSearch = entry.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -129,6 +163,7 @@ export function FinancialTable({ entries, onRefresh }: FinancialTableProps) {
             <TableHeader>
               <TableRow>
                 <TableHead>Data Vencimento</TableHead>
+                <TableHead>Data Pagamento</TableHead>
                 <TableHead>Tipo</TableHead>
                 <TableHead>Categoria</TableHead>
                 <TableHead>Descrição</TableHead>
@@ -140,7 +175,7 @@ export function FinancialTable({ entries, onRefresh }: FinancialTableProps) {
             <TableBody>
               {filteredEntries.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                     Nenhuma entrada encontrada
                   </TableCell>
                 </TableRow>
@@ -149,6 +184,13 @@ export function FinancialTable({ entries, onRefresh }: FinancialTableProps) {
                   <TableRow key={entry.id}>
                     <TableCell>
                       {entry.due_date ? new Date(entry.due_date).toLocaleDateString('pt-BR') : '-'}
+                    </TableCell>
+                    <TableCell>
+                      {entry.paid_at ? (
+                        <span className="text-success font-medium">
+                          {new Date(entry.paid_at).toLocaleDateString('pt-BR')}
+                        </span>
+                      ) : '-'}
                     </TableCell>
                     <TableCell>
                       <Badge variant={entry.type === 'income' ? 'default' : 'destructive'}>
@@ -174,7 +216,7 @@ export function FinancialTable({ entries, onRefresh }: FinancialTableProps) {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => handleMarkAsPaid(entry.id)}
+                              onClick={() => openModal(entry, 'pay')}
                               className="h-8 w-8 p-0 text-green-600 hover:text-green-700"
                               title="Dar baixa (marcar como pago)"
                             >
@@ -183,7 +225,7 @@ export function FinancialTable({ entries, onRefresh }: FinancialTableProps) {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => handleCancel(entry.id)}
+                              onClick={() => openModal(entry, 'cancel')}
                               className="h-8 w-8 p-0 text-orange-600 hover:text-orange-700"
                               title="Cancelar entrada"
                             >
@@ -196,7 +238,7 @@ export function FinancialTable({ entries, onRefresh }: FinancialTableProps) {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleReactivate(entry.id)}
+                            onClick={() => openModal(entry, 'reactivate')}
                             className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700"
                             title="Reativar (voltar para pendente)"
                           >
@@ -228,6 +270,14 @@ export function FinancialTable({ entries, onRefresh }: FinancialTableProps) {
           </div>
         )}
       </CardContent>
+      
+      <PaymentConfirmationModal
+        isOpen={modalState.isOpen}
+        onClose={closeModal}
+        onConfirm={handleConfirmAction}
+        entry={modalState.entry}
+        action={modalState.action}
+      />
     </Card>
   );
 }

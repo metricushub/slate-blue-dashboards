@@ -295,6 +295,7 @@ export type Database = {
           description: string
           due_date: string | null
           id: string
+          paid_at: string | null
           status: string
           type: string
           updated_at: string
@@ -308,6 +309,7 @@ export type Database = {
           description: string
           due_date?: string | null
           id?: string
+          paid_at?: string | null
           status?: string
           type: string
           updated_at?: string
@@ -321,6 +323,7 @@ export type Database = {
           description?: string
           due_date?: string | null
           id?: string
+          paid_at?: string | null
           status?: string
           type?: string
           updated_at?: string

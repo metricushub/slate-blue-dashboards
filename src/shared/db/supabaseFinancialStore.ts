@@ -10,6 +10,7 @@ export interface FinancialEntry {
   due_date?: string;
   status: 'pending' | 'paid' | 'cancelled';
   client_id?: string;
+  paid_at?: string;
   created_at: string;
   updated_at: string;
 }
