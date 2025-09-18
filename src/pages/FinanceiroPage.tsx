@@ -36,12 +36,18 @@ export function FinanceiroPage() {
   const loadFinancialData = async () => {
     try {
       const startDate = selectedMonth + '-01';
-      const endDate = selectedMonth + '-31';
+      // Calculate the last day of the month properly
+      const year = parseInt(selectedMonth.split('-')[0]);
+      const month = parseInt(selectedMonth.split('-')[1]);
+      const lastDay = new Date(year, month, 0).getDate(); // Get last day of month
+      const endDate = selectedMonth + '-' + lastDay.toString().padStart(2, '0');
+      
       const monthEntries = await financialStore.getFinancialEntries(startDate, endDate);
       const currentGoals = await financialStore.getFinancialGoals(selectedMonth);
       setEntries(monthEntries);
       setGoals(currentGoals);
     } catch (error) {
+      console.error('Error loading financial data:', error);
       toast({
         title: "Erro",
         description: "Erro ao carregar dados financeiros",
