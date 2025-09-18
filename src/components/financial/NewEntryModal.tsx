@@ -42,7 +42,7 @@ export function NewEntryModal({ isOpen, onClose, onSubmit }: NewEntryModalProps)
     category: '',
     due_date: new Date().toISOString().split('T')[0],
     status: 'pending' as 'pending' | 'paid' | 'cancelled',
-    client_id: ''
+    client_id: 'none'
   });
 
   // Load clients when modal opens
@@ -75,7 +75,7 @@ export function NewEntryModal({ isOpen, onClose, onSubmit }: NewEntryModalProps)
         category: formData.category,
         due_date: formData.due_date,
         status: formData.status,
-        client_id: formData.client_id || undefined
+        client_id: formData.client_id === 'none' ? undefined : formData.client_id
       });
 
     // Reset form
@@ -86,7 +86,7 @@ export function NewEntryModal({ isOpen, onClose, onSubmit }: NewEntryModalProps)
       category: '',
       due_date: new Date().toISOString().split('T')[0],
       status: 'pending',
-      client_id: ''
+      client_id: 'none'
     });
   };
 
@@ -170,7 +170,7 @@ export function NewEntryModal({ isOpen, onClose, onSubmit }: NewEntryModalProps)
                 <SelectValue placeholder="Selecione um cliente" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Nenhum cliente</SelectItem>
+                <SelectItem value="none">Nenhum cliente</SelectItem>
                 {clients.map((client) => (
                   <SelectItem key={client.id} value={client.id}>
                     {client.name}
