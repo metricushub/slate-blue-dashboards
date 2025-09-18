@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { FinancialEntry } from "@/shared/db/supabaseFinancialStore";
+import { useDataSource } from "@/hooks/useDataSource";
 
 interface NewEntryModalProps {
   isOpen: boolean;
@@ -32,14 +33,33 @@ const EXPENSE_CATEGORIES = [
 ];
 
 export function NewEntryModal({ isOpen, onClose, onSubmit }: NewEntryModalProps) {
+  const { dataSource } = useDataSource();
+  const [clients, setClients] = useState<Array<{id: string, name: string}>>([]);
   const [formData, setFormData] = useState({
     type: 'income' as 'income' | 'expense',
     description: '',
     amount: '',
     category: '',
     due_date: new Date().toISOString().split('T')[0],
-    status: 'pending' as 'pending' | 'paid' | 'cancelled'
+    status: 'pending' as 'pending' | 'paid' | 'cancelled',
+    client_id: ''
   });
+
+  // Load clients when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      loadClients();
+    }
+  }, [isOpen]);
+
+  const loadClients = async () => {
+    try {
+      const clientsData = await dataSource.getClients();
+      setClients(clientsData.map(client => ({ id: client.id, name: client.name })));
+    } catch (error) {
+      console.error('Error loading clients:', error);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,7 +74,8 @@ export function NewEntryModal({ isOpen, onClose, onSubmit }: NewEntryModalProps)
         amount: parseFloat(formData.amount),
         category: formData.category,
         due_date: formData.due_date,
-        status: formData.status
+        status: formData.status,
+        client_id: formData.client_id || undefined
       });
 
     // Reset form
@@ -64,7 +85,8 @@ export function NewEntryModal({ isOpen, onClose, onSubmit }: NewEntryModalProps)
       amount: '',
       category: '',
       due_date: new Date().toISOString().split('T')[0],
-      status: 'pending'
+      status: 'pending',
+      client_id: ''
     });
   };
 
@@ -136,6 +158,26 @@ export function NewEntryModal({ isOpen, onClose, onSubmit }: NewEntryModalProps)
               placeholder="0,00"
               required
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="client_id">Cliente (opcional)</Label>
+            <Select
+              value={formData.client_id}
+              onValueChange={(value) => setFormData({...formData, client_id: value})}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione um cliente" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Nenhum cliente</SelectItem>
+                {clients.map((client) => (
+                  <SelectItem key={client.id} value={client.id}>
+                    {client.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">
