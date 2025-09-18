@@ -42,6 +42,9 @@ export function NewGoalModal({ isOpen, onClose, onSubmit }: NewGoalModalProps) {
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Nova Meta</DialogTitle>
+          <p className="text-sm text-muted-foreground">
+            Se já existe uma meta do mesmo tipo para este mês, ela será atualizada.
+          </p>
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4">

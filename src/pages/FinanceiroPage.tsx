@@ -81,17 +81,26 @@ export function FinanceiroPage() {
 
   const handleCreateGoal = async (goalData: Omit<FinancialGoal, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
     try {
-      await financialStore.addFinancialGoal({ ...goalData, month: format(new Date(), 'yyyy-MM') });
+      const currentMonth = format(new Date(), 'yyyy-MM');
+      
+      // Check if goal already exists
+      const existingGoals = await financialStore.getFinancialGoals(currentMonth);
+      const existingGoal = existingGoals.find(g => g.type === goalData.type);
+      
+      await financialStore.addFinancialGoal({ ...goalData, month: currentMonth });
       await loadFinancialData();
       setIsNewGoalModalOpen(false);
+      
       toast({
         title: "Sucesso",
-        description: "Meta criada com sucesso",
+        description: existingGoal 
+          ? `Meta de ${goalData.type === 'revenue' ? 'faturamento' : 'clientes'} atualizada com sucesso`
+          : `Meta de ${goalData.type === 'revenue' ? 'faturamento' : 'clientes'} criada com sucesso`,
       });
     } catch (error) {
       toast({
         title: "Erro",
-        description: "Erro ao criar meta",
+        description: "Erro ao criar/atualizar meta",
         variant: "destructive",
       });
     }

@@ -112,17 +112,42 @@ export const supabaseFinancialStore = {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
 
-    const { data, error } = await supabase
+    // Try to update existing goal first, then insert if not exists
+    const { data: existingGoal } = await supabase
       .from('financial_goals')
-      .insert({
-        ...goal,
-        user_id: user.id,
-      })
-      .select()
-      .single();
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('month', goal.month)
+      .eq('type', goal.type)
+      .maybeSingle();
 
-    if (error) throw error;
-    return data as FinancialGoal;
+    if (existingGoal) {
+      // Update existing goal
+      const { data, error } = await supabase
+        .from('financial_goals')
+        .update({
+          target_amount: goal.target_amount,
+        })
+        .eq('id', existingGoal.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data as FinancialGoal;
+    } else {
+      // Create new goal
+      const { data, error } = await supabase
+        .from('financial_goals')
+        .insert({
+          ...goal,
+          user_id: user.id,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data as FinancialGoal;
+    }
   },
 
   async updateFinancialGoal(id: string, updates: Partial<FinancialGoal>): Promise<FinancialGoal> {
