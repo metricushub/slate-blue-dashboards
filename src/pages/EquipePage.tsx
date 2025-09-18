@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { supabaseTeamStore, type TeamMember } from '@/shared/db/supabaseTeamStore';
 import { Search, Plus, MoreHorizontal, Edit, Archive, RotateCcw, Users, Badge as BadgeIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,12 +12,13 @@ import { InviteTeamMemberModal } from '@/components/modals/InviteTeamMemberModal
 import { EditTeamMemberDrawer } from '@/components/modals/EditTeamMemberDrawer';
 import { toast } from '@/hooks/use-toast';
 
-export interface TeamMember {
+// Create a local interface that matches the UI expectations
+interface UITeamMember {
   id: string;
   name: string;
   email: string;
   role: 'Admin' | 'Gestor' | 'Leitor';
-  status: 'Ativo' | 'Arquivado' | 'Convite pendente';
+  status: 'Ativo' | 'Arquivado' | 'Pendente';
   clientsCount: number;
   lastActivity: string;
   avatar?: string;
@@ -83,21 +85,36 @@ const statusColors = {
 };
 
 export default function EquipePage() {
-  const [members, setMembers] = useState<TeamMember[]>([]);
-  const [filteredMembers, setFilteredMembers] = useState<TeamMember[]>([]);
+  const [members, setMembers] = useState<UITeamMember[]>([]);
+  const [filteredMembers, setFilteredMembers] = useState<UITeamMember[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRole, setSelectedRole] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
-  const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
+  const [selectedMember, setSelectedMember] = useState<UITeamMember | null>(null);
   const [isEditDrawerOpen, setIsEditDrawerOpen] = useState(false);
 
-  // Load data on mount
+  // Load data from Supabase
   useEffect(() => {
-    const storedMembers = localStorage.getItem('teamMembers');
-    const initialMembers = storedMembers ? JSON.parse(storedMembers) : mockTeamMembers;
-    setMembers(initialMembers);
-    setFilteredMembers(initialMembers);
+    const loadMembers = async () => {
+      try {
+        const data = await supabaseTeamStore.getTeamMembers();
+        const mappedData = data.map(member => ({
+          ...member,
+          clientsCount: member.clients_count,
+          lastActivity: member.last_activity,
+          role: member.role as 'Admin' | 'Gestor' | 'Leitor',
+          status: member.status === 'Pendente' ? 'Pendente' : member.status as 'Ativo' | 'Arquivado' | 'Pendente',
+          joinedAt: member.created_at.split('T')[0],
+        }));
+        setMembers(mappedData);
+        setFilteredMembers(mappedData);
+      } catch (error) {
+        console.error('Error loading team members:', error);
+      }
+    };
+
+    loadMembers();
   }, []);
 
   // Apply filters

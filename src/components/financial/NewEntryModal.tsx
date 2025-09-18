@@ -5,12 +5,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { FinancialEntry } from "@/shared/db/financialStore";
+import { FinancialEntry } from "@/shared/db/supabaseFinancialStore";
 
 interface NewEntryModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: Omit<FinancialEntry, 'id' | 'created_at'>) => void;
+  onSubmit: (data: Omit<FinancialEntry, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => void;
 }
 
 const INCOME_CATEGORIES = [
@@ -37,8 +37,8 @@ export function NewEntryModal({ isOpen, onClose, onSubmit }: NewEntryModalProps)
     description: '',
     amount: '',
     category: '',
-    date: new Date().toISOString().split('T')[0],
-    clientId: ''
+    due_date: new Date().toISOString().split('T')[0],
+    status: 'pending' as 'pending' | 'paid' | 'cancelled'
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -53,10 +53,8 @@ export function NewEntryModal({ isOpen, onClose, onSubmit }: NewEntryModalProps)
         description: formData.description,
         amount: parseFloat(formData.amount),
         category: formData.category,
-        date: formData.date,
-        status: formData.type === 'income' ? 'pending' : 'paid',
-        dueDate: formData.type === 'income' ? formData.date : undefined,
-        clientId: formData.clientId || undefined
+        due_date: formData.due_date,
+        status: formData.status
       });
 
     // Reset form
@@ -65,8 +63,8 @@ export function NewEntryModal({ isOpen, onClose, onSubmit }: NewEntryModalProps)
       description: '',
       amount: '',
       category: '',
-      date: new Date().toISOString().split('T')[0],
-      clientId: ''
+      due_date: new Date().toISOString().split('T')[0],
+      status: 'pending'
     });
   };
 
@@ -84,7 +82,7 @@ export function NewEntryModal({ isOpen, onClose, onSubmit }: NewEntryModalProps)
             <Label htmlFor="type">Tipo</Label>
             <Select
               value={formData.type}
-              onValueChange={(value: 'income' | 'expense') => setFormData({...formData, type: value, category: ''})}
+              onValueChange={(value: 'income' | 'expense') => setFormData({...formData, type: value, category: '', status: value === 'expense' ? 'paid' : 'pending'})}
             >
               <SelectTrigger>
                 <SelectValue />
@@ -141,12 +139,12 @@ export function NewEntryModal({ isOpen, onClose, onSubmit }: NewEntryModalProps)
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="date">{formData.type === 'income' ? 'Data Prevista' : 'Data'}</Label>
+            <Label htmlFor="due_date">{formData.type === 'income' ? 'Data Prevista' : 'Data'}</Label>
             <Input
-              id="date"
+              id="due_date"
               type="date"
-              value={formData.date}
-              onChange={(e) => setFormData({...formData, date: e.target.value})}
+              value={formData.due_date}
+              onChange={(e) => setFormData({...formData, due_date: e.target.value})}
               required
             />
             {formData.type === 'income' && (
@@ -157,13 +155,20 @@ export function NewEntryModal({ isOpen, onClose, onSubmit }: NewEntryModalProps)
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="clientId">Cliente (opcional)</Label>
-            <Input
-              id="clientId"
-              value={formData.clientId}
-              onChange={(e) => setFormData({...formData, clientId: e.target.value})}
-              placeholder="ID ou nome do cliente"
-            />
+            <Label htmlFor="status">Status</Label>
+            <Select
+              value={formData.status}
+              onValueChange={(value: 'pending' | 'paid' | 'cancelled') => setFormData({...formData, status: value})}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="pending">Pendente</SelectItem>
+                <SelectItem value="paid">Pago</SelectItem>
+                <SelectItem value="cancelled">Cancelado</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <DialogFooter>

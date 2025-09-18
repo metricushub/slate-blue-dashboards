@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
-import { financialStore, financialCalculations, FinancialEntry, FinancialGoal } from "@/shared/db/financialStore";
+import { supabaseFinancialStore as financialStore, financialCalculations, type FinancialEntry, type FinancialGoal } from '@/shared/db/supabaseFinancialStore';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { NewEntryModal } from "@/components/financial/NewEntryModal";
 import { NewGoalModal } from "@/components/financial/NewGoalModal";
@@ -35,8 +35,10 @@ export function FinanceiroPage() {
 
   const loadFinancialData = async () => {
     try {
-      const monthEntries = await financialStore.getEntriesByMonth(selectedMonth);
-      const currentGoals = await financialStore.getCurrentGoals();
+      const startDate = selectedMonth + '-01';
+      const endDate = selectedMonth + '-31';
+      const monthEntries = await financialStore.getFinancialEntries(startDate, endDate);
+      const currentGoals = await financialStore.getFinancialGoals(selectedMonth);
       setEntries(monthEntries);
       setGoals(currentGoals);
     } catch (error) {
@@ -48,9 +50,9 @@ export function FinanceiroPage() {
     }
   };
 
-  const handleCreateEntry = async (entryData: Omit<FinancialEntry, 'id' | 'created_at'>) => {
+  const handleCreateEntry = async (entryData: Omit<FinancialEntry, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
     try {
-      await financialStore.createEntry(entryData);
+      await financialStore.addFinancialEntry(entryData);
       await loadFinancialData();
       setIsNewEntryModalOpen(false);
       toast({
@@ -66,9 +68,9 @@ export function FinanceiroPage() {
     }
   };
 
-  const handleCreateGoal = async (goalData: Omit<FinancialGoal, 'id' | 'created_at'>) => {
+  const handleCreateGoal = async (goalData: Omit<FinancialGoal, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
     try {
-      await financialStore.createGoal({ ...goalData, month: selectedMonth });
+      await financialStore.addFinancialGoal({ ...goalData, month: selectedMonth });
       await loadFinancialData();
       setIsNewGoalModalOpen(false);
       toast({
@@ -106,8 +108,8 @@ export function FinanceiroPage() {
   const netProfit = financialCalculations.calculateNetProfit(entries);
   const categorySummary = financialCalculations.getCategorySummary(entries);
 
-  const revenueGoal = goals.find(g => g.type === 'revenue');
-  const clientsGoal = goals.find(g => g.type === 'clients');
+  const revenueGoal = goals.find(g => g.type === 'income');
+  const expenseGoal = goals.find(g => g.type === 'expense');
 
   // Only use confirmed income for charts
   const confirmedEntries = entries.filter(entry => 
@@ -116,7 +118,7 @@ export function FinanceiroPage() {
 
   const chartData = confirmedEntries
     .reduce((acc: any[], entry) => {
-      const date = entry.paidDate || entry.date; // Use paid date if available
+      const date = entry.due_date || entry.created_at.split('T')[0]; // Use due_date or creation date
       const existing = acc.find(item => item.date === date);
       if (existing) {
         if (entry.type === 'income') {
@@ -135,10 +137,10 @@ export function FinanceiroPage() {
     }, [])
     .sort((a, b) => a.date.localeCompare(b.date));
 
-  const pieData = categorySummary.map(item => ({
-    name: item.category,
-    value: item.amount,
-    type: item.type
+  const pieData = Object.entries(financialCalculations.getCategorySummary(entries)).map(([category, data]) => ({
+    name: category,
+    value: data.income + data.expense,
+    type: data.income > data.expense ? 'income' : 'expense'
   }));
 
   return (
@@ -225,7 +227,7 @@ export function FinanceiroPage() {
         </div>
 
         {/* Goals Progress */}
-        {(revenueGoal || clientsGoal) && (
+        {(revenueGoal || expenseGoal) && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             {revenueGoal && (
               <Card>
@@ -239,34 +241,34 @@ export function FinanceiroPage() {
                   <div className="space-y-4">
                      <div className="flex justify-between text-sm">
                        <span>Progresso</span>
-                       <span>R$ {confirmedIncome.toLocaleString('pt-BR')} / R$ {revenueGoal.target.toLocaleString('pt-BR')}</span>
+                       <span>R$ {confirmedIncome.toLocaleString('pt-BR')} / R$ {revenueGoal.target_amount.toLocaleString('pt-BR')}</span>
                      </div>
-                     <Progress value={(confirmedIncome / revenueGoal.target) * 100} className="h-2" />
+                     <Progress value={(confirmedIncome / revenueGoal.target_amount) * 100} className="h-2" />
                      <div className="text-center text-sm text-muted-foreground">
-                       {((confirmedIncome / revenueGoal.target) * 100).toFixed(1)}% concluído
+                       {((confirmedIncome / revenueGoal.target_amount) * 100).toFixed(1)}% concluído
                      </div>
                   </div>
                 </CardContent>
               </Card>
             )}
 
-            {clientsGoal && (
+            {expenseGoal && (
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg flex items-center gap-2">
-                    <Users className="h-5 w-5" />
-                    Meta de Clientes
+                    <TrendingDown className="h-5 w-5" />
+                    Meta de Despesas
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
                     <div className="flex justify-between text-sm">
                       <span>Progresso</span>
-                      <span>{clientsGoal.current} / {clientsGoal.target} clientes</span>
+                      <span>R$ {totalExpenses.toLocaleString('pt-BR')} / R$ {expenseGoal.target_amount.toLocaleString('pt-BR')}</span>
                     </div>
-                    <Progress value={(clientsGoal.current / clientsGoal.target) * 100} className="h-2" />
+                    <Progress value={(totalExpenses / expenseGoal.target_amount) * 100} className="h-2" />
                     <div className="text-center text-sm text-muted-foreground">
-                      {((clientsGoal.current / clientsGoal.target) * 100).toFixed(1)}% concluído
+                      {((totalExpenses / expenseGoal.target_amount) * 100).toFixed(1)}% do limite
                     </div>
                   </div>
                 </CardContent>
@@ -381,15 +383,15 @@ export function FinanceiroPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {categorySummary.slice(0, 5).map((category, index) => (
+                    {Object.entries(financialCalculations.getCategorySummary(entries)).slice(0, 5).map(([category, data], index) => (
                       <div key={index} className="flex justify-between items-center">
-                        <span className="text-sm">{category.category}</span>
+                        <span className="text-sm">{category}</span>
                         <div className="flex items-center gap-2">
-                          <Badge variant={category.type === 'income' ? 'default' : 'destructive'}>
-                            {category.type === 'income' ? 'Receita' : 'Despesa'}
+                          <Badge variant={data.income > data.expense ? 'default' : 'destructive'}>
+                            {data.income > data.expense ? 'Receita' : 'Despesa'}
                           </Badge>
                           <span className="font-medium">
-                            R$ {category.amount.toLocaleString('pt-BR')}
+                            R$ {(data.income + data.expense).toLocaleString('pt-BR')}
                           </span>
                         </div>
                       </div>

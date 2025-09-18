@@ -286,6 +286,75 @@ export type Database = {
         }
         Relationships: []
       }
+      financial_entries: {
+        Row: {
+          amount: number
+          category: string
+          created_at: string
+          description: string
+          due_date: string | null
+          id: string
+          status: string
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          category: string
+          created_at?: string
+          description: string
+          due_date?: string | null
+          id?: string
+          status?: string
+          type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          category?: string
+          created_at?: string
+          description?: string
+          due_date?: string | null
+          id?: string
+          status?: string
+          type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      financial_goals: {
+        Row: {
+          created_at: string
+          id: string
+          month: string
+          target_amount: number
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          month: string
+          target_amount: number
+          type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          month?: string
+          target_amount?: number
+          type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       metrics: {
         Row: {
           campaign_id: string | null
@@ -467,6 +536,42 @@ export type Database = {
           },
         ]
       }
+      pending_expenses: {
+        Row: {
+          amount: number
+          category: string
+          created_at: string
+          description: string
+          due_date: string
+          id: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          category: string
+          created_at?: string
+          description: string
+          due_date: string
+          id?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          category?: string
+          created_at?: string
+          description?: string
+          due_date?: string
+          id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -549,6 +654,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      team_members: {
+        Row: {
+          clients_count: number | null
+          created_at: string
+          email: string
+          id: string
+          last_activity: string | null
+          name: string
+          role: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          clients_count?: number | null
+          created_at?: string
+          email: string
+          id?: string
+          last_activity?: string | null
+          name: string
+          role: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          clients_count?: number | null
+          created_at?: string
+          email?: string
+          id?: string
+          last_activity?: string | null
+          name?: string
+          role?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
     }
     Views: {

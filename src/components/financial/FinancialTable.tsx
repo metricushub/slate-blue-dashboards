@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FinancialEntry, financialStore } from "@/shared/db/financialStore";
+import { FinancialEntry, supabaseFinancialStore as financialStore } from "@/shared/db/supabaseFinancialStore";
 import { useToast } from "@/hooks/use-toast";
 
 interface FinancialTableProps {
@@ -31,7 +31,7 @@ export function FinancialTable({ entries, onRefresh }: FinancialTableProps) {
     if (!confirm("Tem certeza que deseja excluir esta entrada?")) return;
     
     try {
-      await financialStore.deleteEntry(id);
+      await financialStore.deleteFinancialEntry(id);
       onRefresh();
       toast({
         title: "Sucesso",
@@ -107,12 +107,12 @@ export function FinancialTable({ entries, onRefresh }: FinancialTableProps) {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Data</TableHead>
+                <TableHead>Data Vencimento</TableHead>
                 <TableHead>Tipo</TableHead>
                 <TableHead>Categoria</TableHead>
                 <TableHead>Descrição</TableHead>
                 <TableHead>Valor</TableHead>
-                <TableHead>Cliente</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead className="w-[100px]">Ações</TableHead>
               </TableRow>
             </TableHeader>
@@ -127,7 +127,7 @@ export function FinancialTable({ entries, onRefresh }: FinancialTableProps) {
                 filteredEntries.map((entry) => (
                   <TableRow key={entry.id}>
                     <TableCell>
-                      {new Date(entry.date).toLocaleDateString('pt-BR')}
+                      {entry.due_date ? new Date(entry.due_date).toLocaleDateString('pt-BR') : '-'}
                     </TableCell>
                     <TableCell>
                       <Badge variant={entry.type === 'income' ? 'default' : 'destructive'}>
@@ -142,14 +142,16 @@ export function FinancialTable({ entries, onRefresh }: FinancialTableProps) {
                       R$ {entry.amount.toLocaleString('pt-BR')}
                     </TableCell>
                     <TableCell>
-                      {entry.clientId || '-'}
+                      <Badge variant={entry.status === 'paid' ? 'default' : entry.status === 'cancelled' ? 'destructive' : 'secondary'}>
+                        {entry.status === 'paid' ? 'Pago' : entry.status === 'cancelled' ? 'Cancelado' : 'Pendente'}
+                      </Badge>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleDelete(entry.id!)}
+                          onClick={() => handleDelete(entry.id)}
                           className="h-8 w-8 p-0"
                         >
                           <Trash2 className="h-4 w-4" />

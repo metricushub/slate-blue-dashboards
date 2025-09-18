@@ -4,39 +4,36 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FinancialGoal } from "@/shared/db/financialStore";
+import { FinancialGoal } from "@/shared/db/supabaseFinancialStore";
 
 interface NewGoalModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: Omit<FinancialGoal, 'id' | 'created_at' | 'month'>) => void;
+  onSubmit: (data: Omit<FinancialGoal, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'month'>) => void;
 }
 
 export function NewGoalModal({ isOpen, onClose, onSubmit }: NewGoalModalProps) {
   const [formData, setFormData] = useState({
-    type: 'revenue' as 'revenue' | 'clients',
-    target: '',
-    current: ''
+    type: 'income' as 'income' | 'expense',
+    target_amount: ''
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.target || !formData.current) {
+    if (!formData.target_amount) {
       return;
     }
 
     onSubmit({
       type: formData.type,
-      target: parseFloat(formData.target),
-      current: parseFloat(formData.current)
+      target_amount: parseFloat(formData.target_amount)
     });
 
     // Reset form
     setFormData({
-      type: 'revenue',
-      target: '',
-      current: ''
+      type: 'income',
+      target_amount: ''
     });
   };
 
@@ -52,46 +49,30 @@ export function NewGoalModal({ isOpen, onClose, onSubmit }: NewGoalModalProps) {
             <Label htmlFor="type">Tipo de Meta</Label>
             <Select
               value={formData.type}
-              onValueChange={(value: 'revenue' | 'clients') => setFormData({...formData, type: value})}
+              onValueChange={(value: 'income' | 'expense') => setFormData({...formData, type: value})}
             >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="revenue">Faturamento</SelectItem>
-                <SelectItem value="clients">Número de Clientes</SelectItem>
+                <SelectItem value="income">Meta de Receita</SelectItem>
+                <SelectItem value="expense">Limite de Despesas</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="target">
-              Meta {formData.type === 'revenue' ? '(R$)' : '(quantidade)'}
+            <Label htmlFor="target_amount">
+              {formData.type === 'income' ? 'Meta de Receita (R$)' : 'Limite de Despesas (R$)'}
             </Label>
             <Input
-              id="target"
+              id="target_amount"
               type="number"
-              step={formData.type === 'revenue' ? '0.01' : '1'}
+              step="0.01"
               min="0"
-              value={formData.target}
-              onChange={(e) => setFormData({...formData, target: e.target.value})}
-              placeholder={formData.type === 'revenue' ? '50000,00' : '10'}
-              required
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="current">
-              Valor Atual {formData.type === 'revenue' ? '(R$)' : '(quantidade)'}
-            </Label>
-            <Input
-              id="current"
-              type="number"
-              step={formData.type === 'revenue' ? '0.01' : '1'}
-              min="0"
-              value={formData.current}
-              onChange={(e) => setFormData({...formData, current: e.target.value})}
-              placeholder={formData.type === 'revenue' ? '25000,00' : '5'}
+              value={formData.target_amount}
+              onChange={(e) => setFormData({...formData, target_amount: e.target.value})}
+              placeholder="50000,00"
               required
             />
           </div>
