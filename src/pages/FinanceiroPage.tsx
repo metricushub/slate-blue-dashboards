@@ -119,8 +119,8 @@ export function FinanceiroPage() {
   const netProfit = financialCalculations.calculateNetProfit(entries);
   const categorySummary = financialCalculations.getCategorySummary(entries);
 
-  const revenueGoal = goals.find(g => g.type === 'income');
-  const expenseGoal = goals.find(g => g.type === 'expense');
+  const revenueGoal = goals.find(g => g.type === 'revenue');
+  const clientsGoal = goals.find(g => g.type === 'clients');
 
   // Only use confirmed income for charts
   const confirmedEntries = entries.filter(entry => 
@@ -238,7 +238,7 @@ export function FinanceiroPage() {
         </div>
 
         {/* Goals Progress */}
-        {(revenueGoal || expenseGoal) && (
+        {(revenueGoal || clientsGoal) && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             {revenueGoal && (
               <Card>
@@ -263,23 +263,23 @@ export function FinanceiroPage() {
               </Card>
             )}
 
-            {expenseGoal && (
+            {clientsGoal && (
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg flex items-center gap-2">
-                    <TrendingDown className="h-5 w-5" />
-                    Meta de Despesas
+                    <Users className="h-5 w-5" />
+                    Meta de Clientes
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
                     <div className="flex justify-between text-sm">
                       <span>Progresso</span>
-                      <span>R$ {totalExpenses.toLocaleString('pt-BR')} / R$ {expenseGoal.target_amount.toLocaleString('pt-BR')}</span>
+                      <span>0 / {clientsGoal.target_amount} clientes</span>
                     </div>
-                    <Progress value={(totalExpenses / expenseGoal.target_amount) * 100} className="h-2" />
+                    <Progress value={0} className="h-2" />
                     <div className="text-center text-sm text-muted-foreground">
-                      {((totalExpenses / expenseGoal.target_amount) * 100).toFixed(1)}% do limite
+                      0% da meta alcançada
                     </div>
                   </div>
                 </CardContent>

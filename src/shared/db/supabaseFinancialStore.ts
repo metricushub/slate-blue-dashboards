@@ -19,7 +19,7 @@ export interface FinancialGoal {
   id: string;
   user_id: string;
   month: string;
-  type: 'income' | 'expense';
+  type: 'revenue' | 'clients';
   target_amount: number;
   created_at: string;
   updated_at: string;

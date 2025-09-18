@@ -14,7 +14,7 @@ interface NewGoalModalProps {
 
 export function NewGoalModal({ isOpen, onClose, onSubmit }: NewGoalModalProps) {
   const [formData, setFormData] = useState({
-    type: 'income' as 'income' | 'expense',
+    type: 'revenue' as 'revenue' | 'clients',
     target_amount: ''
   });
 
@@ -32,7 +32,7 @@ export function NewGoalModal({ isOpen, onClose, onSubmit }: NewGoalModalProps) {
 
     // Reset form
     setFormData({
-      type: 'income',
+      type: 'revenue',
       target_amount: ''
     });
   };
@@ -49,21 +49,21 @@ export function NewGoalModal({ isOpen, onClose, onSubmit }: NewGoalModalProps) {
             <Label htmlFor="type">Tipo de Meta</Label>
             <Select
               value={formData.type}
-              onValueChange={(value: 'income' | 'expense') => setFormData({...formData, type: value})}
+              onValueChange={(value: 'revenue' | 'clients') => setFormData({...formData, type: value})}
             >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="income">Meta de Receita</SelectItem>
-                <SelectItem value="expense">Limite de Despesas</SelectItem>
+                <SelectItem value="revenue">Meta de Faturamento</SelectItem>
+                <SelectItem value="clients">Meta de Clientes</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="target_amount">
-              {formData.type === 'income' ? 'Meta de Receita (R$)' : 'Limite de Despesas (R$)'}
+              {formData.type === 'revenue' ? 'Meta de Faturamento (R$)' : 'Meta de Clientes (quantidade)'}
             </Label>
             <Input
               id="target_amount"
