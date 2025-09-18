@@ -1,0 +1,6 @@
+-- Inserir alertas com valores corretos para level
+INSERT INTO public.alerts (id, client_id, title, message, type, level, action_url, is_read, dismissed) VALUES
+('a1111111-1111-1111-1111-111111111111', '11111111-1111-1111-1111-111111111111', 'CPA acima da meta', 'O CPA da campanha Black Friday está 15% acima da meta definida', 'performance', 'medium', '/client/11111111-1111-1111-1111-111111111111/optimizations', false, false),
+('a2222222-2222-2222-2222-222222222222', '22222222-2222-2222-2222-222222222222', 'Orçamento quase esgotado', 'A campanha está com 85% do orçamento mensal consumido', 'budget', 'high', '/client/22222222-2222-2222-2222-222222222222/campaigns', false, false),
+('a3333333-3333-3333-3333-333333333333', '33333333-3333-3333-3333-333333333333', 'Queda no CTR', 'CTR da campanha caiu 20% nos últimos 3 dias', 'performance', 'medium', '/client/33333333-3333-3333-3333-333333333333/analytics', true, false),
+('a4444444-4444-4444-4444-444444444444', '44444444-4444-4444-4444-444444444444', 'Meta de leads atingida', 'Parabéns! Meta mensal de leads foi atingida com 5 dias de antecedência', 'success', 'low', '/client/44444444-4444-4444-4444-444444444444/dashboard', false, false);
