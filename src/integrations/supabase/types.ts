@@ -290,6 +290,7 @@ export type Database = {
         Row: {
           amount: number
           category: string
+          client_id: string | null
           created_at: string
           description: string
           due_date: string | null
@@ -302,6 +303,7 @@ export type Database = {
         Insert: {
           amount: number
           category: string
+          client_id?: string | null
           created_at?: string
           description: string
           due_date?: string | null
@@ -314,6 +316,7 @@ export type Database = {
         Update: {
           amount?: number
           category?: string
+          client_id?: string | null
           created_at?: string
           description?: string
           due_date?: string | null
@@ -323,7 +326,15 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_financial_entries_client_id"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       financial_goals: {
         Row: {
