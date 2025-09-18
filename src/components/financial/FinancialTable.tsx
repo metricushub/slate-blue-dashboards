@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Trash2, Edit, Eye } from "lucide-react";
+import { Trash2, Check, X, Undo2 } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -45,6 +45,27 @@ export function FinancialTable({ entries, onRefresh }: FinancialTableProps) {
       });
     }
   };
+
+  const handleUpdateStatus = async (id: string, status: 'pending' | 'paid' | 'cancelled') => {
+    try {
+      await financialStore.updateFinancialEntry(id, { status });
+      onRefresh();
+      toast({
+        title: "Sucesso",
+        description: `Status atualizado para ${status === 'paid' ? 'pago' : status === 'cancelled' ? 'cancelado' : 'pendente'}`,
+      });
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Erro ao atualizar status",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleMarkAsPaid = (id: string) => handleUpdateStatus(id, 'paid');
+  const handleCancel = (id: string) => handleUpdateStatus(id, 'cancelled');
+  const handleReactivate = (id: string) => handleUpdateStatus(id, 'pending');
 
   const filteredEntries = entries.filter(entry => {
     const matchesSearch = entry.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -113,7 +134,7 @@ export function FinancialTable({ entries, onRefresh }: FinancialTableProps) {
                 <TableHead>Descrição</TableHead>
                 <TableHead>Valor</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="w-[100px]">Ações</TableHead>
+                <TableHead className="w-[160px]">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -147,12 +168,48 @@ export function FinancialTable({ entries, onRefresh }: FinancialTableProps) {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1">
+                        {entry.status === 'pending' && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleMarkAsPaid(entry.id)}
+                              className="h-8 w-8 p-0 text-green-600 hover:text-green-700"
+                              title="Dar baixa (marcar como pago)"
+                            >
+                              <Check className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleCancel(entry.id)}
+                              className="h-8 w-8 p-0 text-orange-600 hover:text-orange-700"
+                              title="Cancelar entrada"
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
+                        
+                        {(entry.status === 'paid' || entry.status === 'cancelled') && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleReactivate(entry.id)}
+                            className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700"
+                            title="Reativar (voltar para pendente)"
+                          >
+                            <Undo2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                        
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => handleDelete(entry.id)}
-                          className="h-8 w-8 p-0"
+                          className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                          title="Excluir entrada"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
