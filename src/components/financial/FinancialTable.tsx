@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Trash2, Check, X, Undo2 } from "lucide-react";
 import {
   Table,
@@ -16,6 +16,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { FinancialEntry, supabaseFinancialStore as financialStore } from "@/shared/db/supabaseFinancialStore";
 import { useToast } from "@/hooks/use-toast";
 import { PaymentConfirmationModal } from "./PaymentConfirmationModal";
+import { useDataSource } from "@/hooks/useDataSource";
+import type { Client } from "@/types";
 
 interface FinancialTableProps {
   entries: FinancialEntry[];
@@ -26,12 +28,33 @@ export function FinancialTable({ entries, onRefresh }: FinancialTableProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState<"all" | "income" | "expense">("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [modalState, setModalState] = useState<{
     isOpen: boolean;
     entry?: FinancialEntry;
     action: 'pay' | 'cancel' | 'reactivate';
   }>({ isOpen: false, action: 'pay' });
+  const [clients, setClients] = useState<Client[]>([]);
+  const { dataSource } = useDataSource();
   const { toast } = useToast();
+
+  useEffect(() => {
+    const loadClients = async () => {
+      try {
+        const clientsData = await dataSource.getClients();
+        setClients(clientsData);
+      } catch (error) {
+        console.error('Error loading clients:', error);
+      }
+    };
+    loadClients();
+  }, [dataSource]);
+
+  const getClientName = (clientId: string | null) => {
+    if (!clientId) return 'N/A';
+    const client = clients.find(c => c.id === clientId);
+    return client?.name || 'Cliente não encontrado';
+  };
 
   const handleDelete = async (id: string) => {
     if (!confirm("Tem certeza que deseja excluir esta entrada?")) return;
@@ -102,12 +125,15 @@ export function FinancialTable({ entries, onRefresh }: FinancialTableProps) {
   };
 
   const filteredEntries = entries.filter(entry => {
+    const clientName = getClientName(entry.client_id);
     const matchesSearch = entry.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         entry.category.toLowerCase().includes(searchTerm.toLowerCase());
+                         entry.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         clientName.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesType = typeFilter === "all" || entry.type === typeFilter;
     const matchesCategory = categoryFilter === "all" || entry.category === categoryFilter;
+    const matchesStatus = statusFilter === "all" || entry.status === statusFilter;
     
-    return matchesSearch && matchesType && matchesCategory;
+    return matchesSearch && matchesType && matchesCategory && matchesStatus;
   });
 
   const categories = [...new Set(entries.map(e => e.category))];
@@ -125,7 +151,7 @@ export function FinancialTable({ entries, onRefresh }: FinancialTableProps) {
         <div className="flex flex-wrap gap-4 mb-6">
           <div className="flex-1 min-w-[200px]">
             <Input
-              placeholder="Buscar por descrição ou categoria..."
+              placeholder="Buscar por descrição, categoria ou cliente..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -155,6 +181,18 @@ export function FinancialTable({ entries, onRefresh }: FinancialTableProps) {
               ))}
             </SelectContent>
           </Select>
+
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[150px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos status</SelectItem>
+              <SelectItem value="pending">Pendente</SelectItem>
+              <SelectItem value="paid">Pago</SelectItem>
+              <SelectItem value="cancelled">Cancelado</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         {/* Table */}
@@ -162,10 +200,11 @@ export function FinancialTable({ entries, onRefresh }: FinancialTableProps) {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Data Vencimento</TableHead>
-                <TableHead>Data Pagamento</TableHead>
+                <TableHead>Data Venc.</TableHead>
+                <TableHead>Data Pago</TableHead>
                 <TableHead>Tipo</TableHead>
                 <TableHead>Categoria</TableHead>
+                <TableHead>Cliente</TableHead>
                 <TableHead>Descrição</TableHead>
                 <TableHead>Valor</TableHead>
                 <TableHead>Status</TableHead>
@@ -175,7 +214,7 @@ export function FinancialTable({ entries, onRefresh }: FinancialTableProps) {
             <TableBody>
               {filteredEntries.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                     Nenhuma entrada encontrada
                   </TableCell>
                 </TableRow>
@@ -198,6 +237,11 @@ export function FinancialTable({ entries, onRefresh }: FinancialTableProps) {
                       </Badge>
                     </TableCell>
                     <TableCell>{entry.category}</TableCell>
+                    <TableCell className="font-medium">
+                      <span className={entry.client_id ? 'text-primary' : 'text-muted-foreground'}>
+                        {getClientName(entry.client_id)}
+                      </span>
+                    </TableCell>
                     <TableCell className="max-w-[200px] truncate">
                       {entry.description}
                     </TableCell>

@@ -14,19 +14,26 @@ import { FinancialTable } from "@/components/financial/FinancialTable";
 import { AlertsTab } from "@/components/financial/AlertsTab";
 import { IncomeAlertsTab } from "@/components/financial/IncomeAlertsTab";
 import { DateRangePicker } from "@/components/financial/DateRangePicker";
+import { ClientAnalytics } from "@/components/financial/ClientAnalytics";
+import { AdvancedFilters } from "@/components/financial/AdvancedFilters";
 import { format, startOfMonth, endOfMonth } from "date-fns";
+import { useDataSource } from "@/hooks/useDataSource";
+import type { Client } from "@/types";
 
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--destructive))', 'hsl(var(--warning))', 'hsl(var(--success))'];
 
 export function FinanceiroPage() {
   const [entries, setEntries] = useState<FinancialEntry[]>([]);
   const [goals, setGoals] = useState<FinancialGoal[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [filteredEntries, setFilteredEntries] = useState<FinancialEntry[]>([]);
   const [isNewEntryModalOpen, setIsNewEntryModalOpen] = useState(false);
   const [isNewGoalModalOpen, setIsNewGoalModalOpen] = useState(false);
   const [dateRange, setDateRange] = useState({
     from: startOfMonth(new Date()),
     to: endOfMonth(new Date()),
   });
+  const { dataSource } = useDataSource();
   const { toast } = useToast();
 
   // Simulated admin check - in production this would come from authentication context
@@ -35,8 +42,22 @@ export function FinanceiroPage() {
   useEffect(() => {
     if (isAdmin) {
       loadFinancialData();
+      loadClients();
     }
   }, [dateRange, isAdmin]);
+
+  useEffect(() => {
+    setFilteredEntries(entries);
+  }, [entries]);
+
+  const loadClients = async () => {
+    try {
+      const clientsData = await dataSource.getClients();
+      setClients(clientsData);
+    } catch (error) {
+      console.error('Error loading clients:', error);
+    }
+  };
 
   const loadFinancialData = async () => {
     try {
@@ -121,18 +142,64 @@ export function FinanceiroPage() {
     );
   }
 
-  const totalIncome = financialCalculations.calculateTotalIncome(entries);
-  const confirmedIncome = financialCalculations.calculateConfirmedIncome(entries);
-  const pendingIncome = financialCalculations.calculatePendingIncome(entries);
-  const totalExpenses = financialCalculations.calculateTotalExpenses(entries);
-  const netProfit = financialCalculations.calculateNetProfit(entries);
-  const categorySummary = financialCalculations.getCategorySummary(entries);
+  const totalIncome = financialCalculations.calculateTotalIncome(filteredEntries);
+  const confirmedIncome = financialCalculations.calculateConfirmedIncome(filteredEntries);
+  const pendingIncome = financialCalculations.calculatePendingIncome(filteredEntries);
+  const totalExpenses = financialCalculations.calculateTotalExpenses(filteredEntries);
+  const netProfit = financialCalculations.calculateNetProfit(filteredEntries);
+  const categorySummary = financialCalculations.getCategorySummary(filteredEntries);
+
+  const handleFiltersChange = (filters: any) => {
+    let filtered = [...entries];
+
+    if (filters.dateRange) {
+      const startDate = format(filters.dateRange.from, 'yyyy-MM-dd');
+      const endDate = format(filters.dateRange.to, 'yyyy-MM-dd');
+      filtered = filtered.filter(entry => {
+        const entryDate = entry.due_date || entry.created_at.split('T')[0];
+        return entryDate >= startDate && entryDate <= endDate;
+      });
+    }
+
+    if (filters.type && filters.type !== 'all') {
+      filtered = filtered.filter(entry => entry.type === filters.type);
+    }
+
+    if (filters.status && filters.status !== 'all') {
+      filtered = filtered.filter(entry => entry.status === filters.status);
+    }
+
+    if (filters.category && filters.category !== 'all') {
+      filtered = filtered.filter(entry => entry.category === filters.category);
+    }
+
+    if (filters.client && filters.client !== 'all') {
+      if (filters.client === 'none') {
+        filtered = filtered.filter(entry => !entry.client_id);
+      } else {
+        filtered = filtered.filter(entry => entry.client_id === filters.client);
+      }
+    }
+
+    if (filters.minAmount) {
+      filtered = filtered.filter(entry => entry.amount >= filters.minAmount);
+    }
+
+    if (filters.maxAmount) {
+      filtered = filtered.filter(entry => entry.amount <= filters.maxAmount);
+    }
+
+    setFilteredEntries(filtered);
+  };
+
+  const categories = [...new Set(entries.map(entry => entry.category))];
+  const clientsForFilter = clients.map(client => ({ id: client.id, name: client.name }));
 
   const revenueGoal = goals.find(g => g.type === 'revenue');
   const clientsGoal = goals.find(g => g.type === 'clients');
 
   // Only use confirmed income for charts
-  const confirmedEntries = entries.filter(entry => 
+  const confirmedEntries = filteredEntries.filter(entry => 
     entry.type === 'expense' || (entry.type === 'income' && entry.status === 'paid')
   );
 
@@ -157,7 +224,7 @@ export function FinanceiroPage() {
     }, [])
     .sort((a, b) => a.date.localeCompare(b.date));
 
-  const pieData = Object.entries(financialCalculations.getCategorySummary(entries)).map(([category, data]) => ({
+  const pieData = Object.entries(financialCalculations.getCategorySummary(filteredEntries)).map(([category, data]) => ({
     name: category,
     value: data.income + data.expense,
     type: data.income > data.expense ? 'income' : 'expense'
@@ -297,6 +364,13 @@ export function FinanceiroPage() {
           </div>
         )}
 
+        {/* Filtros Avançados */}
+        <AdvancedFilters
+          onFiltersChange={handleFiltersChange}
+          categories={categories}
+          clients={clientsForFilter}
+        />
+
         <Tabs defaultValue="overview" className="space-y-6">
           <TabsList>
             <TabsTrigger value="overview">Visão Geral</TabsTrigger>
@@ -304,6 +378,7 @@ export function FinanceiroPage() {
             <TabsTrigger value="income-control">Receitas</TabsTrigger>
             <TabsTrigger value="alerts">Despesas</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
+            <TabsTrigger value="clients">Análise por Cliente</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
@@ -358,7 +433,7 @@ export function FinanceiroPage() {
           </TabsContent>
 
           <TabsContent value="entries">
-            <FinancialTable entries={entries} onRefresh={loadFinancialData} />
+            <FinancialTable entries={filteredEntries} onRefresh={loadFinancialData} />
           </TabsContent>
 
           <TabsContent value="income-control">
@@ -379,18 +454,18 @@ export function FinanceiroPage() {
                   <div className="space-y-4">
                     <div className="flex justify-between">
                       <span>Total de Entradas:</span>
-                      <span className="font-medium">{entries.length}</span>
+                      <span className="font-medium">{filteredEntries.length}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Maior Receita:</span>
                       <span className="font-medium text-success">
-                        R$ {Math.max(...entries.filter(e => e.type === 'income').map(e => e.amount), 0).toLocaleString('pt-BR')}
+                        R$ {Math.max(...filteredEntries.filter(e => e.type === 'income').map(e => e.amount), 0).toLocaleString('pt-BR')}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span>Maior Despesa:</span>
                       <span className="font-medium text-destructive">
-                        R$ {Math.max(...entries.filter(e => e.type === 'expense').map(e => e.amount), 0).toLocaleString('pt-BR')}
+                        R$ {Math.max(...filteredEntries.filter(e => e.type === 'expense').map(e => e.amount), 0).toLocaleString('pt-BR')}
                       </span>
                     </div>
                   </div>
@@ -403,7 +478,7 @@ export function FinanceiroPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {Object.entries(financialCalculations.getCategorySummary(entries)).slice(0, 5).map(([category, data], index) => (
+                    {Object.entries(financialCalculations.getCategorySummary(filteredEntries)).slice(0, 5).map(([category, data], index) => (
                       <div key={index} className="flex justify-between items-center">
                         <span className="text-sm">{category}</span>
                         <div className="flex items-center gap-2">
@@ -420,6 +495,10 @@ export function FinanceiroPage() {
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
+
+          <TabsContent value="clients">
+            <ClientAnalytics entries={entries} />
           </TabsContent>
         </Tabs>
 
