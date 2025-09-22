@@ -19,6 +19,8 @@ import { ClientRevenueAnalysis } from "@/components/financial/ClientRevenueAnaly
 import { ExpenseManagementTab } from "@/components/financial/ExpenseManagementTab";
 import { CategoryManager } from "@/components/financial/CategoryManager";
 import { AdvancedFilters } from "@/components/financial/AdvancedFilters";
+
+console.log("FinanceiroPage imports loaded, CategoryManager:", CategoryManager);
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { useDataSource } from "@/hooks/useDataSource";
 import type { Client } from "@/types";

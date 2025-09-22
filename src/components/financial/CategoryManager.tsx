@@ -11,11 +11,16 @@ import { Edit2, Plus, Trash2 } from "lucide-react";
 import { supabaseFinancialStore, FinancialCategory } from "@/shared/db/supabaseFinancialStore";
 import { useToast } from "@/hooks/use-toast";
 
+console.log("CategoryManager file loading...");
+
 export interface CategoryManagerProps {
   onRefresh?: () => void;
 }
 
+console.log("CategoryManager about to be exported...");
+
 export function CategoryManager({ onRefresh }: CategoryManagerProps) {
+  console.log("CategoryManager component function called");
   const [categories, setCategories] = useState<FinancialCategory[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<FinancialCategory | null>(null);
@@ -122,6 +127,8 @@ export function CategoryManager({ onRefresh }: CategoryManagerProps) {
 
   const incomeCategories = categories.filter(c => c.type === 'income');
   const expenseCategories = categories.filter(c => c.type === 'expense');
+
+console.log("CategoryManager component rendered successfully");
 
   return (
     <div className="space-y-6">
@@ -331,3 +338,5 @@ export function CategoryManager({ onRefresh }: CategoryManagerProps) {
     </div>
   );
 }
+
+console.log("CategoryManager component defined and exported successfully");
