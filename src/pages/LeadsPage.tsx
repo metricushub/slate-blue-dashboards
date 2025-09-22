@@ -9,8 +9,8 @@ import {
   useSensors 
 } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { Lead, LeadStage, Client } from '@/types';
-import { LeadsStore } from '@/shared/db/leadsStore';
+import { Lead, Client } from '@/types';
+import { useLeads } from '@/hooks/useLeads';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -20,8 +20,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useDataSource } from '@/hooks/useDataSource';
 import { LeadCard } from '@/components/leads/LeadCard';
 import { LeadColumn } from '@/components/leads/LeadColumn';
-import { NewLeadModal } from '@/components/leads/NewLeadModal';
 import { LeadDrawer } from '@/components/leads/LeadDrawer';
+import { NewLeadModal } from '@/components/leads/NewLeadModal';
 import { LeadFilters } from '@/components/leads/LeadFilters';
 import { ClientPreCadastroModal } from '@/components/modals/ClientPreCadastroModal';
 import { FormSendModal } from '@/components/modals/FormSendModal';
@@ -31,23 +31,30 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
 
-const LEAD_STAGES: LeadStage[] = ["Novo", "Qualificação", "Proposta", "Fechado"];
+const LEAD_STAGES = ["novo", "qualificacao", "proposta", "negociacao", "fechado", "perdido"];
 
 export default function LeadsPage() {
-  const [leads, setLeads] = useState<Lead[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { 
+    leads, 
+    loading, 
+    error, 
+    createLead, 
+    updateLead, 
+    deleteLead 
+  } = useLeads();
+
   const [searchQuery, setSearchQuery] = useState('');
   const [showNewLeadModal, setShowNewLeadModal] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [showDrawer, setShowDrawer] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
-  const [activeId, setActiveId] = useState<string | null>(null);
-  const [showPreCadastroModal, setShowPreCadastroModal] = useState(false);
-  const [showFormSendModal, setShowFormSendModal] = useState(false);
-  const [showLossReasonModal, setShowLossReasonModal] = useState(false);
-  const [leadToConvert, setLeadToConvert] = useState<Lead | null>(null);
-  const [clientForFormSend, setClientForFormSend] = useState<Client | null>(null);
+  const [activeLead, setActiveLead] = useState<Lead | null>(null);
   const [showAnalytics, setShowAnalytics] = useState(false);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [showClientModal, setShowClientModal] = useState(false);
+  const [showFormModal, setShowFormModal] = useState(false);
+  const [showLossModal, setShowLossModal] = useState(false);
+  const [selectedLeadForLoss, setSelectedLeadForLoss] = useState<Lead | null>(null);
   const [filters, setFilters] = useState({
     stages: [] as string[],
     owner: '',
@@ -55,59 +62,53 @@ export default function LeadsPage() {
     dateTo: ''
   });
 
-  const { toast } = useToast();
   const { dataSource } = useDataSource();
+  const { toast } = useToast();
   const navigate = useNavigate();
-  const sensors = useSensors(useSensor(PointerSensor));
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    })
+  );
 
-  // Carregar leads ao montar
+  // Carregar clientes
   useEffect(() => {
-    loadLeads();
-    loadSavedFilters();
-  }, []);
-
-  const loadLeads = async () => {
-    try {
-      setLoading(true);
-      const allLeads = await LeadsStore.getAllLeads();
-      setLeads(allLeads);
-    } catch (error) {
-      console.error('Erro ao carregar leads:', error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível carregar os leads.",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadSavedFilters = () => {
-    try {
-      const saved = localStorage.getItem('leads:ui:filters');
-      if (saved) {
-        const parsedFilters = JSON.parse(saved);
-        setFilters(parsedFilters);
-        setSearchQuery(parsedFilters.searchQuery || '');
+    const loadClients = async () => {
+      try {
+        const clientsData = await dataSource.getClients();
+        setClients(clientsData);
+      } catch (error) {
+        console.error('Erro ao carregar clientes:', error);
       }
-    } catch (error) {
-      console.warn('Erro ao carregar filtros salvos:', error);
-    }
+    };
+    
+    loadClients();
+  }, [dataSource]);
+
+  // Handlers
+  const handleSaveLead = async (leadData: Omit<Lead, 'id' | 'created_at' | 'updated_at'>) => {
+    await createLead(leadData);
+    setShowNewLeadModal(false);
   };
 
-  const saveFilters = (newFilters: typeof filters, query: string = searchQuery) => {
-    localStorage.setItem('leads:ui:filters', JSON.stringify({ ...newFilters, searchQuery: query }));
+  const handleUpdateLead = async (id: string, updates: Partial<Omit<Lead, 'id' | 'created_at'>>) => {
+    await updateLead(id, updates);
+  };
+
+  const handleDeleteLead = async (id: string) => {
+    await deleteLead(id);
   };
 
   // Filtrar leads
   const filteredLeads = useMemo(() => {
-    let result = [...leads];
+    let result = leads;
 
-    // Busca global
-    if (searchQuery.trim()) {
+    // Filtro de busca
+    if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      result = result.filter(lead => 
+      result = result.filter(lead =>
         lead.name.toLowerCase().includes(query) ||
         lead.email?.toLowerCase().includes(query) ||
         lead.phone?.toLowerCase().includes(query) ||
@@ -118,12 +119,12 @@ export default function LeadsPage() {
       );
     }
 
-    // Filtros
+    // Filtros avançados
     if (filters.stages.length > 0) {
       result = result.filter(lead => filters.stages.includes(lead.stage));
     }
 
-    if (filters.owner.trim()) {
+    if (filters.owner) {
       result = result.filter(lead => lead.owner === filters.owner);
     }
 
@@ -163,11 +164,11 @@ export default function LeadsPage() {
     const result = {
       total: filteredLeads.length,
       totalValue: 0,
-      byStage: {} as Record<LeadStage, { count: number; value: number }>
+      byStage: {} as Record<string, { count: number; value: number }>
     };
 
     LEAD_STAGES.forEach(stage => {
-      const stageLeads = leadsByStage[stage];
+      const stageLeads = leadsByStage[stage] || []; // Adiciona fallback para array vazio
       const value = stageLeads.reduce((sum, lead) => sum + (lead.value || 0), 0);
       result.byStage[stage] = { count: stageLeads.length, value };
       result.totalValue += value;
@@ -178,237 +179,133 @@ export default function LeadsPage() {
 
   // Drag and Drop
   const handleDragStart = (event: DragStartEvent) => {
-    setActiveId(event.active.id as string);
+    const { active } = event;
+    setActiveLead(leads.find(lead => lead.id === active.id) || null);
   };
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
-    setActiveId(null);
-
-    if (!over) return;
+    
+    if (!over || !active.id) {
+      setActiveLead(null);
+      return;
+    }
 
     const leadId = active.id as string;
-    const newStage = over.id as LeadStage;
+    const newStage = over.id as string;
 
-    const lead = leads.find(l => l.id === leadId);
-    if (!lead || lead.stage === newStage) return;
-
-    // Se moveu para "Fechado", abrir modal de pré-cadastro
-    if (newStage === 'Fechado' && lead.stage !== 'Fechado') {
-      setLeadToConvert(lead);
-      setShowPreCadastroModal(true);
-      return; // Não atualizar o stage ainda
+    // Encontrar o lead sendo movido
+    const draggedLead = leads.find(lead => lead.id === leadId);
+    if (!draggedLead || draggedLead.stage === newStage) {
+      setActiveLead(null);
+      return;
     }
 
     try {
-      await LeadsStore.updateLead(leadId, { stage: newStage });
-      
-      setLeads(prev => prev.map(l => 
-        l.id === leadId ? { ...l, stage: newStage, updated_at: new Date().toISOString() } : l
-      ));
-
-      toast({
-        title: "Lead movido",
-        description: `Lead movido para ${newStage}`,
-      });
+      await handleUpdateLead(leadId, { stage: newStage });
     } catch (error) {
       console.error('Erro ao mover lead:', error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível mover o lead.",
-        variant: "destructive"
-      });
     }
+
+    setActiveLead(null);
   };
 
-  // Ações
-  const handleCreateLead = async (leadData: Omit<Lead, 'id' | 'created_at' | 'updated_at'>) => {
-    try {
-      const newLead = await LeadsStore.createLead(leadData);
-      setLeads(prev => [newLead, ...prev]);
-      setShowNewLeadModal(false);
-      
-      toast({
-        title: "Lead criado",
-        description: "Novo lead adicionado com sucesso.",
-      });
-    } catch (error) {
-      console.error('Erro ao criar lead:', error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível criar o lead.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleUpdateLead = async (id: string, updates: Partial<Omit<Lead, 'id' | 'created_at'>>) => {
-    try {
-      const updatedLead = await LeadsStore.updateLead(id, updates);
-      if (updatedLead) {
-        setLeads(prev => prev.map(l => l.id === id ? updatedLead : l));
-        
-        toast({
-          title: "Lead atualizado",
-          description: "Alterações salvas com sucesso.",
-        });
-      }
-    } catch (error) {
-      console.error('Erro ao atualizar lead:', error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível atualizar o lead.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleDeleteLead = async (id: string) => {
-    try {
-      await LeadsStore.deleteLead(id);
-      setLeads(prev => prev.filter(l => l.id !== id));
-      setShowDrawer(false);
-      
-      toast({
-        title: "Lead excluído",
-        description: "Lead removido com sucesso.",
-      });
-    } catch (error) {
-      console.error('Erro ao excluir lead:', error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível excluir o lead.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleExportCSV = async () => {
-    try {
-      const csvContent = await LeadsStore.exportToCSV(filteredLeads);
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      const fileName = `leads_export_${format(new Date(), 'yyyyMMdd')}.csv`;
-      
-      link.href = URL.createObjectURL(blob);
-      link.download = fileName;
-      link.click();
-      
-      toast({
-        title: "Exportação concluída",
-        description: `Arquivo ${fileName} baixado com ${filteredLeads.length} leads.`,
-      });
-    } catch (error) {
-      console.error('Erro ao exportar CSV:', error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível exportar os dados.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleClientCreated = async (client: Client) => {
-    if (!leadToConvert) return;
-
-    try {
-      // Add client to data source
-      if (dataSource && dataSource.addClient) {
-        await dataSource.addClient(client);
-      }
-
-      // Atualizar lead para marcar como fechado e vincular cliente
-      await LeadsStore.updateLead(leadToConvert.id, { 
-        stage: 'Fechado',
-        client_id: client.id 
-      });
-
-      setLeads(prev => prev.map(l => 
-        l.id === leadToConvert.id 
-          ? { ...l, stage: 'Fechado' as LeadStage, client_id: client.id, updated_at: new Date().toISOString() } 
-          : l
-      ));
-
-      setShowPreCadastroModal(false);
-      
-      // Prepare FormSendModal
-      setClientForFormSend(client);
-      setTimeout(() => {
-        setShowFormSendModal(true);
-      }, 300);
-
-      toast({
-        title: "Pré-cadastro salvo",
-        description: "Agora envie o formulário pelo WhatsApp/E-mail.",
-      });
-    } catch (error) {
-      console.error("Error creating client:", error);
-      toast({
-        title: "Erro",
-        description: "Falha ao criar cliente",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleLeadConverted = (lead: Lead) => {
-    setLeadToConvert(lead);
-    setShowPreCadastroModal(true);
-  };
-
-  const handleFormSent = (client: Client) => {
-    // Navigate to onboarding page for the client
-    navigate(`/cliente/${client.id}/onboarding`);
-  };
-
-  const handleLossReasonSaved = async (leadId: string, lossReason: string, notes?: string) => {
-    try {
-      await LeadsStore.updateLead(leadId, { 
-        lossReason,
-        lossDate: new Date().toISOString(),
-        notes: notes ? (leads.find(l => l.id === leadId)?.notes || '') + '\n\nMotivo da perda: ' + notes : undefined
-      });
-      
-      setLeads(prev => prev.map(l => 
-        l.id === leadId 
-          ? { ...l, lossReason, lossDate: new Date().toISOString(), updated_at: new Date().toISOString() } 
-          : l
-      ));
-
-      setShowLossReasonModal(false);
-      setLeadToConvert(null);
-
-      toast({
-        title: "Motivo da perda registrado",
-        description: "As informações foram salvas para análise.",
-      });
-    } catch (error) {
-      console.error("Error saving loss reason:", error);
-      toast({
-        title: "Erro",
-        description: "Falha ao salvar motivo da perda",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleResetFilters = () => {
-    setFilters({ stages: [], owner: '', dateFrom: '', dateTo: '' });
-    setSearchQuery('');
-    localStorage.removeItem('leads:ui:filters');
-    
-    toast({
-      title: "Filtros limpos",
-      description: "Todos os filtros foram removidos.",
-    });
-  };
-
+  // Funções auxiliares
   const openLeadDrawer = (lead: Lead) => {
     setSelectedLead(lead);
     setShowDrawer(true);
   };
 
-  const activeItem = activeId ? leads.find(l => l.id === activeId) : null;
+  const handleExportCSV = async () => {
+    try {
+      // Export functionality would go here
+      toast({
+        title: 'Exportação',
+        description: 'Funcionalidade em desenvolvimento'
+      });
+    } catch (error) {
+      toast({
+        title: 'Erro',
+        description: 'Falha ao exportar dados',
+        variant: 'destructive'
+      });
+    }
+  };
+
+  const handleLeadConverted = async (lead: Lead) => {
+    try {
+      const clientData = {
+        id: crypto.randomUUID(),
+        name: lead.name,
+        status: 'active' as const,
+        stage: 'Setup inicial' as const,
+        owner: lead.owner || '',
+        lastUpdate: format(new Date(), 'yyyy-MM-dd'),
+        budgetMonth: lead.value || 0,
+      };
+
+      await dataSource.addClient?.(clientData);
+      await handleUpdateLead(lead.id, { 
+        stage: 'fechado',
+        client_id: clientData.id,
+        converted_at: new Date().toISOString()
+      });
+
+      toast({
+        title: 'Sucesso',
+        description: 'Lead convertido em cliente!'
+      });
+
+      navigate(`/cliente/${clientData.id}/cadastro`);
+    } catch (error) {
+      toast({
+        title: 'Erro',
+        description: 'Falha ao converter lead',
+        variant: 'destructive'
+      });
+    }
+  };
+
+  const handleMarkAsLost = (lead: Lead) => {
+    setSelectedLeadForLoss(lead);
+    setShowLossModal(true);
+  };
+
+  const handleLossReasonSubmit = async (reason: string) => {
+    if (!selectedLeadForLoss) return;
+
+    try {
+      await handleUpdateLead(selectedLeadForLoss.id, {
+        stage: 'perdido',
+        lost_reason: reason,
+        lost_at: new Date().toISOString()
+      });
+
+      setShowLossModal(false);
+      setSelectedLeadForLoss(null);
+      
+      toast({
+        title: 'Lead marcado como perdido',
+        description: `Motivo: ${reason}`
+      });
+    } catch (error) {
+      toast({
+        title: 'Erro',
+        description: 'Falha ao marcar lead como perdido',
+        variant: 'destructive'
+      });
+    }
+  };
+
+  const handleClientCreated = async (clientData: any) => {
+    setClients(prev => [...prev, clientData]);
+    setShowClientModal(false);
+    
+    toast({
+      title: 'Cliente criado',
+      description: 'Cliente adicionado com sucesso!'
+    });
+  };
 
   if (loading) {
     return (
@@ -436,56 +333,36 @@ export default function LeadsPage() {
     );
   }
 
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px]">
+        <h2 className="text-xl font-semibold mb-2">Erro ao carregar leads</h2>
+        <p className="text-muted-foreground mb-4">{error}</p>
+        <Button onClick={() => window.location.reload()}>
+          <RotateCcw className="h-4 w-4 mr-2" />
+          Tentar novamente
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div>
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2">
           <Users className="h-6 w-6" />
           <h1 className="text-2xl font-bold">Leads (Kanban)</h1>
-          <Badge variant="outline" className="ml-2">
-            {stats.total} leads
-          </Badge>
-          <Badge variant="outline">
-            {new Intl.NumberFormat('pt-BR', { 
-              style: 'currency', 
-              currency: 'BRL' 
-            }).format(stats.totalValue)}
-          </Badge>
+          <Badge variant="secondary">{stats.total}</Badge>
         </div>
-        
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowAnalytics(!showAnalytics)}
-          >
+          <Button variant="outline" onClick={() => setShowAnalytics(true)}>
             <BarChart3 className="h-4 w-4 mr-2" />
-            {showAnalytics ? 'Ocultar Analytics' : 'Ver Analytics'}
+            Analytics
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowFilters(!showFilters)}
-          >
-            <Filter className="h-4 w-4 mr-2" />
-            Filtros
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleExportCSV}
-          >
+          <Button variant="outline" onClick={handleExportCSV}>
             <Download className="h-4 w-4 mr-2" />
-            Exportar CSV
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleResetFilters}
-          >
-            <RotateCcw className="h-4 w-4 mr-2" />
-            Limpar
+            Exportar
           </Button>
           <Button onClick={() => setShowNewLeadModal(true)}>
             <Plus className="h-4 w-4 mr-2" />
@@ -494,37 +371,66 @@ export default function LeadsPage() {
         </div>
       </div>
 
-      {/* Barra de busca */}
-      <div className="relative mb-6">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Buscar leads (nome, email, telefone, UTM, proprietário...)"
-          value={searchQuery}
-          onChange={(e) => {
-            setSearchQuery(e.target.value);
-            saveFilters(filters, e.target.value);
-          }}
-          className="pl-10"
-        />
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <Card>
+          <CardContent className="p-4">
+            <div className="text-2xl font-bold">{stats.total}</div>
+            <div className="text-muted-foreground">Total de Leads</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="text-2xl font-bold">
+              R$ {stats.totalValue.toLocaleString('pt-BR')}
+            </div>
+            <div className="text-muted-foreground">Valor Total</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="text-2xl font-bold">
+              {stats.byStage['fechado']?.count || 0}
+            </div>
+            <div className="text-muted-foreground">Fechados</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="text-2xl font-bold">
+              {stats.total > 0 ? ((stats.byStage['fechado']?.count || 0) / stats.total * 100).toFixed(1) : 0}%
+            </div>
+            <div className="text-muted-foreground">Taxa de Conversão</div>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Filtros avançados */}
+      {/* Search and Filters */}
+      <div className="flex items-center gap-4 mb-6">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar leads..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        <Button 
+          variant="outline" 
+          onClick={() => setShowFilters(!showFilters)}
+        >
+          <Filter className="h-4 w-4 mr-2" />
+          Filtros
+        </Button>
+      </div>
+
       {showFilters && (
         <LeadFilters
           filters={filters}
-          onFiltersChange={(newFilters) => {
-            setFilters(newFilters);
-            saveFilters(newFilters);
-          }}
+          onFiltersChange={setFilters}
           leads={leads}
         />
-      )}
-
-      {/* Analytics Panel */}
-      {showAnalytics && (
-        <div className="mb-6 p-4 border rounded-lg bg-muted/30">
-          <LeadAnalytics leads={filteredLeads} />
-        </div>
       )}
 
       {/* Kanban Board */}
@@ -533,40 +439,37 @@ export default function LeadsPage() {
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6">
           {LEAD_STAGES.map(stage => (
             <LeadColumn
               key={stage}
               stage={stage}
-              leads={leadsByStage[stage]}
-              stats={stats.byStage[stage]}
+              leads={leadsByStage[stage] || []}
+              stats={stats.byStage[stage] || { count: 0, value: 0 }}
               onLeadClick={openLeadDrawer}
               onNewLead={() => setShowNewLeadModal(true)}
               onLeadConverted={handleLeadConverted}
-              onMarkAsLost={(lead) => {
-                setLeadToConvert(lead);
-                setShowLossReasonModal(true);
-              }}
+              onMarkAsLost={handleMarkAsLost}
             />
           ))}
         </div>
 
         <DragOverlay>
-          {activeItem && (
-            <LeadCard
-              lead={activeItem}
+          {activeLead ? (
+            <LeadCard 
+              lead={activeLead} 
               onClick={() => {}}
-              isDragging
+              isDragging 
             />
-          )}
+          ) : null}
         </DragOverlay>
       </DndContext>
 
-      {/* Modais */}
+      {/* Modals */}
       <NewLeadModal
         open={showNewLeadModal}
         onOpenChange={setShowNewLeadModal}
-        onSave={handleCreateLead}
+        onSave={handleSaveLead}
       />
 
       <LeadDrawer
@@ -577,42 +480,44 @@ export default function LeadsPage() {
         onDelete={handleDeleteLead}
       />
 
-      {/* Modal de Pré-cadastro */}
-      {leadToConvert && (
-        <ClientPreCadastroModal
-          open={showPreCadastroModal}
-          onOpenChange={setShowPreCadastroModal}
-          onSave={handleClientCreated}
-          leadData={leadToConvert}
-        />
-      )}
+      <ClientPreCadastroModal
+        open={showClientModal}
+        onOpenChange={setShowClientModal}
+        onSave={handleClientCreated}
+      />
 
-      {/* Modal de Envio do Formulário */}
-      {clientForFormSend && (
+      {selectedLead && (
         <FormSendModal
-          open={showFormSendModal}
-          onOpenChange={setShowFormSendModal}
-          client={clientForFormSend}
+          open={showFormModal}
+          onOpenChange={setShowFormModal}
+          client={{
+            id: selectedLead.id,
+            name: selectedLead.name,
+            status: 'active' as const,
+            stage: 'Setup inicial' as const,
+            owner: selectedLead.owner || '',
+            lastUpdate: format(new Date(), 'yyyy-MM-dd'),
+            budgetMonth: selectedLead.value || 0,
+          }}
           formLink=""
-          onFormSent={handleFormSent}
         />
       )}
 
-      {/* Modal de Motivo da Perda */}
-      {leadToConvert && (
+      {selectedLeadForLoss && (
         <LossReasonModal
-          open={showLossReasonModal}
-          onClose={() => setShowLossReasonModal(false)}
-          lead={leadToConvert}
-          onSave={handleLossReasonSaved}
+          open={showLossModal}
+          onClose={() => setShowLossModal(false)}
+          lead={selectedLeadForLoss}
+          onSave={(leadId: string, lossReason: string) => {
+            handleLossReasonSubmit(lossReason);
+          }}
         />
       )}
 
-      {/* Analytics Panel */}
       {showAnalytics && (
-        <div className="mb-6 p-4 border rounded-lg bg-muted/30">
-          <LeadAnalytics leads={filteredLeads} />
-        </div>
+        <LeadAnalytics
+          leads={leads}
+        />
       )}
     </div>
   );

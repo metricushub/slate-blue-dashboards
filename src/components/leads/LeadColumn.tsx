@@ -8,7 +8,7 @@ import { Plus } from 'lucide-react';
 import { LeadCard } from './LeadCard';
 
 interface LeadColumnProps {
-  stage: LeadStage;
+  stage: string;
   leads: Lead[];
   stats: { count: number; value: number };
   onLeadClick: (lead: Lead) => void;
@@ -24,14 +24,18 @@ export function LeadColumn({ stage, leads, stats, onLeadClick, onNewLead, onLead
 
   const getStageColor = (stage: string) => {
     switch (stage) {
-      case 'Novo':
+      case 'novo':
         return 'border-blue-200 bg-blue-50/50';
-      case 'Qualificação':
+      case 'qualificacao':
         return 'border-yellow-200 bg-yellow-50/50';
-      case 'Proposta':
+      case 'proposta':
         return 'border-orange-200 bg-orange-50/50';
-      case 'Fechado':
+      case 'negociacao':
+        return 'border-red-200 bg-red-50/50';
+      case 'fechado':
         return 'border-green-200 bg-green-50/50';
+      case 'perdido':
+        return 'border-gray-200 bg-gray-50/50';
       default:
         return 'border-gray-200 bg-gray-50/50';
     }
@@ -39,16 +43,39 @@ export function LeadColumn({ stage, leads, stats, onLeadClick, onNewLead, onLead
 
   const getHeaderBadgeColor = (stage: string) => {
     switch (stage) {
-      case 'Novo':
+      case 'novo':
         return 'bg-blue-100 text-blue-800';
-      case 'Qualificação':
+      case 'qualificacao':
         return 'bg-yellow-100 text-yellow-800';
-      case 'Proposta':
+      case 'proposta':
         return 'bg-orange-100 text-orange-800';
-      case 'Fechado':
+      case 'negociacao':
+        return 'bg-red-100 text-red-800';
+      case 'fechado':
         return 'bg-green-100 text-green-800';
+      case 'perdido':
+        return 'bg-gray-100 text-gray-800';
       default:
         return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getStageDisplayName = (stage: string) => {
+    switch (stage) {
+      case 'novo':
+        return 'Novo';
+      case 'qualificacao':
+        return 'Qualificação';
+      case 'proposta':
+        return 'Proposta';
+      case 'negociacao':
+        return 'Negociação';
+      case 'fechado':
+        return 'Fechado';
+      case 'perdido':
+        return 'Perdido';
+      default:
+        return stage;
     }
   };
 
@@ -61,7 +88,7 @@ export function LeadColumn({ stage, leads, stats, onLeadClick, onNewLead, onLead
     >
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg font-semibold">{stage}</CardTitle>
+          <CardTitle className="text-lg font-semibold">{getStageDisplayName(stage)}</CardTitle>
           <Badge variant="secondary" className={getHeaderBadgeColor(stage)}>
             {stats.count}
           </Badge>
@@ -109,8 +136,8 @@ export function LeadColumn({ stage, leads, stats, onLeadClick, onNewLead, onLead
                 key={lead.id}
                 lead={lead}
                 onClick={onLeadClick}
-                onConverted={stage === 'Fechado' ? onLeadConverted : undefined}
-                onMarkAsLost={stage === 'Fechado' ? onMarkAsLost : undefined}
+                onConverted={stage === 'fechado' ? onLeadConverted : undefined}
+                onMarkAsLost={stage === 'perdido' ? onMarkAsLost : undefined}
               />
             ))
           )}
