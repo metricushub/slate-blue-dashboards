@@ -338,23 +338,59 @@ export default function LeadsPage() {
     });
   };
 
-  const handleSaveFunnelConfig = (stages: FunnelStage[]) => {
-    setFunnelStages(stages);
-    localStorage.setItem('leadFunnelStages', JSON.stringify(stages));
+  const handleSaveFunnelConfig = async (stages: FunnelStage[]) => {
+    try {
+      // Converter FunnelStage para LeadStageConfig
+      const stageConfigs: LeadStageConfig[] = stages.map(stage => ({
+        id: stage.id,
+        name: stage.name,
+        color: stage.color,
+        order_index: stage.order_index,
+        user_id: '', // Será preenchido pelo dataSource
+        is_active: true,
+        is_closed_won: false,
+        is_closed_lost: false,
+        description: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }));
+
+      // Salvar no banco de dados
+      if (dataSource.saveLeadStages) {
+        await dataSource.saveLeadStages(stageConfigs);
+      }
+      
+      // Atualizar estado local
+      setFunnelStages(stages);
+      
+      // Recarregar as etapas do banco para sincronizar
+      if (dataSource.getLeadStages) {
+        const updatedStages = await dataSource.getLeadStages();
+        if (updatedStages && updatedStages.length > 0) {
+          const convertedStages: FunnelStage[] = updatedStages.map(stage => ({
+            id: stage.id,
+            name: stage.name,
+            color: stage.color || '#3b82f6',
+            order_index: stage.order_index
+          }));
+          setFunnelStages(convertedStages);
+        }
+      }
+      
+      toast({
+        title: 'Sucesso',
+        description: 'Configuração do funil salva com sucesso!'
+      });
+    } catch (error) {
+      console.error('Erro ao salvar configuração do funil:', error);
+      toast({
+        title: 'Erro',
+        description: 'Falha ao salvar configuração do funil',
+        variant: 'destructive'
+      });
+    }
   };
 
-  // Carregar configuração do funil do localStorage
-  useEffect(() => {
-    const savedStages = localStorage.getItem('leadFunnelStages');
-    if (savedStages) {
-      try {
-        const parsed = JSON.parse(savedStages);
-        setFunnelStages(parsed);
-      } catch (error) {
-        console.error('Erro ao carregar configuração do funil:', error);
-      }
-    }
-  }, []);
 
   if (loading) {
     return (
