@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Plus, Search, Filter, Download, RotateCcw, Users, BarChart3 } from 'lucide-react';
+import { Plus, Search, Filter, Download, RotateCcw, Users, BarChart3, List, Grid3X3, Settings } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useDataSource } from '@/hooks/useDataSource';
 import { LeadCard } from '@/components/leads/LeadCard';
@@ -27,11 +27,27 @@ import { ClientPreCadastroModal } from '@/components/modals/ClientPreCadastroMod
 import { FormSendModal } from '@/components/modals/FormSendModal';
 import { LossReasonModal } from '@/components/leads/LossReasonModal';
 import { LeadAnalytics } from '@/components/leads/LeadAnalytics';
+import { LeadsTable } from '@/components/leads/LeadsTable';
+import { FunnelConfigModal } from '@/components/leads/FunnelConfigModal';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
 
-const LEAD_STAGES = ["novo", "qualificacao", "proposta", "negociacao", "fechado", "perdido"];
+interface FunnelStage {
+  id: string;
+  name: string;
+  color: string;
+  order_index: number;
+}
+
+const DEFAULT_STAGES: FunnelStage[] = [
+  { id: 'novo', name: 'Novo', color: '#3b82f6', order_index: 0 },
+  { id: 'qualificacao', name: 'Qualificação', color: '#8b5cf6', order_index: 1 },
+  { id: 'proposta', name: 'Proposta', color: '#f59e0b', order_index: 2 },
+  { id: 'negociacao', name: 'Negociação', color: '#f97316', order_index: 3 },
+  { id: 'fechado', name: 'Fechado', color: '#10b981', order_index: 4 },
+  { id: 'perdido', name: 'Perdido', color: '#ef4444', order_index: 5 }
+];
 
 export default function LeadsPage() {
   const { 
@@ -55,6 +71,9 @@ export default function LeadsPage() {
   const [showFormModal, setShowFormModal] = useState(false);
   const [showLossModal, setShowLossModal] = useState(false);
   const [selectedLeadForLoss, setSelectedLeadForLoss] = useState<Lead | null>(null);
+  const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
+  const [showFunnelConfig, setShowFunnelConfig] = useState(false);
+  const [funnelStages, setFunnelStages] = useState<FunnelStage[]>(DEFAULT_STAGES);
   const [filters, setFilters] = useState({
     stages: [] as string[],
     owner: '',
@@ -141,14 +160,12 @@ export default function LeadsPage() {
 
   // Agrupar por stage
   const leadsByStage = useMemo(() => {
-    const grouped: Record<string, Lead[]> = {
-      "novo": [],
-      "qualificacao": [],
-      "proposta": [],
-      "negociacao": [],
-      "fechado": [],
-      "perdido": []
-    };
+    const grouped: Record<string, Lead[]> = {};
+    
+    // Inicializar com todas as etapas do funil
+    funnelStages.forEach(stage => {
+      grouped[stage.id] = [];
+    });
 
     filteredLeads.forEach(lead => {
       if (grouped[lead.stage]) {
@@ -157,7 +174,7 @@ export default function LeadsPage() {
     });
 
     return grouped;
-  }, [filteredLeads]);
+  }, [filteredLeads, funnelStages]);
 
   // Estatísticas
   const stats = useMemo(() => {
@@ -167,10 +184,10 @@ export default function LeadsPage() {
       byStage: {} as Record<string, { count: number; value: number }>
     };
 
-    LEAD_STAGES.forEach(stage => {
-      const stageLeads = leadsByStage[stage] || []; // Adiciona fallback para array vazio
+    funnelStages.forEach(stage => {
+      const stageLeads = leadsByStage[stage.id] || [];
       const value = stageLeads.reduce((sum, lead) => sum + (lead.value || 0), 0);
-      result.byStage[stage] = { count: stageLeads.length, value };
+      result.byStage[stage.id] = { count: stageLeads.length, value };
       result.totalValue += value;
     });
 
@@ -307,6 +324,24 @@ export default function LeadsPage() {
     });
   };
 
+  const handleSaveFunnelConfig = (stages: FunnelStage[]) => {
+    setFunnelStages(stages);
+    localStorage.setItem('leadFunnelStages', JSON.stringify(stages));
+  };
+
+  // Carregar configuração do funil do localStorage
+  useEffect(() => {
+    const savedStages = localStorage.getItem('leadFunnelStages');
+    if (savedStages) {
+      try {
+        const parsed = JSON.parse(savedStages);
+        setFunnelStages(parsed);
+      } catch (error) {
+        console.error('Erro ao carregar configuração do funil:', error);
+      }
+    }
+  }, []);
+
   if (loading) {
     return (
       <div>
@@ -316,8 +351,8 @@ export default function LeadsPage() {
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          {LEAD_STAGES.map(stage => (
-            <Card key={stage} className="h-[600px]">
+          {funnelStages.map(stage => (
+            <Card key={stage.id} className="h-[600px]">
               <CardHeader className="pb-4">
                 <div className="animate-pulse bg-muted h-4 w-24 rounded"></div>
               </CardHeader>
@@ -352,10 +387,34 @@ export default function LeadsPage() {
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2">
           <Users className="h-6 w-6" />
-          <h1 className="text-2xl font-bold">Leads (Kanban)</h1>
+          <h1 className="text-2xl font-bold">Leads</h1>
           <Badge variant="secondary">{stats.total}</Badge>
         </div>
         <div className="flex items-center gap-2">
+          {/* View Mode Toggle */}
+          <div className="flex items-center border rounded-lg p-1">
+            <Button
+              variant={viewMode === 'kanban' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('kanban')}
+            >
+              <Grid3X3 className="h-4 w-4 mr-1" />
+              Kanban
+            </Button>
+            <Button
+              variant={viewMode === 'list' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('list')}
+            >
+              <List className="h-4 w-4 mr-1" />
+              Lista
+            </Button>
+          </div>
+          
+          <Button variant="outline" onClick={() => setShowFunnelConfig(true)}>
+            <Settings className="h-4 w-4 mr-2" />
+            Configurar Funil
+          </Button>
           <Button variant="outline" onClick={() => setShowAnalytics(true)}>
             <BarChart3 className="h-4 w-4 mr-2" />
             Analytics
@@ -433,37 +492,46 @@ export default function LeadsPage() {
         />
       )}
 
-      {/* Kanban Board */}
-      <DndContext
-        sensors={sensors}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
-      >
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6">
-          {LEAD_STAGES.map(stage => (
-            <LeadColumn
-              key={stage}
-              stage={stage}
-              leads={leadsByStage[stage] || []}
-              stats={stats.byStage[stage] || { count: 0, value: 0 }}
-              onLeadClick={openLeadDrawer}
-              onNewLead={() => setShowNewLeadModal(true)}
-              onLeadConverted={handleLeadConverted}
-              onMarkAsLost={handleMarkAsLost}
-            />
-          ))}
-        </div>
+      {/* Content - Kanban or List View */}
+      {viewMode === 'kanban' ? (
+        <DndContext
+          sensors={sensors}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+        >
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6">
+            {funnelStages.map(stage => (
+              <LeadColumn
+                key={stage.id}
+                stage={stage.id}
+                leads={leadsByStage[stage.id] || []}
+                stats={stats.byStage[stage.id] || { count: 0, value: 0 }}
+                onLeadClick={openLeadDrawer}
+                onNewLead={() => setShowNewLeadModal(true)}
+                onLeadConverted={handleLeadConverted}
+                onMarkAsLost={handleMarkAsLost}
+              />
+            ))}
+          </div>
 
-        <DragOverlay>
-          {activeLead ? (
-            <LeadCard 
-              lead={activeLead} 
-              onClick={() => {}}
-              isDragging 
-            />
-          ) : null}
-        </DragOverlay>
-      </DndContext>
+          <DragOverlay>
+            {activeLead ? (
+              <LeadCard 
+                lead={activeLead} 
+                onClick={() => {}}
+                isDragging 
+              />
+            ) : null}
+          </DragOverlay>
+        </DndContext>
+      ) : (
+        <LeadsTable
+          leads={filteredLeads}
+          onEditLead={openLeadDrawer}
+          onDeleteLead={handleDeleteLead}
+          onViewLead={openLeadDrawer}
+        />
+      )}
 
       {/* Modals */}
       <NewLeadModal
@@ -513,6 +581,13 @@ export default function LeadsPage() {
           }}
         />
       )}
+
+      <FunnelConfigModal
+        open={showFunnelConfig}
+        onClose={() => setShowFunnelConfig(false)}
+        onSave={handleSaveFunnelConfig}
+        currentStages={funnelStages}
+      />
 
       {showAnalytics && (
         <LeadAnalytics
