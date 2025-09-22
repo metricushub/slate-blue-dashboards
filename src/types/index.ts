@@ -113,8 +113,22 @@ export interface Alert {
 
 // Optimization types (legacy - removed duplicate, using Client Dashboard version below)
 
-// Lead types for CRM
+// Lead types for CRM  
 export type LeadStage = "novo" | "qualificacao" | "proposta" | "negociacao" | "fechado" | "perdido" | "Novo" | "Qualificação" | "Proposta" | "Fechado";
+
+export interface LeadStageConfig {
+  id: string;
+  name: string;
+  color?: string;
+  order_index: number;
+  description?: string;
+  is_closed_won?: boolean;
+  is_closed_lost?: boolean;
+  is_active?: boolean;
+  user_id?: string;
+  created_at?: string;
+  updated_at?: string;
+}
 
 export interface Lead {
   id: string;                // uuid

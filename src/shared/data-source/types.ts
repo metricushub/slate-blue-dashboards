@@ -1,4 +1,4 @@
-import { Client, Campaign, MetricRow, Alert, Optimization } from '@/types';
+import { Client, Campaign, MetricRow, Alert, Optimization, Lead, LeadStageConfig } from '@/types';
 
 // Legacy method support
 export interface LegacyDataSource {
@@ -14,6 +14,10 @@ export interface DataSource extends LegacyDataSource {
   getAlerts(clientId: string): Promise<Alert[]>;
   listOptimizations(clientId: string): Promise<Optimization[]>;
   upsertOptimization(input: OptimizationInput): Promise<Optimization>;
+  
+  // Lead stages methods
+  getLeadStages?(): Promise<LeadStageConfig[]>;
+  saveLeadStages?(stages: LeadStageConfig[]): Promise<LeadStageConfig[]>;
 }
 
 // Query interfaces

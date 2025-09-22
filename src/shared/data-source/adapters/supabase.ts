@@ -1,6 +1,7 @@
 import { DataSource, MetricsQuery, CampaignQuery, OptimizationInput } from '../types';
-import { Client, Campaign, MetricRow, Alert, Optimization } from '@/types';
+import { Client, Campaign, MetricRow, Alert, Optimization, LeadStageConfig } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
+import { SupabaseLeadsStore } from '@/shared/db/supabaseLeadsStore';
 
 export class SupabaseAdapter implements DataSource {
   private cache = new Map<string, { data: any; timestamp: number }>();
@@ -322,5 +323,13 @@ export class SupabaseAdapter implements DataSource {
       default:
         return 'Planejada';
     }
+  }
+
+  async getLeadStages(): Promise<LeadStageConfig[]> {
+    return SupabaseLeadsStore.getLeadStages();
+  }
+
+  async saveLeadStages(stages: LeadStageConfig[]): Promise<LeadStageConfig[]> {
+    return SupabaseLeadsStore.saveLeadStages(stages);
   }
 }

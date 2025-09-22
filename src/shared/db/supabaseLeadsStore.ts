@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import { Lead } from "@/types";
+import { Lead, LeadStageConfig } from "@/types";
 
 export interface LeadActivity {
   id: string;
@@ -308,7 +308,7 @@ export class SupabaseLeadsStore {
   }
 
   // Stages operations
-  static async getLeadStages(): Promise<LeadStage[]> {
+  static async getLeadStages(): Promise<LeadStageConfig[]> {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
 
@@ -320,10 +320,10 @@ export class SupabaseLeadsStore {
       .order('order_index');
 
     if (error) throw error;
-    return data as LeadStage[];
+    return data as LeadStageConfig[];
   }
 
-  static async createLeadStage(stageData: Omit<LeadStage, 'id' | 'created_at' | 'updated_at' | 'user_id'>): Promise<LeadStage> {
+  static async createLeadStage(stageData: Omit<LeadStageConfig, 'id' | 'created_at' | 'updated_at' | 'user_id'>): Promise<LeadStageConfig> {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
 
@@ -337,82 +337,34 @@ export class SupabaseLeadsStore {
       .single();
 
     if (error) throw error;
-    return data as LeadStage;
+    return data as LeadStageConfig;
   }
 
-  // Analytics
-  static async getLeadsStats(): Promise<{
-    total: number;
-    byStage: Record<string, number>;
-    totalValue: number;
-    valueByStage: Record<string, number>;
-    conversionRates: Record<string, number>;
-  }> {
+  static async saveLeadStages(stages: LeadStageConfig[]): Promise<LeadStageConfig[]> {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
 
-    const { data: leads, error } = await supabase
-      .from('leads')
-      .select('stage, value, status')
+    // Delete existing stages
+    await supabase
+      .from('lead_stages')
+      .delete()
       .eq('user_id', user.id);
 
+    // Insert new stages
+    const { data, error } = await supabase
+      .from('lead_stages')
+      .insert(
+        stages.map((stage, index) => ({
+          name: stage.name,
+          color: stage.color || '#3b82f6',
+          order_index: index,
+          user_id: user.id,
+          is_active: true
+        }))
+      )
+      .select();
+
     if (error) throw error;
-
-    const byStage: Record<string, number> = {};
-    const valueByStage: Record<string, number> = {};
-    let totalValue = 0;
-
-    leads.forEach(lead => {
-      byStage[lead.stage] = (byStage[lead.stage] || 0) + 1;
-      const value = lead.value || 0;
-      valueByStage[lead.stage] = (valueByStage[lead.stage] || 0) + value;
-      totalValue += value;
-    });
-
-    // Calculate conversion rates between stages
-    const conversionRates: Record<string, number> = {};
-    const stages = await this.getLeadStages();
-    
-    for (let i = 0; i < stages.length - 1; i++) {
-      const currentStage = stages[i].name;
-      const nextStage = stages[i + 1].name;
-      const currentCount = byStage[currentStage] || 0;
-      const nextCount = byStage[nextStage] || 0;
-      
-      if (currentCount > 0) {
-        conversionRates[`${currentStage}_to_${nextStage}`] = (nextCount / currentCount) * 100;
-      }
-    }
-
-    return {
-      total: leads.length,
-      byStage,
-      totalValue,
-      valueByStage,
-      conversionRates,
-    };
-  }
-
-  // Convert lead to client
-  static async convertLeadToClient(leadId: string, clientData: any): Promise<void> {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('User not authenticated');
-
-    // Update lead as converted
-    await this.updateLead(leadId, {
-      status: 'converted',
-      converted_at: new Date().toISOString(),
-      client_id: clientData.id,
-    });
-
-    // Log activity
-    await this.createActivity(
-      leadId,
-      'stage_change',
-      'Lead convertido em cliente',
-      undefined,
-      'converted',
-      `Cliente criado: ${clientData.name}`
-    );
+    return data as LeadStageConfig[];
   }
 }

@@ -9,7 +9,7 @@ import {
   useSensors 
 } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { Lead, Client } from '@/types';
+import { Lead, Client, LeadStageConfig } from '@/types';
 import { useLeads } from '@/hooks/useLeads';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -92,18 +92,32 @@ export default function LeadsPage() {
     })
   );
 
-  // Carregar clientes
+  // Carregar clientes e etapas do funil
   useEffect(() => {
-    const loadClients = async () => {
+    const loadData = async () => {
       try {
-        const clientsData = await dataSource.getClients();
+        const [clientsData, stagesData] = await Promise.all([
+          dataSource.getClients(),
+          dataSource.getLeadStages?.() || []
+        ]);
         setClients(clientsData);
+        
+        // Se não há etapas personalizadas, usar as padrão
+        if (stagesData && stagesData.length > 0) {
+          const convertedStages: FunnelStage[] = stagesData.map(stage => ({
+            id: stage.id,
+            name: stage.name,
+            color: stage.color || '#3b82f6',
+            order_index: stage.order_index
+          }));
+          setFunnelStages(convertedStages);
+        }
       } catch (error) {
-        console.error('Erro ao carregar clientes:', error);
+        console.error('Erro ao carregar dados:', error);
       }
     };
     
-    loadClients();
+    loadData();
   }, [dataSource]);
 
   // Handlers
