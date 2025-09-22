@@ -1,12 +1,16 @@
 import { useState, useEffect } from "react";
-import { Calendar, AlertTriangle, Clock, CheckCircle, Plus, DollarSign } from "lucide-react";
+import { Calendar, AlertTriangle, Clock, CheckCircle, Plus, DollarSign, Search, Filter } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { financialStore, financialCalculations, FinancialEntry } from "@/shared/db/financialStore";
+import { supabaseFinancialStore as financialStore, financialCalculations, type FinancialEntry } from '@/shared/db/supabaseFinancialStore';
+import { useDataSource } from "@/hooks/useDataSource";
+import type { Client } from "@/types";
+import { format, addDays, subDays } from "date-fns";
 
 interface IncomeAlertsTabProps {
   onRefresh?: () => void;
@@ -14,22 +18,42 @@ interface IncomeAlertsTabProps {
 
 export function IncomeAlertsTab({ onRefresh }: IncomeAlertsTabProps) {
   const [pendingIncomes, setPendingIncomes] = useState<FinancialEntry[]>([]);
+  const [allIncomes, setAllIncomes] = useState<FinancialEntry[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
   const [selectedIncome, setSelectedIncome] = useState<FinancialEntry | null>(null);
   const [paidDate, setPaidDate] = useState(new Date().toISOString().split('T')[0]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [clientFilter, setClientFilter] = useState("all");
+  const [periodFilter, setPeriodFilter] = useState("all");
+  const { dataSource } = useDataSource();
   const { toast } = useToast();
 
   useEffect(() => {
-    loadPendingIncomes();
+    loadData();
   }, []);
 
-  const loadPendingIncomes = async () => {
+  const loadData = async () => {
     try {
-      const incomes = await financialStore.getPendingIncomes();
-      setPendingIncomes(incomes);
+      // Carregar dados do ano inteiro para análise completa
+      const startOfYear = format(new Date(new Date().getFullYear(), 0, 1), 'yyyy-MM-dd');
+      const endOfYear = format(new Date(new Date().getFullYear(), 11, 31), 'yyyy-MM-dd');
+      
+      const [yearIncomes, clientsData] = await Promise.all([
+        financialStore.getFinancialEntries(startOfYear, endOfYear),
+        dataSource.getClients()
+      ]);
+
+      const incomeEntries = yearIncomes.filter(entry => entry.type === 'income');
+      setAllIncomes(incomeEntries);
+      
+      const pending = incomeEntries.filter(entry => entry.status === 'pending');
+      setPendingIncomes(pending);
+      setClients(clientsData);
     } catch (error) {
+      console.error('Error loading income data:', error);
       toast({
         title: "Erro",
-        description: "Erro ao carregar receitas pendentes",
+        description: "Erro ao carregar dados de receitas",
         variant: "destructive",
       });
     }
@@ -43,8 +67,11 @@ export function IncomeAlertsTab({ onRefresh }: IncomeAlertsTabProps) {
     if (!selectedIncome) return;
 
     try {
-      await financialStore.markIncomeAsPaid(selectedIncome.id!, paidDate);
-      await loadPendingIncomes();
+      await financialStore.updateFinancialEntry(selectedIncome.id, {
+        status: 'paid',
+        paid_at: paidDate
+      });
+      await loadData();
       setSelectedIncome(null);
       setPaidDate(new Date().toISOString().split('T')[0]);
       onRefresh?.();
@@ -63,8 +90,8 @@ export function IncomeAlertsTab({ onRefresh }: IncomeAlertsTabProps) {
 
   const handleMarkAsCancelled = async (id: string) => {
     try {
-      await financialStore.markIncomeAsCancelled(id);
-      await loadPendingIncomes();
+      await financialStore.updateFinancialEntry(id, { status: 'cancelled' });
+      await loadData();
       onRefresh?.();
       toast({
         title: "Receita cancelada",
@@ -79,27 +106,82 @@ export function IncomeAlertsTab({ onRefresh }: IncomeAlertsTabProps) {
     }
   };
 
+  const getClientName = (clientId: string | null) => {
+    if (!clientId) return 'Sem cliente';
+    const client = clients.find(c => c.id === clientId);
+    return client?.name || 'Cliente não encontrado';
+  };
+
+  const filterIncomes = () => {
+    let filtered = [...pendingIncomes];
+
+    if (searchTerm) {
+      filtered = filtered.filter(income =>
+        income.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        getClientName(income.client_id).toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    if (clientFilter !== "all") {
+      filtered = filtered.filter(income => 
+        clientFilter === "none" ? !income.client_id : income.client_id === clientFilter
+      );
+    }
+
+    if (periodFilter !== "all") {
+      const today = new Date();
+      const todayStr = format(today, 'yyyy-MM-dd');
+      
+      switch (periodFilter) {
+        case "overdue":
+          filtered = filtered.filter(income => 
+            income.due_date && income.due_date < todayStr
+          );
+          break;
+        case "today":
+          filtered = filtered.filter(income => income.due_date === todayStr);
+          break;
+        case "next7":
+          const next7Days = format(addDays(today, 7), 'yyyy-MM-dd');
+          filtered = filtered.filter(income => 
+            income.due_date && income.due_date > todayStr && income.due_date <= next7Days
+          );
+          break;
+        case "next30":
+          const next30Days = format(addDays(today, 30), 'yyyy-MM-dd');
+          filtered = filtered.filter(income => 
+            income.due_date && income.due_date > todayStr && income.due_date <= next30Days
+          );
+          break;
+      }
+    }
+
+    return filtered;
+  };
+
+  const filteredIncomes = filterIncomes();
+
   const today = new Date();
   const todayStr = today.toISOString().split('T')[0];
 
   const overdueIncomes = pendingIncomes.filter(income => 
-    income.dueDate && income.dueDate < todayStr
+    income.due_date && income.due_date < todayStr
   );
 
   const dueTodayIncomes = pendingIncomes.filter(income => 
-    income.dueDate === todayStr
+    income.due_date === todayStr
   );
 
   const dueSoonIncomes = pendingIncomes.filter(income => {
-    if (!income.dueDate) return false;
-    const daysUntil = financialCalculations.getDaysUntilDue(income.dueDate);
+    if (!income.due_date) return false;
+    const daysUntil = financialCalculations.getDaysUntilDue(income.due_date);
     return daysUntil > 0 && daysUntil <= 7;
   });
 
   const getSeverityBadge = (income: FinancialEntry) => {
-    if (!income.dueDate) return <Badge variant="outline">Sem data</Badge>;
+    if (!income.due_date) return <Badge variant="outline">Sem data</Badge>;
     
-    const daysUntil = financialCalculations.getDaysUntilDue(income.dueDate);
+    const daysUntil = financialCalculations.getDaysUntilDue(income.due_date);
     
     if (daysUntil < 0) {
       return <Badge variant="destructive">Atrasado ({Math.abs(daysUntil)} dias)</Badge>;
@@ -124,9 +206,9 @@ export function IncomeAlertsTab({ onRefresh }: IncomeAlertsTabProps) {
             <p className="font-medium">{income.description}</p>
             <p className="text-sm text-muted-foreground">{income.category}</p>
             <p className="text-lg font-bold text-success">R$ {income.amount.toLocaleString('pt-BR')}</p>
-            {income.clientId && (
-              <p className="text-xs text-muted-foreground">Cliente: {income.clientId}</p>
-            )}
+            <p className="text-sm text-primary font-medium">
+              Cliente: {getClientName(income.client_id)}
+            </p>
           </div>
           <div className="space-y-2 text-right">
             {getSeverityBadge(income)}
@@ -161,6 +243,9 @@ export function IncomeAlertsTab({ onRefresh }: IncomeAlertsTabProps) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Controle de Receitas</h2>
+        <Button onClick={loadData} variant="outline">
+          Atualizar Dados
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
@@ -173,6 +258,7 @@ export function IncomeAlertsTab({ onRefresh }: IncomeAlertsTabProps) {
             <div className="text-2xl font-bold text-warning">
               R$ {totalPendingAmount.toLocaleString('pt-BR')}
             </div>
+            <p className="text-xs text-muted-foreground">{pendingIncomes.length} entradas</p>
           </CardContent>
         </Card>
 
@@ -210,51 +296,81 @@ export function IncomeAlertsTab({ onRefresh }: IncomeAlertsTabProps) {
         </Card>
       </div>
 
-      {overdueIncomes.length > 0 && (
-        <div>
-          <h3 className="text-lg font-semibold mb-3 text-destructive flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5" />
-            Receitas Atrasadas
-          </h3>
-          {overdueIncomes.map(income => (
-            <IncomeCard key={income.id} income={income} />
-          ))}
-        </div>
-      )}
+      {/* Filtros */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Filter className="h-5 w-5" />
+            Filtros
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <Input
+                placeholder="Buscar por descrição ou cliente..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full"
+              />
+            </div>
+            
+            <Select value={clientFilter} onValueChange={setClientFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="Filtrar por cliente" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os clientes</SelectItem>
+                <SelectItem value="none">Sem cliente</SelectItem>
+                {clients.map(client => (
+                  <SelectItem key={client.id} value={client.id}>{client.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-      {dueTodayIncomes.length > 0 && (
-        <div>
-          <h3 className="text-lg font-semibold mb-3 text-warning flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
-            Vencem Hoje
-          </h3>
-          {dueTodayIncomes.map(income => (
-            <IncomeCard key={income.id} income={income} />
-          ))}
-        </div>
-      )}
+            <Select value={periodFilter} onValueChange={setPeriodFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="Filtrar por período" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os períodos</SelectItem>
+                <SelectItem value="overdue">Atrasadas</SelectItem>
+                <SelectItem value="today">Vencem hoje</SelectItem>
+                <SelectItem value="next7">Próximos 7 dias</SelectItem>
+                <SelectItem value="next30">Próximos 30 dias</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
 
-      {dueSoonIncomes.length > 0 && (
-        <div>
-          <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-            <Clock className="h-5 w-5" />
-            Próximos 7 Dias
-          </h3>
-          {dueSoonIncomes.map(income => (
-            <IncomeCard key={income.id} income={income} />
-          ))}
-        </div>
-      )}
-
-      {pendingIncomes.length === 0 && (
-        <Card>
-          <CardContent className="p-6 text-center">
-            <CheckCircle className="h-12 w-12 text-success mx-auto mb-4" />
-            <p className="text-lg font-medium">Nenhuma receita pendente!</p>
-            <p className="text-muted-foreground">Todas as receitas foram confirmadas.</p>
-          </CardContent>
-        </Card>
-      )}
+      {/* Receitas Filtradas */}
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            Receitas Pendentes ({filteredIncomes.length})
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {filteredIncomes.length === 0 ? (
+            <div className="text-center py-8">
+              <CheckCircle className="h-12 w-12 text-success mx-auto mb-4" />
+              <p className="text-lg font-medium">Nenhuma receita pendente encontrada!</p>
+              <p className="text-muted-foreground">
+                {pendingIncomes.length === 0 
+                  ? "Todas as receitas foram confirmadas."
+                  : "Tente ajustar os filtros para ver outras receitas."}
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {filteredIncomes.map(income => (
+                <IncomeCard key={income.id} income={income} />
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Confirm Payment Modal */}
       <Dialog open={!!selectedIncome} onOpenChange={() => setSelectedIncome(null)}>
@@ -265,6 +381,9 @@ export function IncomeAlertsTab({ onRefresh }: IncomeAlertsTabProps) {
           <div className="space-y-4">
             <div>
               <p className="font-medium">{selectedIncome?.description}</p>
+              <p className="text-sm text-muted-foreground">
+                Cliente: {getClientName(selectedIncome?.client_id || null)}
+              </p>
               <p className="text-2xl font-bold text-success">
                 R$ {selectedIncome?.amount.toLocaleString('pt-BR')}
               </p>

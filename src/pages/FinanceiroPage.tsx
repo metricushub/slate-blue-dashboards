@@ -15,6 +15,8 @@ import { AlertsTab } from "@/components/financial/AlertsTab";
 import { IncomeAlertsTab } from "@/components/financial/IncomeAlertsTab";
 import { DateRangePicker } from "@/components/financial/DateRangePicker";
 import { ClientAnalytics } from "@/components/financial/ClientAnalytics";
+import { ClientRevenueAnalysis } from "@/components/financial/ClientRevenueAnalysis";
+import { ExpenseManagementTab } from "@/components/financial/ExpenseManagementTab";
 import { AdvancedFilters } from "@/components/financial/AdvancedFilters";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { useDataSource } from "@/hooks/useDataSource";
@@ -441,14 +443,14 @@ export function FinanceiroPage() {
           </TabsContent>
 
           <TabsContent value="alerts">
-            <AlertsTab onRefresh={loadFinancialData} />
+            <ExpenseManagementTab onRefresh={loadFinancialData} />
           </TabsContent>
 
           <TabsContent value="analytics">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>Resumo Mensal</CardTitle>
+                  <CardTitle>Resumo do Período</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
@@ -466,6 +468,12 @@ export function FinanceiroPage() {
                       <span>Maior Despesa:</span>
                       <span className="font-medium text-destructive">
                         R$ {Math.max(...filteredEntries.filter(e => e.type === 'expense').map(e => e.amount), 0).toLocaleString('pt-BR')}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Clientes Ativos:</span>
+                      <span className="font-medium">
+                        {new Set(filteredEntries.filter(e => e.client_id && e.type === 'income').map(e => e.client_id)).size}
                       </span>
                     </div>
                   </div>
@@ -498,7 +506,7 @@ export function FinanceiroPage() {
           </TabsContent>
 
           <TabsContent value="clients">
-            <ClientAnalytics entries={entries} />
+            <ClientRevenueAnalysis entries={entries} />
           </TabsContent>
         </Tabs>
 
