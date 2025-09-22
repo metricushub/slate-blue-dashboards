@@ -17,6 +17,7 @@ import { DateRangePicker } from "@/components/financial/DateRangePicker";
 import { ClientAnalytics } from "@/components/financial/ClientAnalytics";
 import { ClientRevenueAnalysis } from "@/components/financial/ClientRevenueAnalysis";
 import { ExpenseManagementTab } from "@/components/financial/ExpenseManagementTab";
+import { CategoryManager } from "@/components/financial/CategoryManager";
 import { AdvancedFilters } from "@/components/financial/AdvancedFilters";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { useDataSource } from "@/hooks/useDataSource";
