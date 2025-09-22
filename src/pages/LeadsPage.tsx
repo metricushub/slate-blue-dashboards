@@ -178,7 +178,9 @@ export default function LeadsPage() {
     
     // Inicializar com todas as etapas do funil
     funnelStages.forEach(stage => {
-      grouped[stage.id] = [];
+      const bucket: Lead[] = [];
+      grouped[stage.name] = bucket;
+      grouped[stage.id] = bucket; // suporte a estágios antigos salvos como id
     });
 
     filteredLeads.forEach(lead => {
@@ -199,9 +201,9 @@ export default function LeadsPage() {
     };
 
     funnelStages.forEach(stage => {
-      const stageLeads = leadsByStage[stage.id] || [];
+      const stageLeads = (leadsByStage[stage.name] || leadsByStage[stage.id] || []);
       const value = stageLeads.reduce((sum, lead) => sum + (lead.value || 0), 0);
-      result.byStage[stage.id] = { count: stageLeads.length, value };
+      result.byStage[stage.name] = { count: stageLeads.length, value };
       result.totalValue += value;
     });
 
@@ -553,9 +555,9 @@ export default function LeadsPage() {
             {funnelStages.map(stage => (
               <LeadColumn
                 key={stage.id}
-                stage={stage.id}
-                leads={leadsByStage[stage.id] || []}
-                stats={stats.byStage[stage.id] || { count: 0, value: 0 }}
+                stage={stage.name}
+                leads={leadsByStage[stage.name] || []}
+                stats={stats.byStage[stage.name] || { count: 0, value: 0 }}
                 onLeadClick={openLeadDrawer}
                 onNewLead={() => setShowNewLeadModal(true)}
                 onLeadConverted={handleLeadConverted}
