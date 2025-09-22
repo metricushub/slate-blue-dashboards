@@ -114,7 +114,7 @@ export interface Alert {
 // Optimization types (legacy - removed duplicate, using Client Dashboard version below)
 
 // Lead types for CRM
-export type LeadStage = "Novo" | "Qualificação" | "Proposta" | "Fechado";
+export type LeadStage = "novo" | "qualificacao" | "proposta" | "negociacao" | "fechado" | "perdido" | "Novo" | "Qualificação" | "Proposta" | "Fechado";
 
 export interface Lead {
   id: string;                // uuid
@@ -128,12 +128,25 @@ export interface Lead {
   utm_medium?: string;
   utm_campaign?: string;
   utm_content?: string;
+  utm_term?: string;         // novo campo UTM
   value?: number;            // potencial em moeda
   owner?: string;            // responsável
-  stage: LeadStage;          // coluna do Kanban
+  stage: string;             // coluna do Kanban - agora flexível
   notes?: string;
   client_id?: string;        // opcional, vínculo com clients
-  // Novos campos para analytics
+  
+  // Novos campos do Supabase
+  status?: string;           // active, converted, lost
+  probability?: number;      // 0-100
+  source?: string;           // fonte do lead
+  assigned_to?: string;      // UUID do usuário assignado
+  last_contact_at?: string;  // último contato
+  next_follow_up_at?: string; // próximo follow-up
+  lost_reason?: string;      // motivo da perda
+  lost_at?: string;         // data da perda
+  converted_at?: string;    // data da conversão
+  
+  // Campos existentes para compatibilidade
   priority?: 'low' | 'medium' | 'high' | 'urgent';
   temperature?: 'cold' | 'warm' | 'hot';
   lastContactDate?: string;

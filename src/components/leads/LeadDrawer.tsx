@@ -24,7 +24,7 @@ interface LeadDrawerProps {
   onDelete: (id: string) => void;
 }
 
-const LEAD_STAGES: LeadStage[] = ["Novo", "Qualificação", "Proposta", "Fechado"];
+const LEAD_STAGES = ["novo", "qualificacao", "proposta", "negociacao", "fechado", "perdido"];
 
 export function LeadDrawer({ open, onOpenChange, lead, onSave, onDelete }: LeadDrawerProps) {
   const { dataSource, sourceType } = useDataSource();
@@ -41,7 +41,7 @@ export function LeadDrawer({ open, onOpenChange, lead, onSave, onDelete }: LeadD
     utm_content: '',
     value: '',
     owner: '',
-    stage: 'Novo' as LeadStage,
+    stage: 'novo' as string,
     notes: '',
     client_id: '',
   });

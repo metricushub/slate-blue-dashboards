@@ -369,6 +369,232 @@ export type Database = {
         }
         Relationships: []
       }
+      lead_activities: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          description: string | null
+          id: string
+          lead_id: string
+          metadata: Json | null
+          new_value: string | null
+          previous_value: string | null
+          scheduled_at: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          lead_id: string
+          metadata?: Json | null
+          new_value?: string | null
+          previous_value?: string | null
+          scheduled_at?: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          lead_id?: string
+          metadata?: Json | null
+          new_value?: string | null
+          previous_value?: string | null
+          scheduled_at?: string | null
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_activities_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_sources: {
+        Row: {
+          cost_per_lead: number | null
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cost_per_lead?: number | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cost_per_lead?: number | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      lead_stages: {
+        Row: {
+          color: string | null
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean | null
+          is_closed_lost: boolean | null
+          is_closed_won: boolean | null
+          name: string
+          order_index: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_closed_lost?: boolean | null
+          is_closed_won?: boolean | null
+          name: string
+          order_index?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_closed_lost?: boolean | null
+          is_closed_won?: boolean | null
+          name?: string
+          order_index?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      leads: {
+        Row: {
+          assigned_to: string | null
+          client_id: string | null
+          company: string | null
+          converted_at: string | null
+          created_at: string
+          email: string | null
+          id: string
+          last_contact_at: string | null
+          lost_at: string | null
+          lost_reason: string | null
+          name: string
+          next_follow_up_at: string | null
+          notes: string | null
+          owner: string | null
+          phone: string | null
+          probability: number | null
+          source: string | null
+          stage: string
+          status: string
+          updated_at: string
+          user_id: string
+          utm_campaign: string | null
+          utm_content: string | null
+          utm_medium: string | null
+          utm_source: string | null
+          utm_term: string | null
+          value: number | null
+        }
+        Insert: {
+          assigned_to?: string | null
+          client_id?: string | null
+          company?: string | null
+          converted_at?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          last_contact_at?: string | null
+          lost_at?: string | null
+          lost_reason?: string | null
+          name: string
+          next_follow_up_at?: string | null
+          notes?: string | null
+          owner?: string | null
+          phone?: string | null
+          probability?: number | null
+          source?: string | null
+          stage?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
+          value?: number | null
+        }
+        Update: {
+          assigned_to?: string | null
+          client_id?: string | null
+          company?: string | null
+          converted_at?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          last_contact_at?: string | null
+          lost_at?: string | null
+          lost_reason?: string | null
+          name?: string
+          next_follow_up_at?: string | null
+          notes?: string | null
+          owner?: string | null
+          phone?: string | null
+          probability?: number | null
+          source?: string | null
+          stage?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
+          value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leads_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       metrics: {
         Row: {
           campaign_id: string | null

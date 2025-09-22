@@ -140,11 +140,13 @@ export default function LeadsPage() {
 
   // Agrupar por stage
   const leadsByStage = useMemo(() => {
-    const grouped: Record<LeadStage, Lead[]> = {
-      "Novo": [],
-      "Qualificação": [],
-      "Proposta": [],
-      "Fechado": []
+    const grouped: Record<string, Lead[]> = {
+      "novo": [],
+      "qualificacao": [],
+      "proposta": [],
+      "negociacao": [],
+      "fechado": [],
+      "perdido": []
     };
 
     filteredLeads.forEach(lead => {
