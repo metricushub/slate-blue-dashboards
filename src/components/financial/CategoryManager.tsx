@@ -78,13 +78,28 @@ export function CategoryManager({ onRefresh }: CategoryManagerProps) {
   };
 
   const handleEdit = (category: FinancialCategory) => {
-    setEditingCategory(category);
-    setFormData({
-      name: category.name,
-      type: category.type,
-      color: category.color || '#3b82f6'
-    });
-    setIsModalOpen(true);
+    if (category.is_default) {
+      // Para categorias padrão, criar uma cópia editável
+      setEditingCategory(null);
+      setFormData({
+        name: `${category.name} (cópia)`,
+        type: category.type,
+        color: category.color || '#3b82f6'
+      });
+      setIsModalOpen(true);
+      toast({
+        title: "Categoria padrão",
+        description: "Criando uma cópia editável da categoria padrão",
+      });
+    } else {
+      setEditingCategory(category);
+      setFormData({
+        name: category.name,
+        type: category.type,
+        color: category.color || '#3b82f6'
+      });
+      setIsModalOpen(true);
+    }
   };
 
   const handleDelete = async (category: FinancialCategory) => {
@@ -171,23 +186,23 @@ export function CategoryManager({ onRefresh }: CategoryManagerProps) {
                       </div>
                     </div>
                     <div className="flex space-x-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleEdit(category)}
+                        title={category.is_default ? "Criar cópia editável da categoria padrão" : "Editar categoria"}
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
                       {!category.is_default && (
-                        <>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEdit(category)}
-                          >
-                            <Edit2 className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDelete(category)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDelete(category)}
+                          title="Excluir categoria"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       )}
                     </div>
                   </div>
@@ -228,23 +243,23 @@ export function CategoryManager({ onRefresh }: CategoryManagerProps) {
                       </div>
                     </div>
                     <div className="flex space-x-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleEdit(category)}
+                        title={category.is_default ? "Criar cópia editável da categoria padrão" : "Editar categoria"}
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
                       {!category.is_default && (
-                        <>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEdit(category)}
-                          >
-                            <Edit2 className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDelete(category)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDelete(category)}
+                          title="Excluir categoria"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       )}
                     </div>
                   </div>
