@@ -381,6 +381,7 @@ export function FinanceiroPage() {
             <TabsTrigger value="alerts">Despesas</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
             <TabsTrigger value="clients">Análise por Cliente</TabsTrigger>
+            <TabsTrigger value="settings">Configurações</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
@@ -507,6 +508,10 @@ export function FinanceiroPage() {
 
           <TabsContent value="clients">
             <ClientRevenueAnalysis entries={entries} />
+          </TabsContent>
+
+          <TabsContent value="settings">
+            <CategoryManager onRefresh={loadFinancialData} />
           </TabsContent>
         </Tabs>
 

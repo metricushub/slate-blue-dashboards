@@ -1,16 +1,16 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { PendingExpense } from "@/shared/db/financialStore";
+import { PendingExpense, FinancialCategory, supabaseFinancialStore } from "@/shared/db/supabaseFinancialStore";
 
 interface NewPendingExpenseModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: Omit<PendingExpense, 'id' | 'created_at'>) => void;
+  onSubmit: (data: Omit<PendingExpense, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => void;
 }
 
 const EXPENSE_CATEGORIES = [
@@ -25,15 +25,31 @@ const EXPENSE_CATEGORIES = [
 ];
 
 export function NewPendingExpenseModal({ isOpen, onClose, onSubmit }: NewPendingExpenseModalProps) {
+  const [categories, setCategories] = useState<FinancialCategory[]>([]);
   const [formData, setFormData] = useState({
     description: '',
     amount: '',
     category: '',
     dueDate: '',
     recurring: 'none' as 'monthly' | 'quarterly' | 'yearly' | 'none',
-    status: 'pending' as 'pending' | 'paid' | 'overdue',
+    status: 'pending' as 'pending' | 'paid',
     clientId: ''
   });
+
+  const loadCategories = async () => {
+    try {
+      const categoriesData = await supabaseFinancialStore.getFinancialCategories('expense');
+      setCategories(categoriesData);
+    } catch (error) {
+      console.error('Error loading categories:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      loadCategories();
+    }
+  }, [isOpen]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,10 +62,8 @@ export function NewPendingExpenseModal({ isOpen, onClose, onSubmit }: NewPending
       description: formData.description,
       amount: parseFloat(formData.amount),
       category: formData.category,
-      dueDate: formData.dueDate,
-      recurring: formData.recurring,
-      status: formData.status,
-      clientId: formData.clientId || undefined
+      due_date: formData.dueDate,
+      status: formData.status
     });
 
     // Reset form
@@ -82,9 +96,15 @@ export function NewPendingExpenseModal({ isOpen, onClose, onSubmit }: NewPending
                 <SelectValue placeholder="Selecione uma categoria" />
               </SelectTrigger>
               <SelectContent>
-                {EXPENSE_CATEGORIES.map((category) => (
-                  <SelectItem key={category} value={category}>
-                    {category}
+                {categories.map((category) => (
+                  <SelectItem key={category.id} value={category.name}>
+                    <div className="flex items-center space-x-2">
+                      <div 
+                        className="w-3 h-3 rounded-full"
+                        style={{ backgroundColor: category.color }}
+                      />
+                      <span>{category.name}</span>
+                    </div>
                   </SelectItem>
                 ))}
               </SelectContent>

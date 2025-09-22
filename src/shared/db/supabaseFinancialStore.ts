@@ -37,6 +37,18 @@ export interface PendingExpense {
   updated_at: string;
 }
 
+export interface FinancialCategory {
+  id: string;
+  user_id: string;
+  type: 'income' | 'expense';
+  name: string;
+  is_default: boolean;
+  color?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export const supabaseFinancialStore = {
   // Financial Entries
   async getFinancialEntries(startDate?: string, endDate?: string): Promise<FinancialEntry[]> {
@@ -215,6 +227,74 @@ export const supabaseFinancialStore = {
   async deletePendingExpense(id: string): Promise<void> {
     const { error } = await supabase
       .from('pending_expenses')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+  },
+
+  // Financial Categories
+  async getFinancialCategories(type?: 'income' | 'expense'): Promise<FinancialCategory[]> {
+    let query = supabase
+      .from('financial_categories')
+      .select('*')
+      .eq('is_active', true)
+      .order('is_default', { ascending: false })
+      .order('name', { ascending: true });
+
+    if (type) {
+      query = query.eq('type', type);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+    return (data || []) as FinancialCategory[];
+  },
+
+  async addFinancialCategory(category: Omit<FinancialCategory, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'is_default'>): Promise<FinancialCategory> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('User not authenticated');
+
+    const { data, error } = await supabase
+      .from('financial_categories')
+      .insert({
+        ...category,
+        user_id: user.id,
+        is_default: false,
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data as FinancialCategory;
+  },
+
+  async updateFinancialCategory(id: string, updates: Partial<FinancialCategory>): Promise<FinancialCategory> {
+    const { data, error } = await supabase
+      .from('financial_categories')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data as FinancialCategory;
+  },
+
+  async deleteFinancialCategory(id: string): Promise<void> {
+    // Check if category is in use
+    const { data: entries } = await supabase
+      .from('financial_entries')
+      .select('id')
+      .eq('category', (await supabase.from('financial_categories').select('name').eq('id', id).single()).data?.name)
+      .limit(1);
+
+    if (entries && entries.length > 0) {
+      throw new Error('Cannot delete category that is in use');
+    }
+
+    const { error } = await supabase
+      .from('financial_categories')
       .delete()
       .eq('id', id);
 

@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { FinancialEntry } from "@/shared/db/supabaseFinancialStore";
+import { FinancialEntry, FinancialCategory, supabaseFinancialStore } from "@/shared/db/supabaseFinancialStore";
 import { useDataSource } from "@/hooks/useDataSource";
 
 interface NewEntryModalProps {
@@ -35,6 +35,7 @@ const EXPENSE_CATEGORIES = [
 export function NewEntryModal({ isOpen, onClose, onSubmit }: NewEntryModalProps) {
   const { dataSource } = useDataSource();
   const [clients, setClients] = useState<Array<{id: string, name: string}>>([]);
+  const [categories, setCategories] = useState<FinancialCategory[]>([]);
   const [formData, setFormData] = useState({
     type: 'income' as 'income' | 'expense',
     description: '',
@@ -45,10 +46,11 @@ export function NewEntryModal({ isOpen, onClose, onSubmit }: NewEntryModalProps)
     client_id: 'none'
   });
 
-  // Load clients when modal opens
+  // Load clients and categories when modal opens
   useEffect(() => {
     if (isOpen) {
       loadClients();
+      loadCategories();
     }
   }, [isOpen]);
 
@@ -58,6 +60,15 @@ export function NewEntryModal({ isOpen, onClose, onSubmit }: NewEntryModalProps)
       setClients(clientsData.map(client => ({ id: client.id, name: client.name })));
     } catch (error) {
       console.error('Error loading clients:', error);
+    }
+  };
+
+  const loadCategories = async () => {
+    try {
+      const categoriesData = await supabaseFinancialStore.getFinancialCategories();
+      setCategories(categoriesData);
+    } catch (error) {
+      console.error('Error loading categories:', error);
     }
   };
 
@@ -90,7 +101,7 @@ export function NewEntryModal({ isOpen, onClose, onSubmit }: NewEntryModalProps)
     });
   };
 
-  const categories = formData.type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
+  const availableCategories = categories.filter(cat => cat.type === formData.type);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -126,9 +137,15 @@ export function NewEntryModal({ isOpen, onClose, onSubmit }: NewEntryModalProps)
                 <SelectValue placeholder="Selecione uma categoria" />
               </SelectTrigger>
               <SelectContent>
-                {categories.map((category) => (
-                  <SelectItem key={category} value={category}>
-                    {category}
+                {availableCategories.map((category) => (
+                  <SelectItem key={category.id} value={category.name}>
+                    <div className="flex items-center space-x-2">
+                      <div 
+                        className="w-3 h-3 rounded-full"
+                        style={{ backgroundColor: category.color }}
+                      />
+                      <span>{category.name}</span>
+                    </div>
                   </SelectItem>
                 ))}
               </SelectContent>
