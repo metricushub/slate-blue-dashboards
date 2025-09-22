@@ -33,7 +33,7 @@ export function LossReasonModal({ open, onClose, lead, onSave }: LossReasonModal
   const [loading, setLoading] = useState(false);
 
   const handleSave = async () => {
-    if (!selectedReason) return;
+    if (!selectedReason || !lead) return;
 
     setLoading(true);
     try {
@@ -45,6 +45,10 @@ export function LossReasonModal({ open, onClose, lead, onSave }: LossReasonModal
       setLoading(false);
     }
   };
+
+  if (!lead) {
+    return null;
+  }
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
