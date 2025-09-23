@@ -17,8 +17,8 @@ function log(...args: any[]) { console.log("[google-ads-sync-accounts]", ...args
 
 async function getLatestRefreshToken() {
   if (!SUPABASE_URL || !AUTH_KEY) throw new Error("supabase_env_missing");
-  const url = new URL(`${SUPABASE_URL}/rest/v1/google_ads_credentials`);
-  url.searchParams.set("select", "id,refresh_token,created_at");
+  const url = new URL(`${SUPABASE_URL}/rest/v1/google_tokens`);
+  url.searchParams.set("select", "id,refresh_token,access_token,token_expiry,user_id");
   url.searchParams.set("order", "created_at.desc");
   url.searchParams.set("limit", "1");
 
@@ -29,7 +29,10 @@ async function getLatestRefreshToken() {
 
   const rows = await resp.json();
   if (!rows?.length || !rows[0]?.refresh_token) throw new Error("no_refresh_token_found");
-  return rows[0].refresh_token as string;
+  return { 
+    refresh_token: rows[0].refresh_token as string,
+    user_id: rows[0].user_id as string 
+  };
 }
 
 async function exchangeRefreshToken(refresh_token: string) {
@@ -69,25 +72,48 @@ async function listAccessibleCustomers(access_token: string) {
   return (j?.resourceNames as string[] ?? []).map((s) => s.replace("customers/", ""));
 }
 
-async function upsertCustomers(customerIds: string[]) {
+async function upsertCustomers(customerIds: string[], userId: string) {
   if (!SUPABASE_URL || !SERVICE_KEY) throw new Error("service_role_required_for_upsert");
 
-  // upsert em lote usando RPC via REST (Prefer: resolution=merge-duplicates)
-  const r = await fetch(`${SUPABASE_URL}/rest/v1/google_ads_connections`, {
+  // Save to accounts_map table instead of google_ads_connections
+  const accountsData = customerIds.map((id) => ({ 
+    customer_id: id,
+    client_id: id, // Using customer_id as client_id for now
+    account_name: `Account ${id}`,
+    account_type: 'REGULAR',
+    status: 'active'
+  }));
+
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/accounts_map`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       apikey: SERVICE_KEY,
       Authorization: `Bearer ${SERVICE_KEY}`,
-      Prefer: "resolution=merge-duplicates", // respeita UNIQUE(customer_id)
+      Prefer: "resolution=merge-duplicates",
     },
-    body: JSON.stringify(customerIds.map((id) => ({ customer_id: id }))),
+    body: JSON.stringify(accountsData),
   });
 
   if (!r.ok && r.status !== 409) {
-    // 409 pode aparecer dependendo do dialect; com Prefer acima geralmente não
     const err = await r.text();
     throw new Error(`db_upsert ${r.status}: ${err}`);
+  }
+
+  // Also update the google_tokens table with the first customer_id
+  if (customerIds.length > 0) {
+    const updateUrl = new URL(`${SUPABASE_URL}/rest/v1/google_tokens`);
+    updateUrl.searchParams.set("user_id", `eq.${userId}`);
+    
+    await fetch(updateUrl.toString(), {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: SERVICE_KEY,
+        Authorization: `Bearer ${SERVICE_KEY}`,
+      },
+      body: JSON.stringify({ customer_id: customerIds[0] }),
+    });
   }
 }
 
@@ -106,11 +132,11 @@ serve(async (req) => {
   log("REQ", { path: url.pathname });
 
   try {
-    const refresh = await getLatestRefreshToken();
-    const access  = await exchangeRefreshToken(refresh);
-    const ids     = await listAccessibleCustomers(access);
+    const tokenData = await getLatestRefreshToken();
+    const access = await exchangeRefreshToken(tokenData.refresh_token);
+    const ids = await listAccessibleCustomers(access);
 
-    await upsertCustomers(ids);
+    await upsertCustomers(ids, tokenData.user_id);
 
     return new Response(
       JSON.stringify({ ok: true, total: ids.length, customer_ids: ids }),
