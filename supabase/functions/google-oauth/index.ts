@@ -33,11 +33,27 @@ serve(async (req) => {
         const return_to = url.searchParams.get('return_to');
 
         console.log('GET start action - creating auth URL for redirect');
+        console.log('Parameters:', { user_id, company_id, return_to });
 
         const CLIENT_ID = Deno.env.get('GOOGLE_ADS_CLIENT_ID');
+        console.log('CLIENT_ID available:', !!CLIENT_ID);
+        console.log('CLIENT_ID length:', CLIENT_ID?.length || 0);
+        
+        if (!CLIENT_ID) {
+          console.error('❌ GOOGLE_ADS_CLIENT_ID not found in environment');
+          return new Response(JSON.stringify({ 
+            error: 'Missing GOOGLE_ADS_CLIENT_ID configuration' 
+          }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
         const supaUrl = Deno.env.get('SUPABASE_URL') ?? '';
         const projectRef = supaUrl.replace('https://', '').split('.')[0];
         const redirectUri = `https://${projectRef}.functions.supabase.co/google-oauth`;
+        
+        console.log('Redirect URI:', redirectUri);
 
 
         const scopes = [
