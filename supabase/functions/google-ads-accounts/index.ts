@@ -24,10 +24,10 @@ serve(async (req) => {
     const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
     const { data, error } = await supabase
-      .from('google_ads_connections')
-      .select('*')
+      .from('accounts_map')
+      .select('customer_id, account_name, status, currency_code, time_zone, is_manager, updated_at, created_at')
       .order('created_at', { ascending: false })
-      .limit(200);
+      .limit(500);
 
     if (error) throw error;
 
