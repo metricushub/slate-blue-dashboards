@@ -258,24 +258,33 @@ export function GoogleAdsIntegrationCard() {
         description: `Testando com conta ${customerId}...`,
       });
 
-      const { data, error } = await supabase.functions.invoke('google-ads-ingest', {
-        body: {
+      console.log('Calling ingest function with:', {
+        user_id: user.id,
+        customer_id: customerId,
+        start_date: startDate.toISOString().split('T')[0],
+        end_date: endDate.toISOString().split('T')[0]
+      });
+
+      const response = await fetch('https://zoahzxfjefjmkxylbfxf.functions.supabase.co/google-ads-ingest', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+        },
+        body: JSON.stringify({
           user_id: user.id,
           customer_id: customerId,
           start_date: startDate.toISOString().split('T')[0],
           end_date: endDate.toISOString().split('T')[0]
-        }
+        })
       });
 
-      if (error) {
-        console.error('Ingest error:', error);
-        const msg = (error as any)?.message || (error as any)?.error || 'Falha ao chamar função de ingestão';
-        toast({
-          title: 'Erro no teste de ingestão',
-          description: msg,
-          variant: 'destructive',
-        });
-        return;
+      console.log('Response status:', response.status);
+      const data = await response.json();
+      console.log('Response data:', data);
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${data.error || 'Unknown error'}`);
       }
 
       if (data?.ok) {
@@ -286,7 +295,7 @@ export function GoogleAdsIntegrationCard() {
         await checkStatus(); // Refresh status
       } else {
         toast({
-          title: 'Erro no teste de ingestão',
+          title: 'Erro no teste de ingestão', 
           description: data?.error || 'Erro desconhecido na ingestão',
           variant: 'destructive',
         });
