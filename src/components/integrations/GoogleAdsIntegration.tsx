@@ -114,11 +114,8 @@ export function GoogleAdsIntegration() {
           description: "Abrindo Google para autenticação...",
         });
         const url = data.auth_url as string;
-        if (window.top) {
-          window.top.location.assign(url);
-        } else {
-          window.location.assign(url);
-        }
+        // Use current window redirect to avoid cross-origin frame issues
+        window.location.assign(url);
       }
 
     } catch (error) {
