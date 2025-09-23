@@ -14,6 +14,59 @@ export type Database = {
   }
   public: {
     Tables: {
+      accounts_map: {
+        Row: {
+          account_name: string | null
+          account_type: string | null
+          client_id: string
+          company_id: string | null
+          created_at: string
+          currency_code: string | null
+          customer_id: string
+          id: string
+          is_manager: boolean | null
+          status: string
+          time_zone: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_name?: string | null
+          account_type?: string | null
+          client_id: string
+          company_id?: string | null
+          created_at?: string
+          currency_code?: string | null
+          customer_id: string
+          id?: string
+          is_manager?: boolean | null
+          status?: string
+          time_zone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_name?: string | null
+          account_type?: string | null
+          client_id?: string
+          company_id?: string | null
+          created_at?: string
+          currency_code?: string | null
+          customer_id?: string
+          id?: string
+          is_manager?: boolean | null
+          status?: string
+          time_zone?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounts_map_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       alerts: {
         Row: {
           action_url: string | null
@@ -404,6 +457,92 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      google_ads_ingestions: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          customer_id: string
+          end_date: string
+          error_message: string | null
+          id: string
+          records_processed: number | null
+          start_date: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          customer_id: string
+          end_date: string
+          error_message?: string | null
+          id?: string
+          records_processed?: number | null
+          start_date: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          customer_id?: string
+          end_date?: string
+          error_message?: string | null
+          id?: string
+          records_processed?: number | null
+          start_date?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      google_tokens: {
+        Row: {
+          access_token: string
+          company_id: string | null
+          created_at: string
+          customer_id: string | null
+          id: string
+          login_customer_id: string | null
+          refresh_token: string
+          token_expiry: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token: string
+          company_id?: string | null
+          created_at?: string
+          customer_id?: string | null
+          id?: string
+          login_customer_id?: string | null
+          refresh_token: string
+          token_expiry: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string
+          company_id?: string | null
+          created_at?: string
+          customer_id?: string | null
+          id?: string
+          login_customer_id?: string | null
+          refresh_token?: string
+          token_expiry?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "google_tokens_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       lead_activities: {
         Row: {
