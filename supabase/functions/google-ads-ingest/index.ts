@@ -110,7 +110,20 @@ async function runGoogleAdsQuery(accessToken: string, customerId: string, query:
     'Content-Type': 'application/json',
     'Accept': 'application/json',
   };
-  if (loginCustomerId) headers['login-customer-id'] = loginCustomerId.replace(/-/g, '');
+  
+  // CRITICAL: Always include login-customer-id for client accounts
+  if (loginCustomerId) {
+    const sanitizedMccId = loginCustomerId.replace(/-/g, '');
+    headers['login-customer-id'] = sanitizedMccId;
+    log(`Using login-customer-id: ${sanitizedMccId} for target customer: ${cleanCustomerId}`);
+  } else {
+    log(`WARNING: No login-customer-id provided for customer: ${cleanCustomerId}`);
+  }
+  
+  // Log headers for debugging (without exposing access token)
+  const logHeaders = { ...headers };
+  logHeaders.Authorization = 'Bearer [REDACTED]';
+  log(`Google Ads API request headers:`, logHeaders);
 
   // Try first URL, fallback to second if 404
   let response = await fetch(baseA, { method: 'POST', headers, body: JSON.stringify({ query }) });
@@ -258,7 +271,7 @@ serve(async (req) => {
       const accessToken = await getValidAccessToken(user_id, company_id);
       log('Access token obtained');
 
-      // Optionally get login_customer_id (for MCC manager accounts)
+      // Get login_customer_id (REQUIRED for MCC manager accounts)
       const { data: tokenRows } = await supabase
         .from('google_tokens')
         .select('login_customer_id')
@@ -266,6 +279,13 @@ serve(async (req) => {
         .order('created_at', { ascending: false })
         .limit(1);
       const loginCustomerId = tokenRows?.[0]?.login_customer_id || undefined;
+      
+      // Validate that login_customer_id is available
+      if (!loginCustomerId) {
+        throw new Error('MCC inválido para esta conta. Execute a sincronização primeiro para detectar o MCC correto.');
+      }
+      
+      log(`Using MCC login-customer-id: ${loginCustomerId} for target customer: ${customer_id}`);
 
       // Build Google Ads query with more debug info
       const query = `

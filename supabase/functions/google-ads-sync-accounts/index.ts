@@ -84,11 +84,17 @@ async function getAccountDetails(access_token: string, customerIds: string[], lo
   };
   
   if (loginCustomerId) {
-    baseHeaders['login-customer-id'] = loginCustomerId.replace(/-/g, '');
-    log(`Using login-customer-id: ${loginCustomerId}`);
+    const sanitizedMccId = loginCustomerId.replace(/-/g, '');
+    baseHeaders['login-customer-id'] = sanitizedMccId;
+    log(`Using login-customer-id: ${sanitizedMccId}`);
   } else {
     log('WARNING: No login-customer-id provided - account names may be generic');
   }
+  
+  // Log headers for debugging (without exposing access token)
+  const logHeaders = { ...baseHeaders };
+  logHeaders.Authorization = 'Bearer [REDACTED]';
+  log(`Account details request headers:`, logHeaders);
   
   for (const customerId of customerIds) {
     try {
