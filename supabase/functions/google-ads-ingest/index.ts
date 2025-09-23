@@ -101,10 +101,9 @@ async function getValidAccessToken(userId: string, companyId?: string): Promise<
 // Run Google Ads query
 async function runGoogleAdsQuery(accessToken: string, customerId: string, query: string, loginCustomerId?: string): Promise<MetricData[]> {
   const cleanCustomerId = customerId.replace(/-/g, '');
-  const url = `https://googleads.googleapis.com/v17/customers/${cleanCustomerId}/googleAds:searchStream`;
-  
-  log('Making Google Ads API request', { customerId: cleanCustomerId, url, hasLoginId: !!loginCustomerId });
-  
+  const baseA = `https://googleads.googleapis.com/v21/customers/${cleanCustomerId}/googleAds:searchStream`;
+  const baseB = `https://googleads.googleapis.com/googleads/v21/customers/${cleanCustomerId}/googleAds:searchStream`;
+
   const headers: Record<string, string> = {
     'Authorization': `Bearer ${accessToken}`,
     'developer-token': GOOGLE_ADS_DEVELOPER_TOKEN,
@@ -112,12 +111,13 @@ async function runGoogleAdsQuery(accessToken: string, customerId: string, query:
     'Accept': 'application/json',
   };
   if (loginCustomerId) headers['login-customer-id'] = loginCustomerId.replace(/-/g, '');
-  
-  const response = await fetch(url, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({ query })
-  });
+
+  // Try first URL, fallback to second if 404
+  let response = await fetch(baseA, { method: 'POST', headers, body: JSON.stringify({ query }) });
+  if (response.status === 404) {
+    log('searchStream 404 on baseA, trying baseB');
+    response = await fetch(baseB, { method: 'POST', headers, body: JSON.stringify({ query }) });
+  }
 
   log('Google Ads API response status:', response.status);
 
