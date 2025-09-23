@@ -21,3 +21,6 @@ verify_jwt = false
 
 [functions.google-ads-ingest]
 verify_jwt = false
+
+[functions.google-ads-diag]
+verify_jwt = false

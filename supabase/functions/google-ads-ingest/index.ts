@@ -25,6 +25,67 @@ interface MetricData {
   conversions: number;
 }
 
+// Diagnostic logging function
+function logDiagnostics(targetCustomerId: string, loginCustomerId?: string, accessToken?: string) {
+  const diagnostics = {
+    targetCustomerId: targetCustomerId,
+    loginCustomerIdMasked: loginCustomerId ? `***${loginCustomerId.slice(-4)}` : 'MISSING',
+    hasBearer: !!accessToken,
+    hasDevToken: !!GOOGLE_ADS_DEVELOPER_TOKEN,
+    endpoint: 'googleAds:searchStream'
+  };
+  log('API Call Diagnostics:', diagnostics);
+  
+  if (!loginCustomerId) {
+    throw new Error('Falta login-customer-id (MCC). Faça a sincronização de contas.');
+  }
+}
+
+// Resolve MCC for target customer
+async function resolveMccForChild(accessToken: string, targetCustomerId: string, candidateMccs: string[]): Promise<string> {
+  log(`Resolving MCC for child customer: ${targetCustomerId}`);
+  
+  for (const mccId of candidateMccs) {
+    try {
+      const sanitizedMcc = mccId.replace(/-/g, '');
+      const query = `
+        SELECT 
+          customer_client.id,
+          customer_client.manager
+        FROM customer_client 
+        WHERE customer_client.id = ${targetCustomerId}
+      `;
+      
+      const headers = {
+        'Authorization': `Bearer ${accessToken}`,
+        'developer-token': GOOGLE_ADS_DEVELOPER_TOKEN,
+        'login-customer-id': sanitizedMcc,
+        'Content-Type': 'application/json',
+      };
+      
+      const response = await fetch(`https://googleads.googleapis.com/v21/customers/${sanitizedMcc}/googleAds:searchStream`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ query })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.results && data.results.length > 0) {
+          log(`MCC ${sanitizedMcc} manages customer ${targetCustomerId}`);
+          return sanitizedMcc;
+        }
+      }
+    } catch (error) {
+      log(`MCC ${mccId} test failed:`, error);
+    }
+  }
+  
+  const testedMccs = candidateMccs.map(mcc => `***${mcc.slice(-4)}`);
+  log(`No valid MCC found for customer ${targetCustomerId}. Tested:`, testedMccs);
+  throw new Error(`Seu MCC atual não gerencia a conta ${targetCustomerId}. Refaça a sincronização ou conecte o MCC correto.`);
+}
+
 // Get valid access token (refresh if needed)
 async function getValidAccessToken(userId: string, companyId?: string): Promise<string> {
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
@@ -98,9 +159,28 @@ async function getValidAccessToken(userId: string, companyId?: string): Promise<
   return newAccessToken;
 }
 
-// Run Google Ads query
+// Run Google Ads query with robust MCC resolution
 async function runGoogleAdsQuery(accessToken: string, customerId: string, query: string, loginCustomerId?: string): Promise<MetricData[]> {
   const cleanCustomerId = customerId.replace(/-/g, '');
+  
+  // Mandatory diagnostics before API call
+  logDiagnostics(cleanCustomerId, loginCustomerId, accessToken);
+  
+  // Get candidate MCCs for resolution
+  const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
+  const { data: accountsData } = await supabase
+    .from('accounts_map')
+    .select('customer_id')
+    .eq('is_manager', true);
+  
+  const candidateMccs = [
+    ...(loginCustomerId ? [loginCustomerId] : []),
+    ...(accountsData?.map(acc => acc.customer_id) || [])
+  ];
+  
+  // Resolve the correct MCC for this customer
+  const resolvedMcc = await resolveMccForChild(accessToken, cleanCustomerId, candidateMccs);
+  
   const baseA = `https://googleads.googleapis.com/v21/customers/${cleanCustomerId}/googleAds:searchStream`;
   const baseB = `https://googleads.googleapis.com/googleads/v21/customers/${cleanCustomerId}/googleAds:searchStream`;
 
@@ -109,21 +189,18 @@ async function runGoogleAdsQuery(accessToken: string, customerId: string, query:
     'developer-token': GOOGLE_ADS_DEVELOPER_TOKEN,
     'Content-Type': 'application/json',
     'Accept': 'application/json',
+    'login-customer-id': resolvedMcc
   };
   
-  // CRITICAL: Always include login-customer-id for client accounts
-  if (loginCustomerId) {
-    const sanitizedMccId = loginCustomerId.replace(/-/g, '');
-    headers['login-customer-id'] = sanitizedMccId;
-    log(`Using login-customer-id: ${sanitizedMccId} for target customer: ${cleanCustomerId}`);
-  } else {
-    log(`WARNING: No login-customer-id provided for customer: ${cleanCustomerId}`);
-  }
-  
-  // Log headers for debugging (without exposing access token)
+  // Log final request details (masking sensitive data)
   const logHeaders = { ...headers };
   logHeaders.Authorization = 'Bearer [REDACTED]';
-  log(`Google Ads API request headers:`, logHeaders);
+  log(`Final API request:`, {
+    endpoint: 'searchStream',
+    targetCustomer: cleanCustomerId,
+    resolvedMcc: `***${resolvedMcc.slice(-4)}`,
+    headers: logHeaders
+  });
 
   // Try first URL, fallback to second if 404
   let response = await fetch(baseA, { method: 'POST', headers, body: JSON.stringify({ query }) });
@@ -137,6 +214,12 @@ async function runGoogleAdsQuery(accessToken: string, customerId: string, query:
   if (!response.ok) {
     const errorText = await response.text();
     log('Google Ads API error:', response.status, errorText);
+    
+    // Enhanced error messaging for common issues
+    if (response.status === 403 && errorText.includes('USER_PERMISSION_DENIED')) {
+      throw new Error(`Acesso negado à conta ${cleanCustomerId}. Verifique se o MCC ${resolvedMcc} gerencia esta conta e se o developer token está aprovado.`);
+    }
+    
     throw new Error(`Google Ads API error: ${response.status} - ${errorText}`);
   }
 
@@ -164,40 +247,39 @@ async function runGoogleAdsQuery(accessToken: string, customerId: string, query:
     }
   }
 
-  log(`Processed ${metrics.length} metric records`);
+  log(`Successfully processed ${metrics.length} metric records`);
   return metrics;
 }
 
 
-// Send metrics to ingest endpoint
+// Send metrics to ingest endpoint with mandatory API key
 async function sendToIngestEndpoint(metrics: MetricData[], customerId: string): Promise<any> {
   const METRICUS_INGEST_KEY = Deno.env.get("METRICUS_INGEST_KEY");
   
   if (!METRICUS_INGEST_KEY) {
-    log('ERROR: METRICUS_INGEST_KEY not found in environment variables');
-    throw new Error('Missing METRICUS_INGEST_KEY - configure this secret in Supabase Functions settings');
+    const errorMsg = 'Chave interna ausente/inválida (x-api-key). Configure METRICUS_INGEST_KEY nas Functions.';
+    log('ERROR:', errorMsg);
+    throw new Error(errorMsg);
   }
   
   // Transform metrics for our schema
   const transformedMetrics = metrics.map(metric => ({
     date: metric.date,
-    client_id: customerId, // We'll need to map this properly
+    client_id: customerId,
     platform: 'google_ads',
     campaign_id: metric.campaign_id,
     impressions: metric.impressions,
     clicks: metric.clicks,
     spend: metric.cost,
     conversions: metric.conversions,
-    leads: metric.conversions, // Assuming conversions = leads
-    // Calculate derived metrics
+    leads: metric.conversions,
     cpa: metric.conversions > 0 ? metric.cost / metric.conversions : null,
     ctr: metric.impressions > 0 ? (metric.clicks / metric.impressions) * 100 : null,
     conv_rate: metric.clicks > 0 ? (metric.conversions / metric.clicks) * 100 : null,
   }));
 
-  log(`Sending ${transformedMetrics.length} metrics to ingest-metrics with API key`);
+  log(`Sending ${transformedMetrics.length} metrics to ingest-metrics with x-api-key`);
 
-  // Call ingest-metrics with proper authentication
   const ingestUrl = `${SUPABASE_URL}/functions/v1/ingest-metrics`;
   const response = await fetch(ingestUrl, {
     method: 'POST',
@@ -211,7 +293,12 @@ async function sendToIngestEndpoint(metrics: MetricData[], customerId: string): 
   if (!response.ok) {
     const errorText = await response.text();
     log('Ingest endpoint error:', response.status, errorText);
-    throw new Error(`Ingest error: Edge Function returned a non-2xx status code`);
+    
+    if (response.status === 401) {
+      throw new Error('Chave interna ausente/inválida (x-api-key). Configure METRICUS_INGEST_KEY nas Functions.');
+    }
+    
+    throw new Error(`Ingest error: ${response.status} - ${errorText}`);
   }
 
   const data = await response.json();
@@ -271,7 +358,7 @@ serve(async (req) => {
       const accessToken = await getValidAccessToken(user_id, company_id);
       log('Access token obtained');
 
-      // Get login_customer_id (REQUIRED for MCC manager accounts)
+      // Get login_customer_id (will be resolved automatically if missing)
       const { data: tokenRows } = await supabase
         .from('google_tokens')
         .select('login_customer_id')
@@ -280,12 +367,7 @@ serve(async (req) => {
         .limit(1);
       const loginCustomerId = tokenRows?.[0]?.login_customer_id || undefined;
       
-      // Validate that login_customer_id is available
-      if (!loginCustomerId) {
-        throw new Error('MCC inválido para esta conta. Execute a sincronização primeiro para detectar o MCC correto.');
-      }
-      
-      log(`Using MCC login-customer-id: ${loginCustomerId} for target customer: ${customer_id}`);
+      log(`Initial login-customer-id: ${loginCustomerId ? `***${loginCustomerId.slice(-4)}` : 'not set, will auto-resolve'}`);
 
       // Build Google Ads query with more debug info
       const query = `
@@ -303,19 +385,22 @@ serve(async (req) => {
         ORDER BY segments.date DESC
       `;
 
-      // Run query
+      // Run query with automatic MCC resolution
       const metrics = await runGoogleAdsQuery(accessToken, customer_id, query, loginCustomerId);
-      log(`Query executed. Total results: ${metrics.length}`);
+      log(`Query executed successfully. Total results: ${metrics.length}`);
       
-      // Log some details about what we found
+      // Log insights about the results
       if (metrics.length === 0) {
-        log('No metrics found. This could mean:');
+        log('No metrics found. Possible reasons:');
         log('- No campaigns in the account');
         log('- No campaigns with data in the date range');
-        log('- Account has no activity in the last 7 days');
+        log('- Account has no activity in the specified period');
       } else {
         const campaigns = [...new Set(metrics.map(m => m.campaign_name))];
-        log(`Found data for ${campaigns.length} campaigns: ${campaigns.slice(0, 3).join(', ')}${campaigns.length > 3 ? '...' : ''}`);
+        const totalSpend = metrics.reduce((sum, m) => sum + m.cost, 0);
+        const totalClicks = metrics.reduce((sum, m) => sum + m.clicks, 0);
+        log(`Found data for ${campaigns.length} campaigns. Total spend: $${totalSpend.toFixed(2)}, Total clicks: ${totalClicks}`);
+        log(`Sample campaigns: ${campaigns.slice(0, 3).join(', ')}${campaigns.length > 3 ? '...' : ''}`);
       }
 
       // Send to ingest endpoint if we have data
