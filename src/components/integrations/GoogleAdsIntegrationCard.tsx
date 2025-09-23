@@ -51,11 +51,12 @@ export function GoogleAdsIntegrationCard() {
         .order('created_at', { ascending: false })
         .limit(1);
 
-      // Check accounts
-      const { data: accountsData } = await supabase
-        .from('accounts_map')
-        .select('*')
-        .order('created_at', { ascending: false });
+      // Check accounts (use Edge Function to avoid RLS masking)
+      const functionsHost = "https://zoahzxfjefjmkxylbfxf.functions.supabase.co";
+      const accRes = await fetch(`${functionsHost}/google-ads-accounts`);
+      const accJson = await accRes.json();
+      const accountsRows = accRes.ok && accJson.ok ? (accJson.rows || []) : [];
+
 
       // Check last ingest
       const { data: ingests } = await supabase
@@ -69,7 +70,7 @@ export function GoogleAdsIntegrationCard() {
       setStatus({
         hasTokens: tokens && tokens.length > 0,
         lastLogin: tokens?.[0]?.created_at || null,
-        accountsCount: accountsData?.length || 0,
+        accountsCount: accountsRows?.length || 0,
         lastIngest: ingests?.[0]?.completed_at || null
       });
 
@@ -231,27 +232,28 @@ export function GoogleAdsIntegrationCard() {
         return;
       }
 
-      // Pick first ENABLED non-manager account from accounts_map
-      const { data: accounts, error: accErr } = await supabase
-        .from('accounts_map')
-        .select('customer_id, account_name, status, is_manager')
-        .order('account_name', { ascending: true });
+      // Load accounts via Edge Function (service role) to avoid RLS filtering
+      const functionsHost = "https://zoahzxfjefjmkxylbfxf.functions.supabase.co";
+      const res = await fetch(`${functionsHost}/google-ads-accounts`);
+      const json = await res.json();
+      if (!res.ok || !json.ok) throw new Error(json.error || 'Falha ao obter contas');
+      const rows: Array<{ customer_id: string; account_name?: string | null; status?: string | null; is_manager?: boolean | null; }> = json.rows || [];
 
-      if (accErr) throw accErr;
+      const normalize = (s?: string | null) => (s || '').toUpperCase();
+      const activeRows = rows.filter(a => !a.is_manager && ['ENABLED','ACTIVE'].includes(normalize(a.status)));
 
-      const enabled = (accounts || []).filter(a => (a.status || '').toUpperCase() === 'ENABLED' && !a.is_manager);
-      if (!enabled.length) {
+      if (!activeRows.length) {
         toast({
           title: 'Nenhuma conta ativa',
-          description: 'Nenhuma conta ENABLED encontrada. Sincronize e selecione uma conta ativa.',
+          description: 'Não encontramos contas ENABLED/ACTIVE. Sincronize novamente ou verifique o status no Google Ads.',
           variant: 'destructive',
         });
         return;
       }
 
-      const customerId = enabled[0].customer_id;
+      const customerId = activeRows[0].customer_id;
       const startDate = new Date();
-      startDate.setDate(startDate.getDate() - 7);
+      startDate.setDate(startDate.getDate() - 7); // últimos 7 dias
       const endDate = new Date();
 
       toast({

@@ -52,7 +52,8 @@ export function ClientGoogleAdsLinker({ clientId }: Props) {
   useEffect(() => { load(); }, [clientId]);
 
   const options = useMemo(() => {
-    const filtered = accounts.filter(a => (a.status || '').toUpperCase() === 'ENABLED');
+    const normalize = (s?: string | null) => (s || '').toUpperCase();
+    const filtered = accounts.filter(a => ['ENABLED','ACTIVE'].includes(normalize(a.status)) && !a.is_manager);
     return filtered.sort((a, b) => (a.account_name || '').localeCompare(b.account_name || ''));
   }, [accounts]);
 
