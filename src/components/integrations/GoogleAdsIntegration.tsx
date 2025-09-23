@@ -88,6 +88,7 @@ export function GoogleAdsIntegration() {
 
   // Connect to Google Ads
   const handleConnect = async () => {
+    console.log('🔄 Iniciando conexão Google Ads...');
     setIsConnecting(true);
 
     try {
@@ -95,6 +96,7 @@ export function GoogleAdsIntegration() {
       if (!user) {
         throw new Error('User not authenticated');
       }
+      console.log('✅ Usuário autenticado:', user.email);
 
       // Build the direct function URL with start action
       const functionUrl = `https://zoahzxfjefjmkxylbfxf.functions.supabase.co/google-oauth`;
@@ -105,11 +107,23 @@ export function GoogleAdsIntegration() {
       });
 
       const startUrl = `${functionUrl}?${params.toString()}`;
+      console.log('🔗 URL gerada:', startUrl);
       setFallbackUrl(startUrl);
 
+      // Test connection to edge function first
+      console.log('🧪 Testando conexão com edge function...');
+      try {
+        const testResponse = await fetch(startUrl, { method: 'HEAD' });
+        console.log('📊 Status da edge function:', testResponse.status);
+      } catch (testError) {
+        console.error('❌ Erro testando edge function:', testError);
+      }
+
       // Open popup directly to our function (which 302 redirects to Google)
+      console.log('🪟 Abrindo popup...');
       const popup = window.open(startUrl, '_blank', 'width=500,height=600,scrollbars=yes,resizable=yes');
       if (!popup) {
+        console.error('❌ Popup bloqueado');
         toast({
           title: 'Pop-up bloqueado',
           description: 'Permita pop-ups ou use o link "Abrir manualmente" abaixo.',
@@ -126,12 +140,13 @@ export function GoogleAdsIntegration() {
         if (popup.closed) {
           clearInterval(checkClosed);
           setIsConnecting(false);
+          console.log('🔄 Popup fechado, atualizando status...');
           checkStatus();
         }
       }, 1000);
 
     } catch (error: any) {
-      console.error('Error connecting to Google Ads:', error);
+      console.error('❌ Erro na conexão:', error);
       toast({
         title: 'Erro',
         description: error.message || 'Erro ao conectar com Google Ads',
@@ -309,6 +324,44 @@ export function GoogleAdsIntegration() {
               <br />• <code>GOOGLE_ADS_CLIENT_ID</code>
               <br />• <code>GOOGLE_ADS_CLIENT_SECRET</code>
             </p>
+          </div>
+          
+          {/* Debug Section */}
+          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <h4 className="font-medium text-sm mb-2">🔧 Diagnóstico</h4>
+            <div className="space-y-2">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={async () => {
+                  console.log('🧪 Testando edge function diretamente...');
+                  const testUrl = 'https://zoahzxfjefjmkxylbfxf.functions.supabase.co/google-oauth';
+                  try {
+                    const response = await fetch(testUrl, { method: 'GET' });
+                    console.log('📊 Status:', response.status);
+                    console.log('📋 Headers:', Object.fromEntries(response.headers.entries()));
+                    const text = await response.text();
+                    console.log('📄 Response:', text);
+                    toast({
+                      title: 'Teste concluído',
+                      description: `Status: ${response.status}. Veja o console para detalhes.`
+                    });
+                  } catch (error) {
+                    console.error('❌ Erro no teste:', error);
+                    toast({
+                      title: 'Erro no teste',
+                      description: error.message,
+                      variant: 'destructive'
+                    });
+                  }
+                }}
+              >
+                Testar Edge Function
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                Abra o console do navegador (F12) para ver os logs detalhados
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>
