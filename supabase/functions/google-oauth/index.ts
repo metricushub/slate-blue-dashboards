@@ -20,11 +20,45 @@ serve(async (req) => {
   try {
     const url = new URL(req.url);
 
-    // 1) Handle Google redirect (GET with code & state)
+    // 1) Handle GET requests
     if (req.method === 'GET') {
       const code = url.searchParams.get('code');
       const rawState = url.searchParams.get('state');
+      const action = url.searchParams.get('action');
 
+      // Handle ?action=start - create auth URL and redirect to Google
+      if (action === 'start') {
+        const user_id = url.searchParams.get('user_id');
+        const company_id = url.searchParams.get('company_id');
+        const return_to = url.searchParams.get('return_to');
+
+        console.log('GET start action - creating auth URL for redirect');
+
+        const CLIENT_ID = Deno.env.get('GOOGLE_ADS_CLIENT_ID');
+        const redirectUri = `${Deno.env.get('SUPABASE_URL')}/functions/v1/google-oauth`;
+
+        const scopes = [
+          'https://www.googleapis.com/auth/adwords',
+          'https://www.googleapis.com/auth/userinfo.profile',
+          'https://www.googleapis.com/auth/userinfo.email'
+        ].join(' ');
+
+        const stateParam = JSON.stringify({ user_id, company_id, return_to });
+
+        const authUrl = `https://accounts.google.com/o/oauth2/auth?`
+          + `client_id=${CLIENT_ID}&`
+          + `redirect_uri=${encodeURIComponent(redirectUri)}&`
+          + `scope=${encodeURIComponent(scopes)}&`
+          + `response_type=code&`
+          + `access_type=offline&`
+          + `prompt=consent&`
+          + `state=${encodeURIComponent(stateParam)}`;
+
+        console.log('Redirecting to Google OAuth with 302');
+        return Response.redirect(authUrl, 302);
+      }
+
+      // Handle Google redirect (GET with code & state)
       if (!code) {
         return new Response(JSON.stringify({ error: 'Missing authorization code' }), {
           status: 400,

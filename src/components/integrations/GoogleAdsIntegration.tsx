@@ -109,33 +109,35 @@ export function GoogleAdsIntegration() {
         throw new Error('User not authenticated');
       }
 
-      // Call OAuth function to get auth URL
-      const returnTo = window.location.href;
-      const { data, error } = await supabase.functions.invoke('google-oauth', {
-        body: {
-          action: 'get_auth_url',
-          user_id: user.id,
-          company_id: null, // For now, not linking to specific company
-          return_to: returnTo,
-        }
+      console.log('Opening Google OAuth via direct function endpoint...');
+      
+      // Build the direct function URL with start action
+      const functionUrl = `https://zoahzxfjefjmkxylbfxf.supabase.co/functions/v1/google-oauth`;
+      const params = new URLSearchParams({
+        action: 'start',
+        user_id: user.id,
+        return_to: window.location.href
       });
+      
+      const startUrl = `${functionUrl}?${params.toString()}`;
+      
+      toast({
+        title: "Redirecionando",
+        description: "Abrindo Google para autenticação...",
+      });
+      
+      // Redirect the already opened popup to the start endpoint
+      // This will trigger a 302 redirect to Google OAuth
+      popup.location.href = startUrl;
 
-      if (error) {
-        popup.close();
-        throw error;
-      }
-
-      if (data?.auth_url) {
-        toast({
-          title: "Redirecionando",
-          description: "Abrindo Google para autenticação...",
-        });
-        const url = data.auth_url as string;
-        // Redirect the already opened popup to Google auth
-        popup.location.href = url;
-      } else {
-        popup.close();
-      }
+      // Listen for popup close to refresh status
+      const checkClosed = setInterval(() => {
+        if (popup.closed) {
+          clearInterval(checkClosed);
+          setIsConnecting(false);
+          checkStatus(); // Refresh status when popup closes
+        }
+      }, 1000);
 
     } catch (error) {
       console.error('Error connecting to Google Ads:', error);
