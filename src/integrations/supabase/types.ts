@@ -458,6 +458,51 @@ export type Database = {
         }
         Relationships: []
       }
+      google_ads_connections: {
+        Row: {
+          created_at: string | null
+          customer_id: string
+          id: string
+        }
+        Insert: {
+          created_at?: string | null
+          customer_id: string
+          id?: string
+        }
+        Update: {
+          created_at?: string | null
+          customer_id?: string
+          id?: string
+        }
+        Relationships: []
+      }
+      google_ads_credentials: {
+        Row: {
+          access_token: string | null
+          created_at: string | null
+          id: string
+          refresh_token: string
+          token_expiry: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          access_token?: string | null
+          created_at?: string | null
+          id?: string
+          refresh_token: string
+          token_expiry?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          access_token?: string | null
+          created_at?: string | null
+          id?: string
+          refresh_token?: string
+          token_expiry?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       google_ads_ingestions: {
         Row: {
           completed_at: string | null
