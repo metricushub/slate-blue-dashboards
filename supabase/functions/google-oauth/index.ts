@@ -12,16 +12,26 @@ const REDIRECT_URI  = Deno.env.get("GOOGLE_OAUTH_REDIRECT_URI")!;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
 // util: log seguro
 function log(...args: any[]) {
   console.log("[google-oauth]", ...args);
 }
 
 // Save tokens to database
-async function saveTokensToDatabase(tokens: any, userId?: string) {
+async function saveTokensToDatabase(tokens: any, userId: string) {
   if (!SUPABASE_URL || !SERVICE_KEY) {
     log("Missing Supabase config, cannot save tokens");
-    return;
+    return { success: false, error: "Missing Supabase config" };
+  }
+
+  if (!userId) {
+    log("Missing userId, cannot save tokens");
+    return { success: false, error: "Missing userId" };
   }
 
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
@@ -31,7 +41,7 @@ async function saveTokensToDatabase(tokens: any, userId?: string) {
   expiryTime.setSeconds(expiryTime.getSeconds() + (tokens.expires_in || 3600));
 
   const tokenData = {
-    user_id: userId || crypto.randomUUID(), // Fallback to random UUID if no user provided
+    user_id: userId,
     access_token: tokens.access_token,
     refresh_token: tokens.refresh_token,
     token_expiry: expiryTime.toISOString(),
@@ -49,8 +59,10 @@ async function saveTokensToDatabase(tokens: any, userId?: string) {
 
   if (error) {
     log("Error saving tokens:", error);
+    return { success: false, error: error.message };
   } else {
     log("Tokens saved successfully for user:", userId);
+    return { success: true };
   }
 }
 
@@ -76,41 +88,137 @@ async function exchangeCodeForTokens(code: string, state?: string) {
 
   if (!r.ok) {
     log("token error", r.status, json);
-    return new Response(
-      JSON.stringify({ ok: false, stage: "token", status: r.status, error: json }),
-      { status: 400, headers: { "Content-Type": "application/json" } },
-    );
+    const errorHtml = `
+      <!DOCTYPE html>
+      <html>
+        <head><title>Erro na Conexão</title></head>
+        <body>
+          <h2>Erro na autenticação</h2>
+          <p>Não foi possível conectar ao Google Ads. Você pode fechar esta janela.</p>
+          <script>
+            window.opener?.postMessage({ 
+              source: 'metricus:google_oauth', 
+              ok: false, 
+              error: 'Token exchange failed' 
+            }, '*');
+            setTimeout(() => window.close(), 2000);
+          </script>
+        </body>
+      </html>
+    `;
+    return new Response(errorHtml, { 
+      status: 400, 
+      headers: { "Content-Type": "text/html", ...corsHeaders } 
+    });
   }
 
   log("token ok", { has_access_token: !!json.access_token, has_refresh: !!json.refresh_token });
 
-  // Extract user info from state if available
+  // Extract user info and next URL from state
   let userId: string | undefined;
+  let nextUrl: string | undefined;
   if (state) {
     try {
       const stateData = JSON.parse(atob(state));
       userId = stateData.user_id;
+      nextUrl = stateData.n;
     } catch (e) {
-      log("Could not parse state for user_id:", e);
+      log("Could not parse state:", e);
     }
   }
 
-  // Save tokens to database
-  await saveTokensToDatabase(json, userId);
+  if (!userId) {
+    log("Missing userId in state, cannot save tokens");
+    const errorHtml = `
+      <!DOCTYPE html>
+      <html>
+        <head><title>Erro na Conexão</title></head>
+        <body>
+          <h2>Erro: Usuário não identificado</h2>
+          <p>Não foi possível identificar o usuário. Faça login e tente novamente.</p>
+          <script>
+            window.opener?.postMessage({ 
+              source: 'metricus:google_oauth', 
+              ok: false, 
+              error: 'Missing user ID' 
+            }, '*');
+            setTimeout(() => window.close(), 2000);
+          </script>
+        </body>
+      </html>
+    `;
+    return new Response(errorHtml, { 
+      status: 400, 
+      headers: { "Content-Type": "text/html", ...corsHeaders } 
+    });
+  }
 
-  return new Response(
-    JSON.stringify({ ok: true, tokens: {
-      access_token: json.access_token ? "[saved]" : null,
-      refresh_token: json.refresh_token ? "[saved]" : null,
-      expires_in: json.expires_in ?? null,
-      scope: json.scope ?? null,
-      token_type: json.token_type ?? null,
-    }}),
-    { status: 200, headers: { "Content-Type": "application/json" } },
-  );
+  // Save tokens to database
+  const saveResult = await saveTokensToDatabase(json, userId);
+  
+  if (!saveResult.success) {
+    log("Failed to save tokens:", saveResult.error);
+    const errorHtml = `
+      <!DOCTYPE html>
+      <html>
+        <head><title>Erro ao Salvar</title></head>
+        <body>
+          <h2>Erro ao salvar credenciais</h2>
+          <p>Não foi possível salvar as credenciais. Tente novamente.</p>
+          <script>
+            window.opener?.postMessage({ 
+              source: 'metricus:google_oauth', 
+              ok: false, 
+              error: 'Failed to save tokens' 
+            }, '*');
+            setTimeout(() => window.close(), 2000);
+          </script>
+        </body>
+      </html>
+    `;
+    return new Response(errorHtml, { 
+      status: 500, 
+      headers: { "Content-Type": "text/html", ...corsHeaders } 
+    });
+  }
+
+  // Success! Return HTML that notifies the parent and closes the popup
+  const successHtml = `
+    <!DOCTYPE html>
+    <html>
+      <head><title>Conectado com Sucesso</title></head>
+      <body>
+        <h2>✅ Conectado com sucesso!</h2>
+        <p>Sua conta Google Ads foi conectada. Esta janela será fechada automaticamente.</p>
+        <script>
+          // Notify the parent window
+          window.opener?.postMessage({ 
+            source: 'metricus:google_oauth', 
+            ok: true 
+          }, '*');
+          
+          // Redirect parent if needed
+          ${nextUrl ? `window.opener?.location.assign('${nextUrl}');` : ''}
+          
+          // Close this popup
+          setTimeout(() => window.close(), 500);
+        </script>
+      </body>
+    </html>
+  `;
+
+  return new Response(successHtml, { 
+    status: 200, 
+    headers: { "Content-Type": "text/html", ...corsHeaders } 
+  });
 }
 
 serve(async (req) => {
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
   const url = new URL(req.url);
   const path = url.pathname; // e.g. /google-oauth, /google-oauth/start, /google-oauth/callback
   const qp = Object.fromEntries(url.searchParams.entries());
@@ -148,17 +256,53 @@ serve(async (req) => {
 
     if (error) {
       log("callback error from Google", error);
-      return new Response(
-        JSON.stringify({ ok: false, stage: "callback", error }),
-        { status: 400, headers: { "Content-Type": "application/json" } },
-      );
+      const errorHtml = `
+        <!DOCTYPE html>
+        <html>
+          <head><title>Erro na Autenticação</title></head>
+          <body>
+            <h2>Erro na autenticação</h2>
+            <p>Erro do Google: ${error}</p>
+            <script>
+              window.opener?.postMessage({ 
+                source: 'metricus:google_oauth', 
+                ok: false, 
+                error: '${error}' 
+              }, '*');
+              setTimeout(() => window.close(), 2000);
+            </script>
+          </body>
+        </html>
+      `;
+      return new Response(errorHtml, { 
+        status: 400, 
+        headers: { "Content-Type": "text/html", ...corsHeaders } 
+      });
     }
     if (!code) {
       log("callback missing code");
-      return new Response(
-        JSON.stringify({ ok: false, stage: "callback", error: "missing code" }),
-        { status: 400, headers: { "Content-Type": "application/json" } },
-      );
+      const errorHtml = `
+        <!DOCTYPE html>
+        <html>
+          <head><title>Erro na Autenticação</title></head>
+          <body>
+            <h2>Código de autorização ausente</h2>
+            <p>Não foi possível obter o código de autorização do Google.</p>
+            <script>
+              window.opener?.postMessage({ 
+                source: 'metricus:google_oauth', 
+                ok: false, 
+                error: 'missing code' 
+              }, '*');
+              setTimeout(() => window.close(), 2000);
+            </script>
+          </body>
+        </html>
+      `;
+      return new Response(errorHtml, { 
+        status: 400, 
+        headers: { "Content-Type": "text/html", ...corsHeaders } 
+      });
     }
 
     log("callback received code", { hasState: !!state });
@@ -177,6 +321,6 @@ serve(async (req) => {
       },
       redirect_uri_in_use: REDIRECT_URI,
     }),
-    { headers: { "Content-Type": "application/json" } },
+    { headers: { "Content-Type": "application/json", ...corsHeaders } },
   );
 });

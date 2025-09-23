@@ -98,39 +98,93 @@ export function GoogleAdsIntegrationCard() {
       const functionsHost = "https://zoahzxfjefjmkxylbfxf.functions.supabase.co";
       const connectUrl = `${functionsHost}/google-oauth/start?next=/integracoes&user_id=${encodeURIComponent(user.id)}`;
       
+      // Set up message listener before opening popup
+      const onMessage = (event: MessageEvent) => {
+        if (event.data?.source === 'metricus:google_oauth') {
+          if (event.data.ok) {
+            // Success!
+            clearInterval(checkClosed);
+            window.removeEventListener('message', onMessage);
+            
+            if (popup && !popup.closed) {
+              popup.close();
+            }
+            
+            setIsConnecting(false);
+            checkStatus(); // Refresh status
+            
+            toast({
+              title: 'Conectado com sucesso!',
+              description: 'Sua conta Google Ads foi conectada.',
+            });
+          } else {
+            // Error
+            clearInterval(checkClosed);
+            window.removeEventListener('message', onMessage);
+            
+            if (popup && !popup.closed) {
+              popup.close();
+            }
+            
+            setIsConnecting(false);
+            
+            toast({
+              title: 'Erro na conexão',
+              description: event.data.error || 'Falha ao conectar com Google Ads.',
+              variant: 'destructive',
+            });
+          }
+        }
+      };
+      
+      window.addEventListener('message', onMessage);
+      
       const popup = window.open(connectUrl, '_blank', 'width=500,height=600,scrollbars=yes,resizable=yes');
       if (!popup) {
+        window.removeEventListener('message', onMessage);
         toast({
-          title: 'Pop-up bloqueado',
-          description: 'Permita pop-ups para conectar com Google Ads.',
+          title: 'Popup bloqueado',
+          description: 'Por favor, permita popups para este site e tente novamente.',
           variant: 'destructive',
         });
         setIsConnecting(false);
         return;
       }
 
-      toast({ 
-        title: 'Redirecionando', 
-        description: 'Abrindo Google para autenticação...' 
-      });
-
-      // Check when popup is closed
+      // Poll for popup closure as backup
       const checkClosed = setInterval(() => {
         if (popup.closed) {
           clearInterval(checkClosed);
+          window.removeEventListener('message', onMessage);
           setIsConnecting(false);
-          checkStatus(); // Refresh status
+          // Don't show success toast here as it might be an error closure
+          checkStatus(); // Still refresh status
         }
       }, 1000);
 
+      // Set timeout for the popup
+      setTimeout(() => {
+        if (!popup.closed) {
+          popup.close();
+          clearInterval(checkClosed);
+          window.removeEventListener('message', onMessage);
+          setIsConnecting(false);
+          toast({
+            title: 'Tempo esgotado',
+            description: 'A conexão demorou muito para ser concluída.',
+            variant: 'destructive',
+          });
+        }
+      }, 60000); // 1 minute timeout
+
     } catch (error: any) {
-      console.error('Connection error:', error);
+      console.error("Error connecting:", error);
+      setIsConnecting(false);
       toast({
         title: 'Erro',
-        description: 'Erro ao conectar com Google Ads',
+        description: 'Erro ao conectar com Google Ads. Tente novamente.',
         variant: 'destructive',
       });
-      setIsConnecting(false);
     }
   };
 
