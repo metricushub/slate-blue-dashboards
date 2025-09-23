@@ -231,26 +231,27 @@ export function GoogleAdsIntegrationCard() {
         return;
       }
 
-      // Get the first customer_id from google_tokens
-      const { data: tokens } = await supabase
-        .from('google_tokens')
-        .select('customer_id')
-        .eq('user_id', user.id)
-        .not('customer_id', 'is', null)
-        .limit(1);
+      // Pick first ENABLED non-manager account from accounts_map
+      const { data: accounts, error: accErr } = await supabase
+        .from('accounts_map')
+        .select('customer_id, account_name, status, is_manager')
+        .order('account_name', { ascending: true });
 
-      if (!tokens || tokens.length === 0 || !tokens[0].customer_id) {
+      if (accErr) throw accErr;
+
+      const enabled = (accounts || []).filter(a => (a.status || '').toUpperCase() === 'ENABLED' && !a.is_manager);
+      if (!enabled.length) {
         toast({
-          title: 'Erro',
-          description: 'Nenhuma conta Google Ads encontrada. Sincronize primeiro.',
+          title: 'Nenhuma conta ativa',
+          description: 'Nenhuma conta ENABLED encontrada. Sincronize e selecione uma conta ativa.',
           variant: 'destructive',
         });
         return;
       }
 
-      const customerId = tokens[0].customer_id;
+      const customerId = enabled[0].customer_id;
       const startDate = new Date();
-      startDate.setDate(startDate.getDate() - 7); // Last 7 days
+      startDate.setDate(startDate.getDate() - 7);
       const endDate = new Date();
 
       toast({
@@ -304,9 +305,13 @@ export function GoogleAdsIntegrationCard() {
 
     } catch (error: any) {
       console.error('Error testing ingest:', error);
+      const msg = String(error?.message || 'Falha ao testar ingestão de dados');
+      const friendly = msg.includes('CUSTOMER_NOT_ENABLED')
+        ? 'A conta selecionada não está habilitada (ou foi desativada). Escolha outra conta ENABLED em Google Ads e sincronize novamente.'
+        : msg;
       toast({
         title: 'Erro no teste de ingestão',
-        description: error?.message || 'Falha ao testar ingestão de dados',
+        description: friendly,
         variant: 'destructive',
       });
     } finally {

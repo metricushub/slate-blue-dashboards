@@ -52,8 +52,8 @@ export function ClientGoogleAdsLinker({ clientId }: Props) {
   useEffect(() => { load(); }, [clientId]);
 
   const options = useMemo(() => {
-    const sort = [...accounts].sort((a, b) => (a.account_name || "").localeCompare(b.account_name || ""));
-    return sort;
+    const filtered = accounts.filter(a => (a.status || '').toUpperCase() === 'ENABLED');
+    return filtered.sort((a, b) => (a.account_name || '').localeCompare(b.account_name || ''));
   }, [accounts]);
 
   const save = async () => {
