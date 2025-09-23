@@ -127,9 +127,9 @@ async function validateHierarchy(accessToken: string, targetCustomerId: string, 
     'Content-Type': 'application/json',
   };
   
-  log(`[ads-call] { endpoint: "customerClient", targetCustomerId: "${targetCustomerId}", loginCustomerId: "${cleanMcc}", hasBearer: ${!!accessToken}, hasDevToken: ${!!GOOGLE_ADS_DEVELOPER_TOKEN} }`);
+  log(`[ads-call] { endpoint: "customerClient", urlCustomerId: "${cleanMcc}", targetCustomerId: "${targetCustomerId}", loginCustomerId: "${cleanMcc}" }`);
   
-  const response = await fetch(`https://googleads.googleapis.com/v21/customers/${cleanMcc}/googleAds:searchStream`, {
+  const response = await fetch(`https://googleads.googleapis.com/v21/customers/${cleanMcc}/googleAds:search`, {
     method: 'POST',
     headers,
     body: JSON.stringify({ query })
@@ -149,7 +149,7 @@ async function runGoogleAdsQuery(accessToken: string, customerId: string, query:
   const cleanCustomerId = customerId.replace(/-/g, '');
   
   // Mandatory diagnostics before API call
-  log(`[ads-call] { endpoint: "googleAds:searchStream", targetCustomerId: "${cleanCustomerId}", loginCustomerId: "${loginCustomerId}", hasBearer: ${!!accessToken}, hasDevToken: ${!!GOOGLE_ADS_DEVELOPER_TOKEN} }`);
+  log(`[ads-call] { endpoint: "googleAds:searchStream", urlCustomerId: "${cleanCustomerId}", targetCustomerId: "${cleanCustomerId}", loginCustomerId: "${loginCustomerId}" }`);
   
   const headers: Record<string, string> = {
     'Authorization': `Bearer ${accessToken}`,

@@ -210,6 +210,72 @@ serve(async (req) => {
       }
     }
     
+    if (pathParts.includes('hierarchy-check') && req.method === 'GET') {
+      // GET /hierarchy-check?mcc=xxx&child=yyy → check if MCC manages child account
+      const mcc = url.searchParams.get('mcc');
+      const child = url.searchParams.get('child');
+      
+      if (!mcc || !child) {
+        throw new Error('Missing mcc or child parameter');
+      }
+      
+      const sanitizedMcc = mcc.replace(/-/g, '');
+      const sanitizedChild = child.replace(/-/g, '');
+      
+      const accessToken = await getValidAccessToken(user.id);
+      
+      const query = `
+        SELECT customer_client.id, customer_client.descriptive_name, customer_client.manager, customer_client.level 
+        FROM customer_client 
+        WHERE customer_client.id = ${sanitizedChild} 
+        LIMIT 1
+      `;
+      
+      const headers = {
+        'Authorization': `Bearer ${accessToken}`,
+        'developer-token': GOOGLE_ADS_DEVELOPER_TOKEN,
+        'login-customer-id': sanitizedMcc,
+        'Content-Type': 'application/json',
+      };
+      
+      log(`[ads-call] { endpoint: "hierarchy-check", urlCustomerId: "${sanitizedMcc}", targetCustomerId: "${sanitizedChild}", loginCustomerId: "${sanitizedMcc}" }`);
+      
+      const response = await fetch(`https://googleads.googleapis.com/v21/customers/${sanitizedMcc}/googleAds:search`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ query })
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        log(`Hierarchy check failed: ${response.status} - ${errorText}`);
+        return new Response(
+          JSON.stringify({ 
+            ok: true, 
+            managed: false, 
+            error: `API call failed: ${response.status}`,
+            row: null 
+          }),
+          { headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
+      
+      const data = await response.json();
+      const managed = !!(data.results && data.results.length > 0);
+      const row = data.results?.[0] || null;
+      
+      return new Response(
+        JSON.stringify({ 
+          ok: true, 
+          managed,
+          row,
+          mcc: sanitizedMcc,
+          child: sanitizedChild
+        }),
+        { headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+    
     if (pathParts.includes('context') && req.method === 'GET') {
       // GET /context → return diagnostic context
       const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
@@ -280,6 +346,7 @@ serve(async (req) => {
           'GET /force-mcc?customerId=xxx&mcc=yyy - Force set MCC for user',
           'GET /set-mcc?mcc=xxx - Set MCC for user',
           'GET /mcc-for/:customerId - Resolve MCC for customer',
+          'GET /hierarchy-check?mcc=xxx&child=yyy - Check if MCC manages child account',
           'POST /ping-search - Test GAQL query',
           'GET /context - Get diagnostic context'
         ]
