@@ -120,6 +120,73 @@ serve(async (req) => {
     }
     
     // Route to appropriate diagnostic endpoint
+    if (pathParts.includes('force-mcc') && req.method === 'GET') {
+      // GET /force-mcc?customerId=xxx&mcc=yyy → Force set MCC for user
+      const customerId = url.searchParams.get('customerId');
+      const mcc = url.searchParams.get('mcc');
+      
+      if (!customerId || !mcc) {
+        throw new Error('Missing customerId or mcc parameter');
+      }
+      
+      // Sanitize MCC (remove hyphens)
+      const sanitizedMcc = mcc.replace(/-/g, '');
+      
+      // Validate hierarchy - check if MCC manages the account
+      const accessToken = await getValidAccessToken(user.id);
+      
+      const query = `
+        SELECT customer_client.id
+        FROM customer_client
+        WHERE customer_client.id = ${customerId}
+        LIMIT 1
+      `;
+      
+      const headers = {
+        'Authorization': `Bearer ${accessToken}`,
+        'developer-token': GOOGLE_ADS_DEVELOPER_TOKEN,
+        'login-customer-id': sanitizedMcc,
+        'Content-Type': 'application/json',
+      };
+      
+      log(`[ads-call] { endpoint: "customerClient", targetCustomerId: "${customerId}", loginCustomerIdMasked: "***${sanitizedMcc.slice(-4)}", hasBearer: true, hasDevToken: ${!!GOOGLE_ADS_DEVELOPER_TOKEN} }`);
+      
+      const response = await fetch(`https://googleads.googleapis.com/v21/customers/${sanitizedMcc}/googleAds:searchStream`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ query })
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`MCC validation failed: ${response.status} - ${errorText}`);
+      }
+      
+      const data = await response.json();
+      if (!data.results || data.results.length === 0) {
+        throw new Error('MCC informado não gerencia a conta alvo');
+      }
+      
+      // Save MCC to database
+      const { error: updateError } = await supabase
+        .from('google_tokens')
+        .update({ login_customer_id: sanitizedMcc })
+        .eq('user_id', user.id);
+      
+      if (updateError) {
+        throw new Error(`Failed to save MCC: ${updateError.message}`);
+      }
+      
+      return new Response(
+        JSON.stringify({ 
+          ok: true, 
+          login_customer_id: sanitizedMcc,
+          message: `MCC ${sanitizedMcc} salvo com sucesso`
+        }),
+        { headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+    
     if (pathParts.includes('mcc-for') && req.method === 'GET') {
       // GET /mcc-for/:customerId → resolve MCC for customer
       const customerId = pathParts[pathParts.length - 1];

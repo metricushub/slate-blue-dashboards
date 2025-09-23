@@ -25,69 +25,8 @@ interface MetricData {
   conversions: number;
 }
 
-// Diagnostic logging function
-function logDiagnostics(targetCustomerId: string, loginCustomerId?: string, accessToken?: string) {
-  const diagnostics = {
-    targetCustomerId: targetCustomerId,
-    loginCustomerIdMasked: loginCustomerId ? `***${loginCustomerId.slice(-4)}` : 'MISSING',
-    hasBearer: !!accessToken,
-    hasDevToken: !!GOOGLE_ADS_DEVELOPER_TOKEN,
-    endpoint: 'googleAds:searchStream'
-  };
-  log('API Call Diagnostics:', diagnostics);
-  
-  if (!loginCustomerId) {
-    throw new Error('Falta login-customer-id (MCC). Faça a sincronização de contas.');
-  }
-}
-
-// Resolve MCC for target customer
-async function resolveMccForChild(accessToken: string, targetCustomerId: string, candidateMccs: string[]): Promise<string> {
-  log(`Resolving MCC for child customer: ${targetCustomerId}`);
-  
-  for (const mccId of candidateMccs) {
-    try {
-      const sanitizedMcc = mccId.replace(/-/g, '');
-      const query = `
-        SELECT 
-          customer_client.id,
-          customer_client.manager
-        FROM customer_client 
-        WHERE customer_client.id = ${targetCustomerId}
-      `;
-      
-      const headers = {
-        'Authorization': `Bearer ${accessToken}`,
-        'developer-token': GOOGLE_ADS_DEVELOPER_TOKEN,
-        'login-customer-id': sanitizedMcc,
-        'Content-Type': 'application/json',
-      };
-      
-      const response = await fetch(`https://googleads.googleapis.com/v21/customers/${sanitizedMcc}/googleAds:searchStream`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ query })
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        if (data.results && data.results.length > 0) {
-          log(`MCC ${sanitizedMcc} manages customer ${targetCustomerId}`);
-          return sanitizedMcc;
-        }
-      }
-    } catch (error) {
-      log(`MCC ${mccId} test failed:`, error);
-    }
-  }
-  
-  const testedMccs = candidateMccs.map(mcc => `***${mcc.slice(-4)}`);
-  log(`No valid MCC found for customer ${targetCustomerId}. Tested:`, testedMccs);
-  throw new Error(`Seu MCC atual não gerencia a conta ${targetCustomerId}. Refaça a sincronização ou conecte o MCC correto.`);
-}
-
-// Get valid access token (refresh if needed)
-async function getValidAccessToken(userId: string, companyId?: string): Promise<string> {
+// Get valid access token and saved MCC
+async function getValidAccessTokenAndMcc(userId: string, companyId?: string): Promise<{ accessToken: string, loginCustomerId: string }> {
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
   
   const { data: tokens, error } = await supabase
@@ -102,112 +41,93 @@ async function getValidAccessToken(userId: string, companyId?: string): Promise<
   }
 
   const token = tokens[0];
+  
+  if (!token.login_customer_id) {
+    throw new Error('Nenhum MCC salvo. Execute /google-ads/diag/force-mcc ou faça a sincronização.');
+  }
+
+  // Sanitize MCC (remove hyphens)
+  const sanitizedMcc = token.login_customer_id.replace(/-/g, '');
+
   const now = new Date();
   const expiry = new Date(token.token_expiry);
 
-  // If token is still valid, return it
-  if (now < expiry) {
-    return token.access_token;
+  let accessToken = token.access_token;
+
+  // If token expired, refresh it
+  if (now >= expiry) {
+    log('Token expired, refreshing...');
+    
+    const CLIENT_ID = Deno.env.get("GOOGLE_OAUTH_CLIENT_ID");
+    const CLIENT_SECRET = Deno.env.get("GOOGLE_OAUTH_CLIENT_SECRET");
+    
+    if (!CLIENT_ID || !CLIENT_SECRET) {
+      throw new Error('Missing OAuth credentials for token refresh');
+    }
+
+    const refreshResponse = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        grant_type: 'refresh_token',
+        refresh_token: token.refresh_token,
+        client_id: CLIENT_ID,
+        client_secret: CLIENT_SECRET,
+      }),
+    });
+
+    if (!refreshResponse.ok) {
+      const errorText = await refreshResponse.text();
+      log('Token refresh failed:', refreshResponse.status, errorText);
+      throw new Error('Failed to refresh Google Ads token');
+    }
+
+    const refreshData = await refreshResponse.json();
+    accessToken = refreshData.access_token;
+    
+    // Update token in database
+    const newExpiry = new Date();
+    newExpiry.setSeconds(newExpiry.getSeconds() + (refreshData.expires_in || 3600));
+    
+    await supabase
+      .from('google_tokens')
+      .update({
+        access_token: accessToken,
+        token_expiry: newExpiry.toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('user_id', userId);
+
+    log('Token refreshed successfully');
   }
 
-  // Token expired, refresh it
-  log('Token expired, refreshing...');
-  
-  const CLIENT_ID = Deno.env.get("GOOGLE_OAUTH_CLIENT_ID");
-  const CLIENT_SECRET = Deno.env.get("GOOGLE_OAUTH_CLIENT_SECRET");
-  
-  if (!CLIENT_ID || !CLIENT_SECRET) {
-    throw new Error('Missing OAuth credentials for token refresh');
-  }
-
-  const refreshResponse = await fetch('https://oauth2.googleapis.com/token', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: new URLSearchParams({
-      grant_type: 'refresh_token',
-      refresh_token: token.refresh_token,
-      client_id: CLIENT_ID,
-      client_secret: CLIENT_SECRET,
-    }),
-  });
-
-  if (!refreshResponse.ok) {
-    const errorText = await refreshResponse.text();
-    log('Token refresh failed:', refreshResponse.status, errorText);
-    throw new Error('Failed to refresh Google Ads token');
-  }
-
-  const refreshData = await refreshResponse.json();
-  const newAccessToken = refreshData.access_token;
-  
-  // Update token in database
-  const newExpiry = new Date();
-  newExpiry.setSeconds(newExpiry.getSeconds() + (refreshData.expires_in || 3600));
-  
-  await supabase
-    .from('google_tokens')
-    .update({
-      access_token: newAccessToken,
-      token_expiry: newExpiry.toISOString(),
-      updated_at: new Date().toISOString()
-    })
-    .eq('user_id', userId);
-
-  log('Token refreshed successfully');
-  return newAccessToken;
+  return { 
+    accessToken, 
+    loginCustomerId: sanitizedMcc 
+  };
 }
 
-// Run Google Ads query with robust MCC resolution
-async function runGoogleAdsQuery(accessToken: string, customerId: string, query: string, loginCustomerId?: string): Promise<MetricData[]> {
+// Run Google Ads query with saved MCC
+async function runGoogleAdsQuery(accessToken: string, customerId: string, query: string, loginCustomerId: string): Promise<MetricData[]> {
   const cleanCustomerId = customerId.replace(/-/g, '');
   
   // Mandatory diagnostics before API call
-  logDiagnostics(cleanCustomerId, loginCustomerId, accessToken);
+  log(`[ads-call] { endpoint: "googleAds:searchStream", targetCustomerId: "${cleanCustomerId}", loginCustomerIdMasked: "***${loginCustomerId.slice(-4)}", hasBearer: ${!!accessToken}, hasDevToken: ${!!GOOGLE_ADS_DEVELOPER_TOKEN} }`);
   
-  // Get candidate MCCs for resolution
-  const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
-  const { data: accountsData } = await supabase
-    .from('accounts_map')
-    .select('customer_id')
-    .eq('is_manager', true);
-  
-  const candidateMccs = [
-    ...(loginCustomerId ? [loginCustomerId] : []),
-    ...(accountsData?.map(acc => acc.customer_id) || [])
-  ];
-  
-  // Resolve the correct MCC for this customer
-  const resolvedMcc = await resolveMccForChild(accessToken, cleanCustomerId, candidateMccs);
-  
-  const baseA = `https://googleads.googleapis.com/v21/customers/${cleanCustomerId}/googleAds:searchStream`;
-  const baseB = `https://googleads.googleapis.com/googleads/v21/customers/${cleanCustomerId}/googleAds:searchStream`;
-
   const headers: Record<string, string> = {
     'Authorization': `Bearer ${accessToken}`,
     'developer-token': GOOGLE_ADS_DEVELOPER_TOKEN,
+    'login-customer-id': loginCustomerId,
     'Content-Type': 'application/json',
-    'Accept': 'application/json',
-    'login-customer-id': resolvedMcc
   };
-  
-  // Log final request details (masking sensitive data)
-  const logHeaders = { ...headers };
-  logHeaders.Authorization = 'Bearer [REDACTED]';
-  log(`Final API request:`, {
-    endpoint: 'searchStream',
-    targetCustomer: cleanCustomerId,
-    resolvedMcc: `***${resolvedMcc.slice(-4)}`,
-    headers: logHeaders
-  });
 
-  // Try first URL, fallback to second if 404
-  let response = await fetch(baseA, { method: 'POST', headers, body: JSON.stringify({ query }) });
-  if (response.status === 404) {
-    log('searchStream 404 on baseA, trying baseB');
-    response = await fetch(baseB, { method: 'POST', headers, body: JSON.stringify({ query }) });
-  }
+  const response = await fetch(`https://googleads.googleapis.com/v21/customers/${cleanCustomerId}/googleAds:searchStream`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ query })
+  });
 
   log('Google Ads API response status:', response.status);
 
@@ -215,9 +135,8 @@ async function runGoogleAdsQuery(accessToken: string, customerId: string, query:
     const errorText = await response.text();
     log('Google Ads API error:', response.status, errorText);
     
-    // Enhanced error messaging for common issues
     if (response.status === 403 && errorText.includes('USER_PERMISSION_DENIED')) {
-      throw new Error(`Acesso negado à conta ${cleanCustomerId}. Verifique se o MCC ${resolvedMcc} gerencia esta conta e se o developer token está aprovado.`);
+      throw new Error(`Acesso negado à conta ${cleanCustomerId}. Verifique se o MCC ${loginCustomerId} gerencia esta conta e se o developer token está aprovado.`);
     }
     
     throw new Error(`Google Ads API error: ${response.status} - ${errorText}`);
@@ -354,22 +273,11 @@ serve(async (req) => {
     }
 
     try {
-      // Get valid access token
-      const accessToken = await getValidAccessToken(user_id, company_id);
-      log('Access token obtained');
+      // Get valid access token and saved MCC
+      const { accessToken, loginCustomerId } = await getValidAccessTokenAndMcc(user_id, company_id);
+      log(`Access token and MCC obtained. MCC: ***${loginCustomerId.slice(-4)}`);
 
-      // Get login_customer_id (will be resolved automatically if missing)
-      const { data: tokenRows } = await supabase
-        .from('google_tokens')
-        .select('login_customer_id')
-        .eq('user_id', user_id)
-        .order('created_at', { ascending: false })
-        .limit(1);
-      const loginCustomerId = tokenRows?.[0]?.login_customer_id || undefined;
-      
-      log(`Initial login-customer-id: ${loginCustomerId ? `***${loginCustomerId.slice(-4)}` : 'not set, will auto-resolve'}`);
-
-      // Build Google Ads query with more debug info
+      // Build Google Ads query
       const query = `
         SELECT 
           segments.date,
@@ -385,7 +293,7 @@ serve(async (req) => {
         ORDER BY segments.date DESC
       `;
 
-      // Run query with automatic MCC resolution
+      // Run query with saved MCC
       const metrics = await runGoogleAdsQuery(accessToken, customer_id, query, loginCustomerId);
       log(`Query executed successfully. Total results: ${metrics.length}`);
       
