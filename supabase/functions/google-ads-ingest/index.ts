@@ -158,7 +158,12 @@ async function runGoogleAdsQuery(accessToken: string, customerId: string, query:
 
 // Send metrics to ingest endpoint
 async function sendToIngestEndpoint(metrics: MetricData[], customerId: string): Promise<any> {
-  const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
+  const METRICUS_INGEST_KEY = Deno.env.get("METRICUS_INGEST_KEY");
+  
+  if (!METRICUS_INGEST_KEY) {
+    log('ERROR: METRICUS_INGEST_KEY not found in environment variables');
+    throw new Error('Missing METRICUS_INGEST_KEY - configure this secret in Supabase Functions settings');
+  }
   
   // Transform metrics for our schema
   const transformedMetrics = metrics.map(metric => ({
@@ -177,14 +182,27 @@ async function sendToIngestEndpoint(metrics: MetricData[], customerId: string): 
     conv_rate: metric.clicks > 0 ? (metric.conversions / metric.clicks) * 100 : null,
   }));
 
-  const { data, error } = await supabase.functions.invoke('ingest-metrics', {
-    body: transformedMetrics
+  log(`Sending ${transformedMetrics.length} metrics to ingest-metrics with API key`);
+
+  // Call ingest-metrics with proper authentication
+  const ingestUrl = `${SUPABASE_URL}/functions/v1/ingest-metrics`;
+  const response = await fetch(ingestUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': METRICUS_INGEST_KEY,
+    },
+    body: JSON.stringify(transformedMetrics)
   });
 
-  if (error) {
-    throw new Error(`Ingest error: ${error.message}`);
+  if (!response.ok) {
+    const errorText = await response.text();
+    log('Ingest endpoint error:', response.status, errorText);
+    throw new Error(`Ingest error: Edge Function returned a non-2xx status code`);
   }
 
+  const data = await response.json();
+  log('Ingest successful:', data);
   return data;
 }
 

@@ -82,7 +82,13 @@ async function getAccountDetails(access_token: string, customerIds: string[], lo
     'developer-token': DEV_TOKEN,
     'Content-Type': 'application/json',
   };
-  if (loginCustomerId) baseHeaders['login-customer-id'] = loginCustomerId.replace(/-/g, '');
+  
+  if (loginCustomerId) {
+    baseHeaders['login-customer-id'] = loginCustomerId.replace(/-/g, '');
+    log(`Using login-customer-id: ${loginCustomerId}`);
+  } else {
+    log('WARNING: No login-customer-id provided - account names may be generic');
+  }
   
   for (const customerId of customerIds) {
     try {
@@ -114,15 +120,19 @@ async function getAccountDetails(access_token: string, customerIds: string[], lo
         }
         
         if (customerData) {
+          const realName = customerData.descriptive_name;
+          log(`Account ${customerId}: ${realName || 'no name'} (manager: ${Boolean(customerData.manager)})`);
+          
           accountDetails.push({
             customer_id: String(customerId),
-            account_name: String(customerData.descriptive_name || `Account ${customerId}`),
+            account_name: String(realName || `Account ${customerId}`),
             currency_code: customerData.currency_code || null,
             time_zone: customerData.time_zone || null,
             is_manager: Boolean(customerData.manager),
             status: String(customerData.status || 'ENABLED')
           });
         } else {
+          log(`Account ${customerId}: No customer data in response`);
           accountDetails.push({
             customer_id: String(customerId),
             account_name: `Account ${customerId}`,
@@ -133,6 +143,14 @@ async function getAccountDetails(access_token: string, customerIds: string[], lo
           });
         }
       } else {
+        const errorText = await response.text();
+        log(`Account ${customerId} query failed (${response.status}): ${errorText}`);
+        
+        // Check for specific permission errors
+        if (response.status === 403 && errorText.includes('USER_PERMISSION_DENIED')) {
+          log(`HINT: Account ${customerId} requires login-customer-id header (MCC parent account)`);
+        }
+        
         // Fallback se não conseguir buscar detalhes
         accountDetails.push({
           customer_id: String(customerId),
@@ -167,6 +185,27 @@ async function upsertCustomers(customerIds: string[], userId: string, access_tok
   log(`Getting details for ${customerIds.length} accounts...`);
   const accountDetails = await getAccountDetails(access_token, customerIds, loginCustomerId);
   
+  // Detect MCC accounts and determine the login_customer_id
+  const mccAccounts = accountDetails.filter(account => account.is_manager);
+  let detectedLoginCustomerId = loginCustomerId;
+  
+  if (mccAccounts.length > 0 && !loginCustomerId) {
+    // Use the first MCC account as login customer ID
+    detectedLoginCustomerId = mccAccounts[0].customer_id;
+    log(`Detected MCC account: ${detectedLoginCustomerId}`);
+    
+    // Re-fetch account details with the detected MCC as login-customer-id
+    log('Re-fetching account details with detected MCC as login-customer-id...');
+    const enhancedAccountDetails = await getAccountDetails(access_token, customerIds, detectedLoginCustomerId);
+    
+    // Update accountDetails with enhanced data
+    for (let i = 0; i < accountDetails.length; i++) {
+      if (enhancedAccountDetails[i] && enhancedAccountDetails[i].account_name !== `Account ${enhancedAccountDetails[i].customer_id}`) {
+        accountDetails[i] = enhancedAccountDetails[i];
+      }
+    }
+  }
+  
   // Save to accounts_map table with real account details
   const accountsData = accountDetails.map((account) => ({ 
     customer_id: String(account.customer_id || ''),
@@ -180,6 +219,8 @@ async function upsertCustomers(customerIds: string[], userId: string, access_tok
   }));
 
   log(`Upserting ${accountsData.length} accounts to database...`);
+  log(`MCC accounts found: ${mccAccounts.length}`);
+  log(`Using login_customer_id: ${detectedLoginCustomerId || 'none'}`);
 
   const upsertUrl = `${SUPABASE_URL}/rest/v1/accounts_map?on_conflict=customer_id`;
   const r = await fetch(upsertUrl, {
@@ -198,10 +239,16 @@ async function upsertCustomers(customerIds: string[], userId: string, access_tok
     throw new Error(`db_upsert ${r.status}: ${err}`);
   }
 
-  // Also update the google_tokens table with the first customer_id
+  // Update the google_tokens table with detected login_customer_id and first customer_id
   if (customerIds.length > 0) {
     const updateUrl = new URL(`${SUPABASE_URL}/rest/v1/google_tokens`);
     updateUrl.searchParams.set("user_id", `eq.${userId}`);
+    
+    const updateData: any = { customer_id: customerIds[0] };
+    if (detectedLoginCustomerId && detectedLoginCustomerId !== loginCustomerId) {
+      updateData.login_customer_id = detectedLoginCustomerId;
+      log(`Saving detected login_customer_id: ${detectedLoginCustomerId}`);
+    }
     
     await fetch(updateUrl.toString(), {
       method: "PATCH",
@@ -210,7 +257,7 @@ async function upsertCustomers(customerIds: string[], userId: string, access_tok
         apikey: SERVICE_KEY,
         Authorization: `Bearer ${SERVICE_KEY}`,
       },
-      body: JSON.stringify({ customer_id: customerIds[0] }),
+      body: JSON.stringify(updateData),
     });
   }
 }
@@ -230,14 +277,29 @@ serve(async (req) => {
   log("REQ", { path: url.pathname });
 
   try {
+    log("Step 1: Getting refresh token from database...");
     const tokenData = await getLatestRefreshToken();
+    log(`Found token for user: ${tokenData.user_id}`);
+    
+    log("Step 2: Exchanging refresh token for access token...");
     const access = await exchangeRefreshToken(tokenData.refresh_token);
+    log("Access token obtained successfully");
+    
+    log("Step 3: Listing accessible customers...");
     const ids = await listAccessibleCustomers(access);
-
+    log(`Found ${ids.length} accessible customer accounts: ${ids.join(', ')}`);
+    
+    log("Step 4: Upserting customers with detailed account information...");
     await upsertCustomers(ids, tokenData.user_id, access, tokenData.login_customer_id);
+    log("Account synchronization completed successfully");
 
     return new Response(
-      JSON.stringify({ ok: true, total: ids.length, customer_ids: ids }),
+      JSON.stringify({ 
+        ok: true, 
+        total: ids.length, 
+        customer_ids: ids,
+        message: `Successfully synchronized ${ids.length} Google Ads accounts`
+      }),
       { headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   } catch (e) {
