@@ -51,24 +51,59 @@ async function getValidAccessToken(userId: string, companyId?: string): Promise<
 
   // Token expired, refresh it
   log('Token expired, refreshing...');
-  const { data, error: refreshError } = await supabase.functions.invoke('google-oauth', {
-    body: {
-      action: 'refresh', 
+  
+  const CLIENT_ID = Deno.env.get("GOOGLE_OAUTH_CLIENT_ID");
+  const CLIENT_SECRET = Deno.env.get("GOOGLE_OAUTH_CLIENT_SECRET");
+  
+  if (!CLIENT_ID || !CLIENT_SECRET) {
+    throw new Error('Missing OAuth credentials for token refresh');
+  }
+
+  const refreshResponse = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: new URLSearchParams({
+      grant_type: 'refresh_token',
       refresh_token: token.refresh_token,
-      user_id: userId
-    }
+      client_id: CLIENT_ID,
+      client_secret: CLIENT_SECRET,
+    }),
   });
 
-  if (refreshError || !data?.access_token) {
+  if (!refreshResponse.ok) {
+    const errorText = await refreshResponse.text();
+    log('Token refresh failed:', refreshResponse.status, errorText);
     throw new Error('Failed to refresh Google Ads token');
   }
 
-  return data.access_token;
+  const refreshData = await refreshResponse.json();
+  const newAccessToken = refreshData.access_token;
+  
+  // Update token in database
+  const newExpiry = new Date();
+  newExpiry.setSeconds(newExpiry.getSeconds() + (refreshData.expires_in || 3600));
+  
+  await supabase
+    .from('google_tokens')
+    .update({
+      access_token: newAccessToken,
+      token_expiry: newExpiry.toISOString(),
+      updated_at: new Date().toISOString()
+    })
+    .eq('user_id', userId);
+
+  log('Token refreshed successfully');
+  return newAccessToken;
 }
 
 // Run Google Ads query
 async function runGoogleAdsQuery(accessToken: string, customerId: string, query: string): Promise<MetricData[]> {
-  const url = `https://googleads.googleapis.com/v16/customers/${customerId.replace(/-/g, '')}/googleAds:searchStream`;
+  const cleanCustomerId = customerId.replace(/-/g, '');
+  const url = `https://googleads.googleapis.com/v17/customers/${cleanCustomerId}/googleAds:searchStream`;
+  
+  log('Making Google Ads API request', { customerId: cleanCustomerId, url });
   
   const response = await fetch(url, {
     method: 'POST',
@@ -80,6 +115,8 @@ async function runGoogleAdsQuery(accessToken: string, customerId: string, query:
     body: JSON.stringify({ query })
   });
 
+  log('Google Ads API response status:', response.status);
+
   if (!response.ok) {
     const errorText = await response.text();
     log('Google Ads API error:', response.status, errorText);
@@ -87,6 +124,8 @@ async function runGoogleAdsQuery(accessToken: string, customerId: string, query:
   }
 
   const results = await response.json();
+  log('Google Ads API results count:', results.results?.length || 0);
+  
   const metrics: MetricData[] = [];
 
   if (results.results) {
@@ -101,11 +140,14 @@ async function runGoogleAdsQuery(accessToken: string, customerId: string, query:
         campaign_name: campaign.name || 'Unknown Campaign',
         impressions: parseInt(campaignMetrics.impressions || '0'),
         clicks: parseInt(campaignMetrics.clicks || '0'),
-        cost: parseFloat(campaignMetrics.cost_micros || '0') / 1000000, // Convert micros to currency
+        cost: parseFloat(campaignMetrics.cost_micros || '0') / 1000000,
         conversions: parseFloat(campaignMetrics.conversions || '0'),
       });
     }
   }
+
+  log(`Processed ${metrics.length} metric records`);
+  return metrics;
 
   return metrics;
 }
