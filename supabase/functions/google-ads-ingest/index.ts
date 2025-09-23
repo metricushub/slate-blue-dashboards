@@ -42,14 +42,10 @@ async function getValidAccessTokenAndMcc(userId: string, companyId?: string): Pr
 
   const token = tokens[0];
   
-  // Use forced MCC from env if set, otherwise use saved MCC
+  // Always use the correct MCC for the developer token: 2478435835
   const FORCED_MCC = Deno.env.get("FORCED_MCC_LOGIN_ID");
-  let mccToUse = FORCED_MCC || token.login_customer_id;
+  const mccToUse = FORCED_MCC || '2478435835';
   
-  if (!mccToUse) {
-    throw new Error('Nenhum MCC salvo. Execute /google-ads/diag/set-mcc?mcc=2478435835 ou configure FORCED_MCC_LOGIN_ID.');
-  }
-
   // Sanitize MCC (remove hyphens)
   const sanitizedMcc = mccToUse.replace(/-/g, '');
 
@@ -131,7 +127,7 @@ async function validateHierarchy(accessToken: string, targetCustomerId: string, 
     'Content-Type': 'application/json',
   };
   
-  log(`[ads-call] { endpoint: "customerClient", targetCustomerId: "${targetCustomerId}", loginCustomerIdMasked: "***${cleanMcc.slice(-4)}", hasBearer: ${!!accessToken}, hasDevToken: ${!!GOOGLE_ADS_DEVELOPER_TOKEN} }`);
+  log(`[ads-call] { endpoint: "customerClient", targetCustomerId: "${targetCustomerId}", loginCustomerId: "${cleanMcc}", hasBearer: ${!!accessToken}, hasDevToken: ${!!GOOGLE_ADS_DEVELOPER_TOKEN} }`);
   
   const response = await fetch(`https://googleads.googleapis.com/v21/customers/${cleanMcc}/googleAds:searchStream`, {
     method: 'POST',
@@ -153,7 +149,7 @@ async function runGoogleAdsQuery(accessToken: string, customerId: string, query:
   const cleanCustomerId = customerId.replace(/-/g, '');
   
   // Mandatory diagnostics before API call
-  log(`[ads-call] { endpoint: "googleAds:searchStream", targetCustomerId: "${cleanCustomerId}", loginCustomerIdMasked: "***${loginCustomerId.slice(-4)}", hasBearer: ${!!accessToken}, hasDevToken: ${!!GOOGLE_ADS_DEVELOPER_TOKEN} }`);
+  log(`[ads-call] { endpoint: "googleAds:searchStream", targetCustomerId: "${cleanCustomerId}", loginCustomerId: "${loginCustomerId}", hasBearer: ${!!accessToken}, hasDevToken: ${!!GOOGLE_ADS_DEVELOPER_TOKEN} }`);
   
   const headers: Record<string, string> = {
     'Authorization': `Bearer ${accessToken}`,

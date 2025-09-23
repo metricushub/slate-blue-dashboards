@@ -37,63 +37,16 @@ async function getValidAccessToken(userId: string): Promise<string> {
 async function resolveMccForChild(accessToken: string, targetCustomerId: string): Promise<{ mcc: string, tested: string[] }> {
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
   
-  // Get candidate MCCs
-  const { data: tokenData } = await supabase
-    .from('google_tokens')
-    .select('login_customer_id')
-    .order('created_at', { ascending: false })
-    .limit(1);
-    
-  const { data: accountsData } = await supabase
-    .from('accounts_map')
-    .select('customer_id')
-    .eq('is_manager', true);
+  // Always use the correct MCC for the approved developer token: 2478435835
+  const FORCED_MCC = Deno.env.get("FORCED_MCC_LOGIN_ID");
+  const mccToUse = FORCED_MCC || '2478435835';
   
-  const candidateMccs = [
-    ...(tokenData?.[0]?.login_customer_id ? [tokenData[0].login_customer_id] : []),
-    ...(accountsData?.map(acc => acc.customer_id) || [])
-  ];
+  log(`Using MCC: ${mccToUse} for customer ${targetCustomerId}`);
   
-  const tested: string[] = [];
-  
-  for (const mccId of candidateMccs) {
-    try {
-      const sanitizedMcc = mccId.replace(/-/g, '');
-      tested.push(`***${sanitizedMcc.slice(-4)}`);
-      
-      const query = `
-        SELECT 
-          customer_client.id,
-          customer_client.manager
-        FROM customer_client 
-        WHERE customer_client.id = ${targetCustomerId}
-      `;
-      
-      const headers = {
-        'Authorization': `Bearer ${accessToken}`,
-        'developer-token': GOOGLE_ADS_DEVELOPER_TOKEN,
-        'login-customer-id': sanitizedMcc,
-        'Content-Type': 'application/json',
-      };
-      
-      const response = await fetch(`https://googleads.googleapis.com/v21/customers/${sanitizedMcc}/googleAds:searchStream`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ query })
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        if (data.results && data.results.length > 0) {
-          return { mcc: sanitizedMcc, tested };
-        }
-      }
-    } catch (error) {
-      log(`MCC test failed for ${mccId}:`, error);
-    }
-  }
-  
-  throw new Error(`No valid MCC found for customer ${targetCustomerId}`);
+  return { 
+    mcc: mccToUse.replace(/-/g, ''), 
+    tested: [mccToUse] 
+  };
 }
 
 // Diagnostic endpoints
@@ -149,7 +102,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       };
       
-      log(`[ads-call] { endpoint: "customerClient", targetCustomerId: "${customerId}", loginCustomerIdMasked: "***${sanitizedMcc.slice(-4)}", hasBearer: true, hasDevToken: ${!!GOOGLE_ADS_DEVELOPER_TOKEN} }`);
+      log(`[ads-call] { endpoint: "customerClient", targetCustomerId: "${customerId}", loginCustomerId: "${sanitizedMcc}", hasBearer: true, hasDevToken: ${!!GOOGLE_ADS_DEVELOPER_TOKEN} }`);
       
       const response = await fetch(`https://googleads.googleapis.com/v21/customers/${sanitizedMcc}/googleAds:searchStream`, {
         method: 'POST',
@@ -219,7 +172,12 @@ serve(async (req) => {
       }
       
       const accessToken = await getValidAccessToken(user.id);
-      const { mcc } = await resolveMccForChild(accessToken, customerId);
+      
+      // Always use the correct MCC 2478435835
+      const forcedMcc = Deno.env.get("FORCED_MCC_LOGIN_ID") || '2478435835';
+      const mcc = forcedMcc.replace(/-/g, '');
+      
+      log(`[ads-call] { endpoint: "ping-search", targetCustomerId: "${customerId}", loginCustomerId: "${mcc}", hasBearer: true, hasDevToken: ${!!GOOGLE_ADS_DEVELOPER_TOKEN} }`);
       
       // Simple ping query
       const query = 'SELECT customer.id FROM customer LIMIT 1';

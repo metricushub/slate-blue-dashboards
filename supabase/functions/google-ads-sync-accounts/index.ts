@@ -191,26 +191,10 @@ async function upsertCustomers(customerIds: string[], userId: string, access_tok
   log(`Getting details for ${customerIds.length} accounts...`);
   const accountDetails = await getAccountDetails(access_token, customerIds, loginCustomerId);
   
-  // Detect MCC accounts and determine the login_customer_id
-  const mccAccounts = accountDetails.filter(account => account.is_manager);
+  // Always use the provided MCC (2478435835)
   let detectedLoginCustomerId = loginCustomerId;
   
-  if (mccAccounts.length > 0 && !loginCustomerId) {
-    // Use the first MCC account as login customer ID
-    detectedLoginCustomerId = mccAccounts[0].customer_id;
-    log(`Detected MCC account: ${detectedLoginCustomerId}`);
-    
-    // Re-fetch account details with the detected MCC as login-customer-id
-    log('Re-fetching account details with detected MCC as login-customer-id...');
-    const enhancedAccountDetails = await getAccountDetails(access_token, customerIds, detectedLoginCustomerId);
-    
-    // Update accountDetails with enhanced data
-    for (let i = 0; i < accountDetails.length; i++) {
-      if (enhancedAccountDetails[i] && enhancedAccountDetails[i].account_name !== `Account ${enhancedAccountDetails[i].customer_id}`) {
-        accountDetails[i] = enhancedAccountDetails[i];
-      }
-    }
-  }
+  log(`Using login_customer_id: ${detectedLoginCustomerId || 'none'}`);
   
   // Save to accounts_map table with real account details
   const accountsData = accountDetails.map((account) => ({ 
@@ -225,8 +209,8 @@ async function upsertCustomers(customerIds: string[], userId: string, access_tok
   }));
 
   log(`Upserting ${accountsData.length} accounts to database...`);
+  const mccAccounts = accountDetails.filter(account => account.is_manager);
   log(`MCC accounts found: ${mccAccounts.length}`);
-  log(`Using login_customer_id: ${detectedLoginCustomerId || 'none'}`);
 
   const upsertUrl = `${SUPABASE_URL}/rest/v1/accounts_map?on_conflict=customer_id`;
   const r = await fetch(upsertUrl, {
@@ -245,16 +229,17 @@ async function upsertCustomers(customerIds: string[], userId: string, access_tok
     throw new Error(`db_upsert ${r.status}: ${err}`);
   }
 
-  // Update the google_tokens table with detected login_customer_id and first customer_id
+  // Always save the correct MCC in database (2478435835)
   if (customerIds.length > 0) {
     const updateUrl = new URL(`${SUPABASE_URL}/rest/v1/google_tokens`);
     updateUrl.searchParams.set("user_id", `eq.${userId}`);
     
-    const updateData: any = { customer_id: customerIds[0] };
-    if (detectedLoginCustomerId && detectedLoginCustomerId !== loginCustomerId) {
-      updateData.login_customer_id = detectedLoginCustomerId;
-      log(`Saving detected login_customer_id: ${detectedLoginCustomerId}`);
-    }
+    const updateData = { 
+      customer_id: customerIds[0],
+      login_customer_id: detectedLoginCustomerId
+    };
+    
+    log(`Saving login_customer_id: ${detectedLoginCustomerId}`);
     
     await fetch(updateUrl.toString(), {
       method: "PATCH",
@@ -295,8 +280,12 @@ serve(async (req) => {
     const ids = await listAccessibleCustomers(access);
     log(`Found ${ids.length} accessible customer accounts: ${ids.join(', ')}`);
     
+    // Always use the correct MCC for the approved developer token: 2478435835
+    const forcedMcc = Deno.env.get("FORCED_MCC_LOGIN_ID") || '2478435835';
+    
     log("Step 4: Upserting customers with detailed account information...");
-    await upsertCustomers(ids, tokenData.user_id, access, tokenData.login_customer_id);
+    log(`Using login-customer-id: ${forcedMcc}`);
+    await upsertCustomers(ids, tokenData.user_id, access, forcedMcc);
     log("Account synchronization completed successfully");
 
     return new Response(
