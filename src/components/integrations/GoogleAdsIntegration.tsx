@@ -33,6 +33,7 @@ export function GoogleAdsIntegration() {
   });
   const [accounts, setAccounts] = useState<GoogleAdsAccount[]>([]);
   const { toast } = useToast();
+  const [fallbackUrl, setFallbackUrl] = useState<string | null>(null);
 
   // Check current status
   const checkStatus = async () => {
@@ -88,65 +89,54 @@ export function GoogleAdsIntegration() {
   // Connect to Google Ads
   const handleConnect = async () => {
     setIsConnecting(true);
-    
-    // Open blank popup immediately to avoid popup blockers
-    const popup = window.open('', '_blank', 'width=500,height=600,scrollbars=yes,resizable=yes');
-    
-    if (!popup) {
-      toast({
-        title: "Pop-up bloqueado",
-        description: "Por favor, permita pop-ups para este site e tente novamente.",
-        variant: "destructive",
-      });
-      setIsConnecting(false);
-      return;
-    }
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        popup.close();
         throw new Error('User not authenticated');
       }
 
-      console.log('Opening Google OAuth via direct function endpoint...');
-      
       // Build the direct function URL with start action
       const functionUrl = `https://zoahzxfjefjmkxylbfxf.supabase.co/functions/v1/google-oauth`;
       const params = new URLSearchParams({
         action: 'start',
         user_id: user.id,
-        return_to: window.location.href
+        return_to: window.location.href,
       });
-      
-      const startUrl = `${functionUrl}?${params.toString()}`;
-      
-      toast({
-        title: "Redirecionando",
-        description: "Abrindo Google para autenticação...",
-      });
-      
-      // Redirect the already opened popup to the start endpoint
-      // This will trigger a 302 redirect to Google OAuth
-      popup.location.href = startUrl;
 
-      // Listen for popup close to refresh status
+      const startUrl = `${functionUrl}?${params.toString()}`;
+      setFallbackUrl(startUrl);
+
+      // Open popup directly to our function (which 302 redirects to Google)
+      const popup = window.open(startUrl, '_blank', 'width=500,height=600,scrollbars=yes,resizable=yes');
+      if (!popup) {
+        toast({
+          title: 'Pop-up bloqueado',
+          description: 'Permita pop-ups ou use o link "Abrir manualmente" abaixo.',
+          variant: 'destructive',
+        });
+        setIsConnecting(false);
+        return;
+      }
+
+      toast({ title: 'Redirecionando', description: 'Abrindo Google para autenticação...' });
+
+      // When the popup is closed, refresh status
       const checkClosed = setInterval(() => {
         if (popup.closed) {
           clearInterval(checkClosed);
           setIsConnecting(false);
-          checkStatus(); // Refresh status when popup closes
+          checkStatus();
         }
       }, 1000);
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error connecting to Google Ads:', error);
       toast({
-        title: "Erro",
-        description: error.message || "Erro ao conectar com Google Ads",
-        variant: "destructive",
+        title: 'Erro',
+        description: error.message || 'Erro ao conectar com Google Ads',
+        variant: 'destructive',
       });
-    } finally {
       setIsConnecting(false);
     }
   };
@@ -277,14 +267,26 @@ export function GoogleAdsIntegration() {
           {/* Actions */}
           <div className="flex gap-2">
             {!status.hasTokens ? (
-              <Button onClick={handleConnect} disabled={isConnecting}>
-                {isConnecting ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <ExternalLink className="mr-2 h-4 w-4" />
+              <div className="flex flex-col gap-1">
+                <Button onClick={handleConnect} disabled={isConnecting}>
+                  {isConnecting ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <ExternalLink className="mr-2 h-4 w-4" />
+                  )}
+                  Conectar Google Ads
+                </Button>
+                {fallbackUrl && (
+                  <a
+                    href={fallbackUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs underline text-primary"
+                  >
+                    Se não abrir, clique aqui para abrir manualmente
+                  </a>
                 )}
-                Conectar Google Ads
-              </Button>
+              </div>
             ) : (
               <>
                 <Button variant="outline" onClick={handleSyncAccounts} disabled={isSyncing}>

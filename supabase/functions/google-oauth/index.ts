@@ -45,7 +45,7 @@ serve(async (req) => {
 
         const stateParam = JSON.stringify({ user_id, company_id, return_to });
 
-        const authUrl = `https://accounts.google.com/o/oauth2/auth?`
+        const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?`
           + `client_id=${CLIENT_ID}&`
           + `redirect_uri=${encodeURIComponent(redirectUri)}&`
           + `scope=${encodeURIComponent(scopes)}&`
