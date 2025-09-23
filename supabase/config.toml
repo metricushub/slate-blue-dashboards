@@ -8,3 +8,13 @@ verify_jwt = false
 
 [functions.google-oauth]
 verify_jwt = false
+
+# Public endpoints used by Diagnóstico Google Ads UI
+[functions.google-ads-ping]
+verify_jwt = false
+
+[functions.google-ads-sync-accounts]
+verify_jwt = false
+
+[functions.google-ads-accounts]
+verify_jwt = false
