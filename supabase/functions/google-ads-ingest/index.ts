@@ -127,34 +127,34 @@ async function runGoogleAdsQuery(accessToken: string, customerId: string, query:
     throw new Error(`Google Ads API error: ${response.status} - ${errorText}`);
   }
 
-  const results = await response.json();
-  log('Google Ads API results count:', results.results?.length || 0);
-  
+  const payload = await response.json();
+  const streams = Array.isArray(payload) ? payload : [payload];
+
   const metrics: MetricData[] = [];
 
-  if (results.results) {
-    for (const row of results.results) {
+  for (const stream of streams) {
+    const rows = stream.results || [];
+    for (const row of rows) {
       const segments = row.segments || {};
       const campaign = row.campaign || {};
-      const campaignMetrics = row.metrics || {};
+      const m = row.metrics || {};
 
       metrics.push({
         date: segments.date || new Date().toISOString().split('T')[0],
-        campaign_id: campaign.id || 'unknown',
-        campaign_name: campaign.name || 'Unknown Campaign',
-        impressions: parseInt(campaignMetrics.impressions || '0'),
-        clicks: parseInt(campaignMetrics.clicks || '0'),
-        cost: parseFloat(campaignMetrics.cost_micros || '0') / 1000000,
-        conversions: parseFloat(campaignMetrics.conversions || '0'),
+        campaign_id: String(campaign.id ?? 'unknown'),
+        campaign_name: String(campaign.name ?? 'Unknown Campaign'),
+        impressions: Number(m.impressions ?? 0),
+        clicks: Number(m.clicks ?? 0),
+        cost: Number(m.cost_micros ?? 0) / 1_000_000,
+        conversions: Number(m.conversions ?? 0),
       });
     }
   }
 
   log(`Processed ${metrics.length} metric records`);
   return metrics;
-
-  return metrics;
 }
+
 
 // Send metrics to ingest endpoint
 async function sendToIngestEndpoint(metrics: MetricData[], customerId: string): Promise<any> {

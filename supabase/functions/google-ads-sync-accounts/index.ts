@@ -18,7 +18,7 @@ function log(...args: any[]) { console.log("[google-ads-sync-accounts]", ...args
 async function getLatestRefreshToken() {
   if (!SUPABASE_URL || !AUTH_KEY) throw new Error("supabase_env_missing");
   const url = new URL(`${SUPABASE_URL}/rest/v1/google_tokens`);
-  url.searchParams.set("select", "id,refresh_token,access_token,token_expiry,user_id");
+  url.searchParams.set("select", "id,refresh_token,access_token,token_expiry,user_id,login_customer_id");
   url.searchParams.set("order", "created_at.desc");
   url.searchParams.set("limit", "1");
 
@@ -31,7 +31,8 @@ async function getLatestRefreshToken() {
   if (!rows?.length || !rows[0]?.refresh_token) throw new Error("no_refresh_token_found");
   return { 
     refresh_token: rows[0].refresh_token as string,
-    user_id: rows[0].user_id as string 
+    user_id: rows[0].user_id as string,
+    login_customer_id: rows[0].login_customer_id as (string | null)
   };
 }
 
@@ -72,10 +73,16 @@ async function listAccessibleCustomers(access_token: string) {
   return (j?.resourceNames as string[] ?? []).map((s) => s.replace("customers/", ""));
 }
 
-async function getAccountDetails(access_token: string, customerIds: string[]) {
+async function getAccountDetails(access_token: string, customerIds: string[], loginCustomerId?: string | null) {
   if (!DEV_TOKEN) throw new Error("dev_token_missing");
   
   const accountDetails: any[] = [];
+  const baseHeaders: Record<string,string> = {
+    'Authorization': `Bearer ${access_token}`,
+    'developer-token': DEV_TOKEN,
+    'Content-Type': 'application/json',
+  };
+  if (loginCustomerId) baseHeaders['login-customer-id'] = loginCustomerId.replace(/-/g, '');
   
   for (const customerId of customerIds) {
     try {
@@ -93,17 +100,18 @@ async function getAccountDetails(access_token: string, customerIds: string[]) {
       
       const response = await fetch(`${ADS_API_BASE}/customers/${customerId}/googleAds:searchStream`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${access_token}`,
-          'developer-token': DEV_TOKEN,
-          'Content-Type': 'application/json',
-        },
+        headers: baseHeaders,
         body: JSON.stringify({ query })
       });
       
       if (response.ok) {
-        const result = await response.json();
-        const customerData = result.results?.[0]?.customer;
+        const payload = await response.json();
+        const streams = Array.isArray(payload) ? payload : [payload];
+        let customerData: any | undefined;
+        for (const stream of streams) {
+          const row = (stream.results || [])[0];
+          if (row?.customer) { customerData = row.customer; break; }
+        }
         
         if (customerData) {
           accountDetails.push({
@@ -111,8 +119,17 @@ async function getAccountDetails(access_token: string, customerIds: string[]) {
             account_name: customerData.descriptive_name || `Account ${customerId}`,
             currency_code: customerData.currency_code,
             time_zone: customerData.time_zone,
-            is_manager: customerData.manager || false,
-            status: customerData.status === 'ENABLED' ? 'ENABLED' : 'SUSPENDED'
+            is_manager: Boolean(customerData.manager),
+            status: customerData.status || 'ENABLED'
+          });
+        } else {
+          accountDetails.push({
+            customer_id: customerId,
+            account_name: `Account ${customerId}`,
+            currency_code: null,
+            time_zone: null,
+            is_manager: false,
+            status: 'ENABLED'
           });
         }
       } else {
@@ -143,12 +160,12 @@ async function getAccountDetails(access_token: string, customerIds: string[]) {
   return accountDetails;
 }
 
-async function upsertCustomers(customerIds: string[], userId: string, access_token: string) {
+async function upsertCustomers(customerIds: string[], userId: string, access_token: string, loginCustomerId?: string | null) {
   if (!SUPABASE_URL || !SERVICE_KEY) throw new Error("service_role_required_for_upsert");
 
   // Get detailed account information
   log(`Getting details for ${customerIds.length} accounts...`);
-  const accountDetails = await getAccountDetails(access_token, customerIds);
+  const accountDetails = await getAccountDetails(access_token, customerIds, loginCustomerId);
   
   // Save to accounts_map table with real account details
   const accountsData = accountDetails.map((account) => ({ 
@@ -162,13 +179,14 @@ async function upsertCustomers(customerIds: string[], userId: string, access_tok
     status: account.status
   }));
 
-  const r = await fetch(`${SUPABASE_URL}/rest/v1/accounts_map`, {
+  const upsertUrl = `${SUPABASE_URL}/rest/v1/accounts_map?on_conflict=customer_id`;
+  const r = await fetch(upsertUrl, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       apikey: SERVICE_KEY,
       Authorization: `Bearer ${SERVICE_KEY}`,
-      Prefer: "resolution=merge-duplicates",
+      Prefer: "resolution=merge-duplicates,return=representation",
     },
     body: JSON.stringify(accountsData),
   });
@@ -214,7 +232,7 @@ serve(async (req) => {
     const access = await exchangeRefreshToken(tokenData.refresh_token);
     const ids = await listAccessibleCustomers(access);
 
-    await upsertCustomers(ids, tokenData.user_id, access);
+    await upsertCustomers(ids, tokenData.user_id, access, tokenData.login_customer_id);
 
     return new Response(
       JSON.stringify({ ok: true, total: ids.length, customer_ids: ids }),
