@@ -18,31 +18,160 @@ serve(async (req) => {
   }
 
   try {
-    const { action, code, state, user_id, company_id } = await req.json();
-    
+    const url = new URL(req.url);
+
+    // 1) Handle Google redirect (GET with code & state)
+    if (req.method === 'GET') {
+      const code = url.searchParams.get('code');
+      const rawState = url.searchParams.get('state');
+
+      if (!code) {
+        return new Response(JSON.stringify({ error: 'Missing authorization code' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      let stateData: { user_id?: string; company_id?: string; return_to?: string } = {};
+      if (rawState) {
+        try {
+          stateData = JSON.parse(rawState);
+        } catch (e) {
+          console.warn('Could not parse state parameter:', e);
+        }
+      }
+
+      // Exchange code for tokens (same as POST flow)
+      const CLIENT_ID = Deno.env.get('GOOGLE_ADS_CLIENT_ID');
+      const CLIENT_SECRET = Deno.env.get('GOOGLE_ADS_CLIENT_SECRET');
+      const redirectUri = `${Deno.env.get('SUPABASE_URL')}/functions/v1/google-oauth`;
+
+      console.log('GET flow: Exchanging code for tokens');
+
+      const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          client_id: CLIENT_ID ?? '',
+          client_secret: CLIENT_SECRET ?? '',
+          code,
+          grant_type: 'authorization_code',
+          redirect_uri: redirectUri,
+        }),
+      });
+
+      if (!tokenResponse.ok) {
+        const error = await tokenResponse.text();
+        console.error('GET flow token exchange failed:', error);
+        // Try to redirect back with error
+        const rt = stateData.return_to;
+        if (rt && /^https?:\/\//.test(rt)) {
+          const r = new URL(rt);
+          r.searchParams.set('google_oauth', 'error');
+          r.searchParams.set('reason', 'token_exchange_failed');
+          return Response.redirect(r.toString(), 302);
+        }
+        return new Response(JSON.stringify({ error: `Token exchange failed: ${error}` }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const tokens = await tokenResponse.json();
+      console.log('GET flow: Token exchange successful');
+
+      // Get user info from Google (optional, but useful for logs)
+      const userResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+        headers: { 'Authorization': `Bearer ${tokens.access_token}` },
+      });
+      const userInfo = await userResponse.json().catch(() => ({}));
+      console.log('GET flow: User info retrieved for', userInfo?.email ?? 'unknown');
+
+      // Calculate expiry time
+      const expiryTime = new Date();
+      expiryTime.setSeconds(expiryTime.getSeconds() + (tokens.expires_in || 3600));
+
+      // Save tokens to Supabase
+      const { error: tokenError } = await supabase
+        .from('google_tokens')
+        .upsert({
+          user_id: stateData.user_id,
+          company_id: stateData.company_id ?? null,
+          refresh_token: tokens.refresh_token,
+          access_token: tokens.access_token,
+          token_expiry: expiryTime.toISOString(),
+        }, {
+          onConflict: 'user_id,company_id',
+        });
+
+      if (tokenError) {
+        console.error('GET flow: Error saving tokens:', tokenError);
+        const rt = stateData.return_to;
+        if (rt && /^https?:\/\//.test(rt)) {
+          const r = new URL(rt);
+          r.searchParams.set('google_oauth', 'error');
+          r.searchParams.set('reason', 'db_save_failed');
+          return Response.redirect(r.toString(), 302);
+        }
+        return new Response(JSON.stringify({ error: `Failed to save tokens: ${tokenError.message}` }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      console.log('GET flow: Tokens saved successfully');
+
+      // Redirect back to the app if provided
+      const returnTo = stateData.return_to;
+      if (returnTo && /^https?:\/\//.test(returnTo)) {
+        const r = new URL(returnTo);
+        r.searchParams.set('google_oauth', 'success');
+        r.searchParams.set('email', userInfo?.email ?? '');
+        return Response.redirect(r.toString(), 302);
+      }
+
+      // Fallback: simple HTML response if no return_to provided
+      return new Response(`<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Google OAuth</title></head>
+<body style="font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; padding: 24px;">
+  <h1>Conexão realizada</h1>
+  <p>Autenticação com Google concluída com sucesso. Você pode fechar esta janela e voltar ao app.</p>
+</body></html>`, {
+        headers: { ...corsHeaders, 'Content-Type': 'text/html' },
+      });
+    }
+
+    // 2) Handle JSON POST actions
+    let body: any = {};
+    if (req.method === 'POST') {
+      body = await req.json().catch(() => ({}));
+    }
+
+    const { action, code: bodyCode, state: bodyState, user_id, company_id, return_to } = body;
+
     console.log('Google OAuth action:', action);
 
     if (action === 'get_auth_url') {
       // Generate OAuth2 URL
       const CLIENT_ID = Deno.env.get('GOOGLE_ADS_CLIENT_ID');
       const redirectUri = `${Deno.env.get('SUPABASE_URL')}/functions/v1/google-oauth`;
-      
+
       const scopes = [
         'https://www.googleapis.com/auth/adwords',
         'https://www.googleapis.com/auth/userinfo.profile',
         'https://www.googleapis.com/auth/userinfo.email'
       ].join(' ');
 
-      const stateParam = JSON.stringify({ user_id, company_id });
-      
-      const authUrl = `https://accounts.google.com/o/oauth2/auth?` + 
-        `client_id=${CLIENT_ID}&` +
-        `redirect_uri=${encodeURIComponent(redirectUri)}&` +
-        `scope=${encodeURIComponent(scopes)}&` +
-        `response_type=code&` +
-        `access_type=offline&` +
-        `prompt=consent&` +
-        `state=${encodeURIComponent(stateParam)}`;
+      const stateParam = JSON.stringify({ user_id, company_id, return_to });
+
+      const authUrl = `https://accounts.google.com/o/oauth2/auth?`
+        + `client_id=${CLIENT_ID}&`
+        + `redirect_uri=${encodeURIComponent(redirectUri)}&`
+        + `scope=${encodeURIComponent(scopes)}&`
+        + `response_type=code&`
+        + `access_type=offline&`
+        + `prompt=consent&`
+        + `state=${encodeURIComponent(stateParam)}`;
 
       console.log('Generated auth URL');
       return new Response(JSON.stringify({ auth_url: authUrl }), {
@@ -50,7 +179,7 @@ serve(async (req) => {
       });
     }
 
-    if (action === 'exchange_token' || code) {
+    if (action === 'exchange_token' || bodyCode) {
       // Exchange code for tokens
       const CLIENT_ID = Deno.env.get('GOOGLE_ADS_CLIENT_ID');
       const CLIENT_SECRET = Deno.env.get('GOOGLE_ADS_CLIENT_SECRET');
@@ -66,7 +195,7 @@ serve(async (req) => {
         body: new URLSearchParams({
           client_id: CLIENT_ID!,
           client_secret: CLIENT_SECRET!,
-          code: code,
+          code: bodyCode,
           grant_type: 'authorization_code',
           redirect_uri: redirectUri,
         }),
@@ -92,10 +221,10 @@ serve(async (req) => {
       console.log('User info retrieved');
 
       // Parse state if it exists
-      let stateData = { user_id: user_id, company_id: company_id };
-      if (state) {
+      let stateData = { user_id: user_id, company_id: company_id } as any;
+      if (bodyState) {
         try {
-          stateData = JSON.parse(state);
+          stateData = JSON.parse(bodyState);
         } catch (e) {
           console.warn('Could not parse state parameter:', e);
         }
@@ -138,7 +267,7 @@ serve(async (req) => {
 
     if (action === 'refresh_token') {
       // Refresh access token
-      const { refresh_token } = await req.json();
+      const { refresh_token } = body;
       
       const CLIENT_ID = Deno.env.get('GOOGLE_ADS_CLIENT_ID');
       const CLIENT_SECRET = Deno.env.get('GOOGLE_ADS_CLIENT_SECRET');
@@ -195,7 +324,7 @@ serve(async (req) => {
 
     throw new Error('Invalid action');
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in google-oauth function:', error);
     return new Response(JSON.stringify({ 
       error: error.message || 'Internal server error' 

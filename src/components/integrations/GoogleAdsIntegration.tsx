@@ -95,24 +95,30 @@ export function GoogleAdsIntegration() {
       }
 
       // Call OAuth function to get auth URL
+      const returnTo = window.location.href;
       const { data, error } = await supabase.functions.invoke('google-oauth', {
         body: {
           action: 'get_auth_url',
           user_id: user.id,
-          company_id: null // For now, not linking to specific company
+          company_id: null, // For now, not linking to specific company
+          return_to: returnTo,
         }
       });
 
       if (error) throw error;
 
-      // Redirect to Google OAuth
-      if (data.auth_url) {
-        window.open(data.auth_url, 'google-oauth', 'width=600,height=700,scrollbars=yes,resizable=yes');
-        
+      // Redirect to Google OAuth (full window to avoid popup blockers)
+      if (data?.auth_url) {
         toast({
           title: "Redirecionando",
-          description: "Você será redirecionado para o Google Ads para autenticação",
+          description: "Abrindo Google para autenticação...",
         });
+        const url = data.auth_url as string;
+        if (window.top) {
+          window.top.location.assign(url);
+        } else {
+          window.location.assign(url);
+        }
       }
 
     } catch (error) {
