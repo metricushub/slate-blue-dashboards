@@ -282,12 +282,45 @@ serve(async (req) => {
       );
     }
     
+    if (pathParts.includes('set-mcc') && req.method === 'GET') {
+      // GET /set-mcc?mcc=xxx → Force set MCC for user
+      const mcc = url.searchParams.get('mcc');
+      
+      if (!mcc) {
+        throw new Error('Missing mcc parameter');
+      }
+      
+      // Sanitize MCC (remove hyphens)
+      const sanitizedMcc = mcc.replace(/-/g, '');
+      
+      // Save MCC to database
+      const { error: updateError } = await supabase
+        .from('google_tokens')
+        .update({ login_customer_id: sanitizedMcc })
+        .eq('user_id', user.id);
+      
+      if (updateError) {
+        throw new Error(`Failed to save MCC: ${updateError.message}`);
+      }
+      
+      return new Response(
+        JSON.stringify({ 
+          ok: true, 
+          login_customer_id: sanitizedMcc,
+          message: `MCC ${sanitizedMcc} salvo com sucesso`
+        }),
+        { headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+    
     // Default route info
     return new Response(
       JSON.stringify({ 
         ok: true, 
         message: 'Google Ads Diagnostics API',
         availableEndpoints: [
+          'GET /force-mcc?customerId=xxx&mcc=yyy - Force set MCC for user',
+          'GET /set-mcc?mcc=xxx - Set MCC for user',
           'GET /mcc-for/:customerId - Resolve MCC for customer',
           'POST /ping-search - Test GAQL query',
           'GET /context - Get diagnostic context'

@@ -42,12 +42,16 @@ async function getValidAccessTokenAndMcc(userId: string, companyId?: string): Pr
 
   const token = tokens[0];
   
-  if (!token.login_customer_id) {
-    throw new Error('Nenhum MCC salvo. Execute /google-ads/diag/force-mcc ou faça a sincronização.');
+  // Use forced MCC from env if set, otherwise use saved MCC
+  const FORCED_MCC = Deno.env.get("FORCED_MCC_LOGIN_ID");
+  let mccToUse = FORCED_MCC || token.login_customer_id;
+  
+  if (!mccToUse) {
+    throw new Error('Nenhum MCC salvo. Execute /google-ads/diag/set-mcc?mcc=2478435835 ou configure FORCED_MCC_LOGIN_ID.');
   }
 
   // Sanitize MCC (remove hyphens)
-  const sanitizedMcc = token.login_customer_id.replace(/-/g, '');
+  const sanitizedMcc = mccToUse.replace(/-/g, '');
 
   const now = new Date();
   const expiry = new Date(token.token_expiry);
@@ -109,7 +113,42 @@ async function getValidAccessTokenAndMcc(userId: string, companyId?: string): Pr
   };
 }
 
-// Run Google Ads query with saved MCC
+// Validate hierarchy: ensure MCC manages the target customer
+async function validateHierarchy(accessToken: string, targetCustomerId: string, loginCustomerId: string): Promise<void> {
+  const cleanMcc = loginCustomerId.replace(/-/g, '');
+  
+  const query = `
+    SELECT customer_client.id
+    FROM customer_client
+    WHERE customer_client.id = ${targetCustomerId}
+    LIMIT 1
+  `;
+  
+  const headers = {
+    'Authorization': `Bearer ${accessToken}`,
+    'developer-token': GOOGLE_ADS_DEVELOPER_TOKEN,
+    'login-customer-id': cleanMcc,
+    'Content-Type': 'application/json',
+  };
+  
+  log(`[ads-call] { endpoint: "customerClient", targetCustomerId: "${targetCustomerId}", loginCustomerIdMasked: "***${cleanMcc.slice(-4)}", hasBearer: ${!!accessToken}, hasDevToken: ${!!GOOGLE_ADS_DEVELOPER_TOKEN} }`);
+  
+  const response = await fetch(`https://googleads.googleapis.com/v21/customers/${cleanMcc}/googleAds:searchStream`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ query })
+  });
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Hierarchy validation failed: O MCC ${cleanMcc} não gerencia a conta ${targetCustomerId}. Conecte a conta certa ou altere o MCC/dev-token.`);
+  }
+  
+  const data = await response.json();
+  if (!data.results || data.results.length === 0) {
+    throw new Error(`O MCC ${cleanMcc} não gerencia a conta ${targetCustomerId}. Conecte a conta certa ou altere o MCC/dev-token.`);
+  }
+}
 async function runGoogleAdsQuery(accessToken: string, customerId: string, query: string, loginCustomerId: string): Promise<MetricData[]> {
   const cleanCustomerId = customerId.replace(/-/g, '');
   
@@ -176,7 +215,7 @@ async function sendToIngestEndpoint(metrics: MetricData[], customerId: string): 
   const METRICUS_INGEST_KEY = Deno.env.get("METRICUS_INGEST_KEY");
   
   if (!METRICUS_INGEST_KEY) {
-    const errorMsg = 'Chave interna ausente/inválida (x-api-key). Configure METRICUS_INGEST_KEY nas Functions.';
+    const errorMsg = 'Configure METRICUS_INGEST_KEY nas envs das Functions.';
     log('ERROR:', errorMsg);
     throw new Error(errorMsg);
   }
@@ -214,7 +253,7 @@ async function sendToIngestEndpoint(metrics: MetricData[], customerId: string): 
     log('Ingest endpoint error:', response.status, errorText);
     
     if (response.status === 401) {
-      throw new Error('Chave interna ausente/inválida (x-api-key). Configure METRICUS_INGEST_KEY nas Functions.');
+      throw new Error('Configure METRICUS_INGEST_KEY nas envs das Functions.');
     }
     
     throw new Error(`Ingest error: ${response.status} - ${errorText}`);
@@ -276,6 +315,10 @@ serve(async (req) => {
       // Get valid access token and saved MCC
       const { accessToken, loginCustomerId } = await getValidAccessTokenAndMcc(user_id, company_id);
       log(`Access token and MCC obtained. MCC: ***${loginCustomerId.slice(-4)}`);
+
+      // Validate hierarchy before proceeding
+      await validateHierarchy(accessToken, customer_id, loginCustomerId);
+      log(`Hierarchy validated for customer ${customer_id} with MCC ***${loginCustomerId.slice(-4)}`);
 
       // Build Google Ads query
       const query = `
