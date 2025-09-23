@@ -1,0 +1,120 @@
+// deno-lint-ignore-file no-explicit-any
+import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
+
+/**
+ * google-ads-ping
+ * 1) Lê o refresh_token mais recente da tabela google_ads_credentials
+ * 2) Troca por um novo access_token
+ * 3) Chama Google Ads API: customers:listAccessibleCustomers
+ * 4) Retorna JSON com sucesso e lista de contas
+ */
+
+const SUPABASE_URL  = Deno.env.get("SUPABASE_URL")!;
+const SERVICE_KEY   = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const DEV_TOKEN     = Deno.env.get("GOOGLE_ADS_DEVELOPER_TOKEN")!; // precisa existir
+
+const OAUTH_TOKEN_URL = "https://oauth2.googleapis.com/token";
+const ADS_API_BASE    = "https://googleads.googleapis.com/v21";
+
+function log(...args: any[]) {
+  console.log("[google-ads-ping]", ...args);
+}
+
+async function getLatestRefreshToken() {
+  const url = new URL(`${SUPABASE_URL}/rest/v1/google_ads_credentials`);
+  url.searchParams.set("select", "id,refresh_token,created_at");
+  url.searchParams.set("order", "created_at.desc");
+  url.searchParams.set("limit", "1");
+
+  const resp = await fetch(url.toString(), {
+    headers: {
+      apikey: SERVICE_KEY,
+      Authorization: `Bearer ${SERVICE_KEY}`,
+    },
+  });
+
+  if (!resp.ok) {
+    const t = await resp.text();
+    throw new Error(`db_select ${resp.status}: ${t}`);
+  }
+
+  const rows = await resp.json();
+  if (!rows?.length || !rows[0]?.refresh_token) {
+    throw new Error("no_refresh_token_found");
+  }
+  return rows[0].refresh_token as string;
+}
+
+async function exchangeRefreshToken(refresh_token: string) {
+  const body = new URLSearchParams({
+    grant_type: "refresh_token",
+    refresh_token,
+    client_id: Deno.env.get("GOOGLE_OAUTH_CLIENT_ID")!,
+    client_secret: Deno.env.get("GOOGLE_OAUTH_CLIENT_SECRET")!,
+  });
+
+  const r = await fetch(OAUTH_TOKEN_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body,
+  });
+
+  const text = await r.text();
+  let json: any;
+  try { json = JSON.parse(text); } catch { json = { raw: text }; }
+
+  if (!r.ok) {
+    throw new Error(`refresh_error ${r.status}: ${JSON.stringify(json)}`);
+  }
+  return json.access_token as string;
+}
+
+async function listAccessibleCustomers(access_token: string) {
+  const r = await fetch(`${ADS_API_BASE}/customers:listAccessibleCustomers`, {
+    headers: {
+      Authorization: `Bearer ${access_token}`,
+      "developer-token": DEV_TOKEN,
+    },
+  });
+
+  const text = await r.text();
+  let json: any;
+  try { json = JSON.parse(text); } catch { json = { raw: text }; }
+
+  if (!r.ok) {
+    throw new Error(`ads_error ${r.status}: ${JSON.stringify(json)}`);
+  }
+
+  return json; // { resourceNames: [...] }
+}
+
+serve(async (req) => {
+  const url = new URL(req.url);
+  log("REQ", { path: url.pathname });
+
+  try {
+    const refresh = await getLatestRefreshToken();
+    log("got refresh_token", refresh.slice(0, 10) + "...");
+
+    const access = await exchangeRefreshToken(refresh);
+    log("got access_token", access ? "[present]" : "(empty)");
+
+    const result = await listAccessibleCustomers(access);
+    const resourceNames: string[] = result?.resourceNames ?? [];
+
+    return new Response(
+      JSON.stringify({
+        ok: true,
+        customers_count: resourceNames.length,
+        customers: resourceNames, // ["customers/1234567890", ...]
+      }),
+      { headers: { "Content-Type": "application/json" } },
+    );
+  } catch (e) {
+    log("ping_error", String(e));
+    return new Response(
+      JSON.stringify({ ok: false, error: String(e) }),
+      { status: 400, headers: { "Content-Type": "application/json" } },
+    );
+  }
+});
