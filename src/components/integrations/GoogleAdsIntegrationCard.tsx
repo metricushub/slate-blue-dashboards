@@ -83,8 +83,20 @@ export function GoogleAdsIntegrationCard() {
   const handleConnect = async () => {
     setIsConnecting(true);
     try {
+      // Ensure we pass the current user_id to the OAuth state so tokens are linked correctly
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({
+          title: 'Faça login',
+          description: 'Você precisa estar autenticado para conectar ao Google Ads.',
+          variant: 'destructive',
+        });
+        setIsConnecting(false);
+        return;
+      }
+
       const functionsHost = "https://zoahzxfjefjmkxylbfxf.functions.supabase.co";
-      const connectUrl = `${functionsHost}/google-oauth/start?next=/integracoes`;
+      const connectUrl = `${functionsHost}/google-oauth/start?next=/integracoes&user_id=${encodeURIComponent(user.id)}`;
       
       const popup = window.open(connectUrl, '_blank', 'width=500,height=600,scrollbars=yes,resizable=yes');
       if (!popup) {
