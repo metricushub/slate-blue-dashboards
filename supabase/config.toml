@@ -18,3 +18,6 @@ verify_jwt = false
 
 [functions.google-ads-accounts]
 verify_jwt = false
+
+[functions.google-ads-ingest]
+verify_jwt = false

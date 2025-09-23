@@ -1,5 +1,6 @@
 // deno-lint-ignore-file no-explicit-any
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const GOOGLE_AUTH = "https://accounts.google.com/o/oauth2/v2/auth";
 const TOKEN_URL   = "https://oauth2.googleapis.com/token";
@@ -8,14 +9,53 @@ const CLIENT_ID     = Deno.env.get("GOOGLE_OAUTH_CLIENT_ID")!;
 const CLIENT_SECRET = Deno.env.get("GOOGLE_OAUTH_CLIENT_SECRET")!;
 const REDIRECT_URI  = Deno.env.get("GOOGLE_OAUTH_REDIRECT_URI")!;
 
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
+const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+
 // util: log seguro
 function log(...args: any[]) {
-  // Em Supabase, console.log vai para os logs da função; não logue tokens!
   console.log("[google-oauth]", ...args);
 }
 
+// Save tokens to database
+async function saveTokensToDatabase(tokens: any, userId?: string) {
+  if (!SUPABASE_URL || !SERVICE_KEY) {
+    log("Missing Supabase config, cannot save tokens");
+    return;
+  }
+
+  const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
+  
+  // Calculate expiry time
+  const expiryTime = new Date();
+  expiryTime.setSeconds(expiryTime.getSeconds() + (tokens.expires_in || 3600));
+
+  const tokenData = {
+    user_id: userId || crypto.randomUUID(), // Fallback to random UUID if no user provided
+    access_token: tokens.access_token,
+    refresh_token: tokens.refresh_token,
+    token_expiry: expiryTime.toISOString(),
+    customer_id: null, // Will be updated when accounts are synced
+    company_id: null
+  };
+
+  const { data, error } = await supabase
+    .from('google_tokens')
+    .upsert(tokenData, { 
+      onConflict: 'user_id',
+      ignoreDuplicates: false 
+    })
+    .select();
+
+  if (error) {
+    log("Error saving tokens:", error);
+  } else {
+    log("Tokens saved successfully for user:", userId);
+  }
+}
+
 // troca code -> tokens
-async function exchangeCodeForTokens(code: string) {
+async function exchangeCodeForTokens(code: string, state?: string) {
   const body = new URLSearchParams({
     code,
     client_id: CLIENT_ID,
@@ -42,12 +82,26 @@ async function exchangeCodeForTokens(code: string) {
     );
   }
 
-  // NÃO logue tokens completos em produção
   log("token ok", { has_access_token: !!json.access_token, has_refresh: !!json.refresh_token });
+
+  // Extract user info from state if available
+  let userId: string | undefined;
+  if (state) {
+    try {
+      const stateData = JSON.parse(atob(state));
+      userId = stateData.user_id;
+    } catch (e) {
+      log("Could not parse state for user_id:", e);
+    }
+  }
+
+  // Save tokens to database
+  await saveTokensToDatabase(json, userId);
+
   return new Response(
     JSON.stringify({ ok: true, tokens: {
-      access_token: json.access_token ? "[present]" : null,
-      refresh_token: json.refresh_token ? "[present]" : null,
+      access_token: json.access_token ? "[saved]" : null,
+      refresh_token: json.refresh_token ? "[saved]" : null,
       expires_in: json.expires_in ?? null,
       scope: json.scope ?? null,
       token_type: json.token_type ?? null,
@@ -65,7 +119,8 @@ serve(async (req) => {
   // 1) Início do OAuth: redireciona para Google
   if (path.endsWith("/start")) {
     const next = url.searchParams.get("next") ?? "/";
-    const state = btoa(JSON.stringify({ n: next })); // simples; pode assinar com STATE_SECRET
+    const userId = url.searchParams.get("user_id");
+    const state = btoa(JSON.stringify({ n: next, user_id: userId }));
 
     const authUrl = new URL(GOOGLE_AUTH);
     authUrl.searchParams.set("client_id", CLIENT_ID);
@@ -107,7 +162,7 @@ serve(async (req) => {
     }
 
     log("callback received code", { hasState: !!state });
-    return exchangeCodeForTokens(code);
+    return exchangeCodeForTokens(code, state);
   }
 
   // 3) Health/info

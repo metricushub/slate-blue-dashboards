@@ -1,15 +1,19 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
+// deno-lint-ignore-file no-explicit-any
+import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
+const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+const GOOGLE_ADS_DEVELOPER_TOKEN = Deno.env.get("GOOGLE_ADS_DEVELOPER_TOKEN") || "";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+} as const;
 
-const supabase = createClient(
-  Deno.env.get('SUPABASE_URL') ?? '',
-  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-);
+function log(...args: any[]) { 
+  console.log("[google-ads-ingest]", ...args); 
+}
 
 interface MetricData {
   date: string;
@@ -17,186 +21,166 @@ interface MetricData {
   campaign_name: string;
   impressions: number;
   clicks: number;
-  cost_micros: number;
+  cost: number;
   conversions: number;
-  conversions_value: number;
 }
 
-async function getValidAccessToken(userId: string, companyId?: string) {
-  console.log('Getting valid access token for user:', userId);
+// Get valid access token (refresh if needed)
+async function getValidAccessToken(userId: string, companyId?: string): Promise<string> {
+  const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
   
-  const { data: tokenData, error } = await supabase
+  const { data: tokens, error } = await supabase
     .from('google_tokens')
     .select('*')
     .eq('user_id', userId)
-    .eq('company_id', companyId || null)
-    .single();
+    .order('created_at', { ascending: false })
+    .limit(1);
 
-  if (error || !tokenData) {
-    throw new Error('No Google Ads tokens found for user');
+  if (error || !tokens || tokens.length === 0) {
+    throw new Error('No Google Ads tokens found');
   }
 
-  // Check if token is expired
+  const token = tokens[0];
   const now = new Date();
-  const expiry = new Date(tokenData.token_expiry);
-  
-  if (now >= expiry) {
-    console.log('Token expired, refreshing...');
-    
-    // Refresh token using the google-oauth function
-    const refreshResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/google-oauth`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        action: 'refresh_token',
-        refresh_token: tokenData.refresh_token,
-      }),
-    });
+  const expiry = new Date(token.token_expiry);
 
-    if (!refreshResponse.ok) {
-      throw new Error('Failed to refresh access token');
-    }
-
-    const newTokens = await refreshResponse.json();
-    return newTokens.access_token;
+  // If token is still valid, return it
+  if (now < expiry) {
+    return token.access_token;
   }
 
-  return tokenData.access_token;
+  // Token expired, refresh it
+  log('Token expired, refreshing...');
+  const { data, error: refreshError } = await supabase.functions.invoke('google-oauth', {
+    body: {
+      action: 'refresh', 
+      refresh_token: token.refresh_token,
+      user_id: userId
+    }
+  });
+
+  if (refreshError || !data?.access_token) {
+    throw new Error('Failed to refresh Google Ads token');
+  }
+
+  return data.access_token;
 }
 
+// Run Google Ads query
 async function runGoogleAdsQuery(accessToken: string, customerId: string, query: string): Promise<MetricData[]> {
-  console.log('Running Google Ads query for customer:', customerId);
+  const url = `https://googleads.googleapis.com/v16/customers/${customerId.replace(/-/g, '')}/googleAds:searchStream`;
   
-  const DEVELOPER_TOKEN = Deno.env.get('GOOGLE_ADS_DEVELOPER_TOKEN');
-  
-  const response = await fetch(
-    `https://googleads.googleapis.com/v16/customers/${customerId}/googleAds:search`,
-    {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'developer-token': DEVELOPER_TOKEN!,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ query }),
-    }
-  );
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'developer-token': GOOGLE_ADS_DEVELOPER_TOKEN,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ query })
+  });
 
   if (!response.ok) {
-    const error = await response.text();
-    console.error('Google Ads API error:', error);
-    throw new Error(`Google Ads API error: ${error}`);
+    const errorText = await response.text();
+    log('Google Ads API error:', response.status, errorText);
+    throw new Error(`Google Ads API error: ${response.status} - ${errorText}`);
   }
 
-  const data = await response.json();
-  console.log('Google Ads query results:', data.results?.length || 0, 'rows');
-
-  // Transform results to our format
+  const results = await response.json();
   const metrics: MetricData[] = [];
-  
-  if (data.results) {
-    for (const row of data.results) {
-      const campaign = row.campaign;
-      const segmentDate = row.segments?.date;
-      const rowMetrics = row.metrics;
 
-      if (campaign && segmentDate && rowMetrics) {
-        metrics.push({
-          date: segmentDate,
-          campaign_id: campaign.id,
-          campaign_name: campaign.name,
-          impressions: parseInt(rowMetrics.impressions || '0'),
-          clicks: parseInt(rowMetrics.clicks || '0'),
-          cost_micros: parseInt(rowMetrics.costMicros || '0'),
-          conversions: parseFloat(rowMetrics.conversions || '0'),
-          conversions_value: parseFloat(rowMetrics.conversionsValue || '0'),
-        });
-      }
+  if (results.results) {
+    for (const row of results.results) {
+      const segments = row.segments || {};
+      const campaign = row.campaign || {};
+      const campaignMetrics = row.metrics || {};
+
+      metrics.push({
+        date: segments.date || new Date().toISOString().split('T')[0],
+        campaign_id: campaign.id || 'unknown',
+        campaign_name: campaign.name || 'Unknown Campaign',
+        impressions: parseInt(campaignMetrics.impressions || '0'),
+        clicks: parseInt(campaignMetrics.clicks || '0'),
+        cost: parseFloat(campaignMetrics.cost_micros || '0') / 1000000, // Convert micros to currency
+        conversions: parseFloat(campaignMetrics.conversions || '0'),
+      });
     }
   }
 
   return metrics;
 }
 
-async function sendToIngestEndpoint(metrics: MetricData[], customerId: string) {
-  console.log('Sending metrics to ingest endpoint:', metrics.length, 'records');
+// Send metrics to ingest endpoint
+async function sendToIngestEndpoint(metrics: MetricData[], customerId: string): Promise<any> {
+  const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
   
-  const INGEST_KEY = Deno.env.get('METRICUS_INGEST_KEY');
-  
-  // Transform metrics to the expected format for the ingest endpoint
+  // Transform metrics for our schema
   const transformedMetrics = metrics.map(metric => ({
     date: metric.date,
+    client_id: customerId, // We'll need to map this properly
     platform: 'google_ads',
-    client_id: customerId,
     campaign_id: metric.campaign_id,
-    campaign_name: metric.campaign_name,
     impressions: metric.impressions,
     clicks: metric.clicks,
-    spend: metric.cost_micros / 1000000, // Convert micros to currency
-    conversions: Math.round(metric.conversions),
-    revenue: metric.conversions_value,
-    cpa: metric.conversions > 0 ? (metric.cost_micros / 1000000) / metric.conversions : 0,
-    roas: metric.cost_micros > 0 ? metric.conversions_value / (metric.cost_micros / 1000000) : 0,
-    ctr: metric.impressions > 0 ? (metric.clicks / metric.impressions) * 100 : 0,
-    conv_rate: metric.clicks > 0 ? (metric.conversions / metric.clicks) * 100 : 0,
+    spend: metric.cost,
+    conversions: metric.conversions,
+    leads: metric.conversions, // Assuming conversions = leads
+    // Calculate derived metrics
+    cpa: metric.conversions > 0 ? metric.cost / metric.conversions : null,
+    ctr: metric.impressions > 0 ? (metric.clicks / metric.impressions) * 100 : null,
+    conv_rate: metric.clicks > 0 ? (metric.conversions / metric.clicks) * 100 : null,
   }));
 
-  // Send to existing ingest endpoint
-  const ingestResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/ingest-metrics`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-ingest-key': INGEST_KEY!,
-    },
-    body: JSON.stringify({ metrics: transformedMetrics }),
+  const { data, error } = await supabase.functions.invoke('ingest-metrics', {
+    body: transformedMetrics
   });
 
-  if (!ingestResponse.ok) {
-    const error = await ingestResponse.text();
-    console.error('Ingest endpoint error:', error);
-    throw new Error(`Failed to ingest metrics: ${error}`);
+  if (error) {
+    throw new Error(`Ingest error: ${error.message}`);
   }
 
-  const result = await ingestResponse.json();
-  console.log('Metrics ingested successfully:', result);
-  
-  return result;
+  return data;
 }
 
 serve(async (req) => {
-  // Handle CORS preflight requests
+  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { 
-      user_id, 
-      company_id, 
-      customer_id, 
-      start_date, 
-      end_date,
-      manual = false 
-    } = await req.json();
-    
-    if (!user_id || !customer_id) {
-      throw new Error('user_id and customer_id are required');
+    if (!SUPABASE_URL || !SERVICE_KEY) {
+      throw new Error("Missing Supabase environment variables");
     }
 
-    console.log('Starting Google Ads ingest for customer:', customer_id);
+    if (!GOOGLE_ADS_DEVELOPER_TOKEN) {
+      throw new Error("Missing Google Ads Developer Token");
+    }
+
+    const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
+    const body = await req.json();
+    
+    const { user_id, company_id, customer_id, start_date, end_date } = body;
+    
+    if (!user_id || !customer_id) {
+      throw new Error("Missing required parameters: user_id, customer_id");
+    }
+
+    // Default date range: last 7 days
+    const endDate = end_date || new Date().toISOString().split('T')[0];
+    const startDate = start_date || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+    log('Starting ingestion', { user_id, customer_id, startDate, endDate });
 
     // Create ingestion record
-    const { data: ingestionRecord, error: ingestionError } = await supabase
+    const { data: ingestion, error: ingestionError } = await supabase
       .from('google_ads_ingestions')
       .insert({
         user_id,
         customer_id,
-        start_date: start_date || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        end_date: end_date || new Date().toISOString().split('T')[0],
-        status: 'running',
+        start_date: startDate,
+        end_date: endDate,
+        status: 'running'
       })
       .select()
       .single();
@@ -208,36 +192,31 @@ serve(async (req) => {
     try {
       // Get valid access token
       const accessToken = await getValidAccessToken(user_id, company_id);
-      
-      // Define date range
-      const dateRange = start_date && end_date 
-        ? `BETWEEN '${start_date}' AND '${end_date}'`
-        : 'DURING LAST_7_DAYS';
+      log('Access token obtained');
 
-      // GAQL query for campaign metrics (últimos 7 dias por padrão)
+      // Build Google Ads query
       const query = `
-        SELECT
-          campaign.id, 
+        SELECT 
+          segments.date,
+          campaign.id,
           campaign.name,
-          metrics.impressions, 
+          metrics.impressions,
           metrics.clicks,
-          metrics.cost_micros, 
-          metrics.conversions,
-          metrics.conversions_value, 
-          segments.date
-        FROM campaign
-        WHERE segments.date ${dateRange}
+          metrics.cost_micros,
+          metrics.conversions
+        FROM campaign 
+        WHERE segments.date BETWEEN '${startDate}' AND '${endDate}'
         AND campaign.status = 'ENABLED'
-        ORDER BY segments.date DESC
       `;
 
       // Run query
       const metrics = await runGoogleAdsQuery(accessToken, customer_id, query);
-      console.log('Retrieved metrics:', metrics.length, 'records');
+      log(`Retrieved ${metrics.length} metric records`);
 
-      // Send to ingest endpoint
+      // Send to ingest endpoint if we have data
       if (metrics.length > 0) {
-        await sendToIngestEndpoint(metrics, customer_id);
+        const ingestResult = await sendToIngestEndpoint(metrics, customer_id);
+        log('Ingest completed', ingestResult);
       }
 
       // Update ingestion record as completed
@@ -245,44 +224,43 @@ serve(async (req) => {
         .from('google_ads_ingestions')
         .update({
           status: 'completed',
-          records_processed: metrics.length,
           completed_at: new Date().toISOString(),
+          records_processed: metrics.length
         })
-        .eq('id', ingestionRecord.id);
+        .eq('id', ingestion.id);
 
-      console.log('Google Ads ingest completed successfully');
+      return new Response(
+        JSON.stringify({ 
+          ok: true, 
+          ingestion_id: ingestion.id,
+          records_processed: metrics.length,
+          customer_id,
+          date_range: { start_date: startDate, end_date: endDate }
+        }),
+        { headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
 
-      return new Response(JSON.stringify({ 
-        success: true, 
-        ingestion_id: ingestionRecord.id,
-        records_processed: metrics.length,
-        customer_id: customer_id,
-        date_range: dateRange
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-
-    } catch (error) {
+    } catch (processingError) {
+      log('Processing error:', processingError);
+      
       // Update ingestion record as failed
       await supabase
         .from('google_ads_ingestions')
         .update({
           status: 'failed',
-          error_message: error.message,
           completed_at: new Date().toISOString(),
+          error_message: processingError.message
         })
-        .eq('id', ingestionRecord.id);
+        .eq('id', ingestion.id);
 
-      throw error;
+      throw processingError;
     }
 
-  } catch (error) {
-    console.error('Error in google-ads-ingest function:', error);
-    return new Response(JSON.stringify({ 
-      error: error.message || 'Internal server error' 
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+  } catch (e) {
+    log("ingest_error", String(e));
+    return new Response(
+      JSON.stringify({ ok: false, error: String(e) }),
+      { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+    );
   }
 });

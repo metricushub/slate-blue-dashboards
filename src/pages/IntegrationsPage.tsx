@@ -21,6 +21,7 @@ import { useDataSource } from "@/hooks/useDataSource";
 import { toast } from "@/hooks/use-toast";
 import { SheetsAdapter } from "@/shared/data-source/adapters/sheets";
 import { Link } from "react-router-dom";
+import { GoogleAdsIntegrationCard } from "@/components/integrations/GoogleAdsIntegrationCard";
 
 export function IntegrationsPage() {
   const { dataSource, sourceType, isLoading, refreshCache } = useDataSource();
@@ -217,45 +218,8 @@ export function IntegrationsPage() {
           </CardContent>
         </Card>
 
-        {/* Google Ads Card - Under Construction */}
-        <Card className="relative opacity-75">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Chrome className="w-5 h-5 text-blue-600" />
-              </div>
-              <div>
-                <span>Google Ads</span>
-                <Badge className="ml-2 bg-orange-100 text-orange-800">Em construção</Badge>
-              </div>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="text-sm text-muted-foreground">
-              <p>Integração direta com a API do Google Ads para:</p>
-              <ul className="mt-2 space-y-1 list-disc list-inside">
-                <li>Autenticação OAuth 2.0</li>
-                <li>Escolha de contas publicitárias</li>
-                <li>Dados em tempo real</li>
-                <li>Métricas detalhadas</li>
-              </ul>
-            </div>
-
-            <Separator />
-            
-            <Button disabled className="w-full">
-              <TrendingUp className="w-4 h-4 mr-2" />
-              Conectar (Em breve)
-            </Button>
-
-            <div className="p-2 bg-blue-50 rounded text-sm text-blue-700">
-              <div className="flex items-center gap-2">
-                <Settings className="w-4 h-4" />
-                <span className="font-medium">Suportará autenticação e escolha de contas</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Google Ads Card - Active */}
+        <GoogleAdsIntegrationCard />
 
         {/* Meta Ads Card - Under Construction */}
         <Card className="relative opacity-75">
