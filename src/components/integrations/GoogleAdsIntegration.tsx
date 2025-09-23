@@ -225,6 +225,95 @@ export function GoogleAdsIntegration() {
 
   return (
     <div className="space-y-6">
+      {/* Configuration Form */}
+      <Card>
+        <CardHeader>
+          <CardTitle>⚙️ Configurar Credenciais Google Ads</CardTitle>
+          <CardDescription>
+            Insira as credenciais corretas do seu projeto no Google Cloud Console
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              Client ID (deve terminar com .apps.googleusercontent.com)
+            </label>
+            <input
+              type="text"
+              placeholder="67328513712-xxxxxxx.apps.googleusercontent.com"
+              className="w-full p-3 border rounded-lg font-mono text-sm"
+              id="client-id-input"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Encontre isso em: Google Cloud Console → Credentials → OAuth 2.0 Client IDs
+            </p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              Client Secret (deve começar com GOCSPX-)
+            </label>
+            <input
+              type="password"
+              placeholder="GOCSPX-xxxxxxxxxxxxxxxx"
+              className="w-full p-3 border rounded-lg font-mono text-sm"
+              id="client-secret-input"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Clique em "Show" ao lado do Client ID no Google Cloud Console
+            </p>
+          </div>
+          <Button 
+            onClick={async () => {
+              const clientId = (document.getElementById('client-id-input') as HTMLInputElement)?.value.trim();
+              const clientSecret = (document.getElementById('client-secret-input') as HTMLInputElement)?.value.trim();
+              
+              if (!clientId || !clientSecret) {
+                toast({
+                  title: 'Campos obrigatórios',
+                  description: 'Por favor, preencha ambos os campos',
+                  variant: 'destructive'
+                });
+                return;
+              }
+              
+              if (!clientId.includes('.apps.googleusercontent.com')) {
+                toast({
+                  title: 'Client ID inválido',
+                  description: 'Client ID deve terminar com .apps.googleusercontent.com',
+                  variant: 'destructive'
+                });
+                return;
+              }
+              
+              if (!clientSecret.startsWith('GOCSPX-')) {
+                toast({
+                  title: 'Client Secret inválido',
+                  description: 'Client Secret deve começar com GOCSPX-',
+                  variant: 'destructive'
+                });
+                return;
+              }
+              
+              toast({
+                title: '✅ Credenciais válidas!',
+                description: 'Agora atualize os secrets GOOGLE_ADS_CLIENT_ID e GOOGLE_ADS_CLIENT_SECRET no Supabase dashboard.'
+              });
+            }}
+            className="w-full"
+          >
+            Validar Credenciais
+          </Button>
+          <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <p className="text-sm">
+              <strong>Próximo passo:</strong> Após validar, vá ao Supabase dashboard e atualize os secrets:
+              <br />• <code>GOOGLE_ADS_CLIENT_ID</code>
+              <br />• <code>GOOGLE_ADS_CLIENT_SECRET</code>
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Status Card */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
