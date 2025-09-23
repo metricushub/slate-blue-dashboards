@@ -249,24 +249,36 @@ serve(async (req) => {
         .limit(1);
       const loginCustomerId = tokenRows?.[0]?.login_customer_id || undefined;
 
-      // Build Google Ads query
+      // Build Google Ads query with more debug info
       const query = `
         SELECT 
           segments.date,
           campaign.id,
           campaign.name,
+          campaign.status,
           metrics.impressions,
           metrics.clicks,
           metrics.cost_micros,
           metrics.conversions
         FROM campaign 
         WHERE segments.date BETWEEN '${startDate}' AND '${endDate}'
-        AND campaign.status = 'ENABLED'
+        ORDER BY segments.date DESC
       `;
 
       // Run query
       const metrics = await runGoogleAdsQuery(accessToken, customer_id, query, loginCustomerId);
-      log(`Retrieved ${metrics.length} metric records`);
+      log(`Query executed. Total results: ${metrics.length}`);
+      
+      // Log some details about what we found
+      if (metrics.length === 0) {
+        log('No metrics found. This could mean:');
+        log('- No campaigns in the account');
+        log('- No campaigns with data in the date range');
+        log('- Account has no activity in the last 7 days');
+      } else {
+        const campaigns = [...new Set(metrics.map(m => m.campaign_name))];
+        log(`Found data for ${campaigns.length} campaigns: ${campaigns.slice(0, 3).join(', ')}${campaigns.length > 3 ? '...' : ''}`);
+      }
 
       // Send to ingest endpoint if we have data
       if (metrics.length > 0) {

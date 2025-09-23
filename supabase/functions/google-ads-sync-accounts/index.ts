@@ -72,16 +72,94 @@ async function listAccessibleCustomers(access_token: string) {
   return (j?.resourceNames as string[] ?? []).map((s) => s.replace("customers/", ""));
 }
 
-async function upsertCustomers(customerIds: string[], userId: string) {
+async function getAccountDetails(access_token: string, customerIds: string[]) {
+  if (!DEV_TOKEN) throw new Error("dev_token_missing");
+  
+  const accountDetails: any[] = [];
+  
+  for (const customerId of customerIds) {
+    try {
+      const query = `
+        SELECT 
+          customer.id,
+          customer.descriptive_name,
+          customer.currency_code,
+          customer.time_zone,
+          customer.manager,
+          customer.status
+        FROM customer 
+        WHERE customer.id = ${customerId}
+      `;
+      
+      const response = await fetch(`${ADS_API_BASE}/customers/${customerId}/googleAds:searchStream`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${access_token}`,
+          'developer-token': DEV_TOKEN,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ query })
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        const customerData = result.results?.[0]?.customer;
+        
+        if (customerData) {
+          accountDetails.push({
+            customer_id: customerId,
+            account_name: customerData.descriptive_name || `Account ${customerId}`,
+            currency_code: customerData.currency_code,
+            time_zone: customerData.time_zone,
+            is_manager: customerData.manager || false,
+            status: customerData.status === 'ENABLED' ? 'ENABLED' : 'SUSPENDED'
+          });
+        }
+      } else {
+        // Fallback se não conseguir buscar detalhes
+        accountDetails.push({
+          customer_id: customerId,
+          account_name: `Account ${customerId}`,
+          currency_code: null,
+          time_zone: null,
+          is_manager: false,
+          status: 'ENABLED'
+        });
+      }
+    } catch (error) {
+      log(`Error getting details for ${customerId}:`, error);
+      // Fallback
+      accountDetails.push({
+        customer_id: customerId,
+        account_name: `Account ${customerId}`,
+        currency_code: null,
+        time_zone: null,
+        is_manager: false,
+        status: 'ENABLED'
+      });
+    }
+  }
+  
+  return accountDetails;
+}
+
+async function upsertCustomers(customerIds: string[], userId: string, access_token: string) {
   if (!SUPABASE_URL || !SERVICE_KEY) throw new Error("service_role_required_for_upsert");
 
-  // Save to accounts_map table instead of google_ads_connections
-  const accountsData = customerIds.map((id) => ({ 
-    customer_id: id,
-    client_id: id, // Using customer_id as client_id for now
-    account_name: `Account ${id}`,
-    account_type: 'REGULAR',
-    status: 'active'
+  // Get detailed account information
+  log(`Getting details for ${customerIds.length} accounts...`);
+  const accountDetails = await getAccountDetails(access_token, customerIds);
+  
+  // Save to accounts_map table with real account details
+  const accountsData = accountDetails.map((account) => ({ 
+    customer_id: account.customer_id,
+    client_id: account.customer_id, // Using customer_id as client_id for now
+    account_name: account.account_name,
+    currency_code: account.currency_code,
+    time_zone: account.time_zone,
+    is_manager: account.is_manager,
+    account_type: account.is_manager ? 'MANAGER' : 'REGULAR',
+    status: account.status
   }));
 
   const r = await fetch(`${SUPABASE_URL}/rest/v1/accounts_map`, {
@@ -136,7 +214,7 @@ serve(async (req) => {
     const access = await exchangeRefreshToken(tokenData.refresh_token);
     const ids = await listAccessibleCustomers(access);
 
-    await upsertCustomers(ids, tokenData.user_id);
+    await upsertCustomers(ids, tokenData.user_id, access);
 
     return new Response(
       JSON.stringify({ ok: true, total: ids.length, customer_ids: ids }),
