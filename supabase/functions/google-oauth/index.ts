@@ -17,6 +17,11 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Simple health check for HEAD requests (used by tests)
+  if (req.method === 'HEAD') {
+    return new Response(null, { status: 200, headers: corsHeaders });
+  }
+
   try {
     const url = new URL(req.url);
 
@@ -25,6 +30,13 @@ serve(async (req) => {
       const code = url.searchParams.get('code');
       const rawState = url.searchParams.get('state');
       const action = url.searchParams.get('action');
+
+      // Simple health-check endpoint for connectivity tests
+      if (action === 'ping' || action === 'health') {
+        return new Response(JSON.stringify({ ok: true, status: 'ok' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
 
       // Handle ?action=start - create auth URL and redirect to Google
       if (action === 'start') {

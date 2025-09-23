@@ -110,10 +110,11 @@ export function GoogleAdsIntegration() {
       console.log('🔗 URL gerada:', startUrl);
       setFallbackUrl(startUrl);
 
-      // Test connection to edge function first
+      // Test connection to edge function first (health check)
       console.log('🧪 Testando conexão com edge function...');
       try {
-        const testResponse = await fetch(startUrl, { method: 'HEAD' });
+        const healthUrl = `${functionUrl}?action=ping`;
+        const testResponse = await fetch(healthUrl, { method: 'GET' });
         console.log('📊 Status da edge function:', testResponse.status);
       } catch (testError) {
         console.error('❌ Erro testando edge function:', testError);
@@ -335,7 +336,7 @@ export function GoogleAdsIntegration() {
                 size="sm"
                 onClick={async () => {
                   console.log('🧪 Testando edge function diretamente...');
-                  const testUrl = 'https://zoahzxfjefjmkxylbfxf.functions.supabase.co/google-oauth';
+                  const testUrl = 'https://zoahzxfjefjmkxylbfxf.functions.supabase.co/google-oauth?action=ping';
                   try {
                     const response = await fetch(testUrl, { method: 'GET' });
                     console.log('📊 Status:', response.status);
