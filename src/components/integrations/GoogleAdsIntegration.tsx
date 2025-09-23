@@ -114,8 +114,11 @@ export function GoogleAdsIntegration() {
           description: "Abrindo Google para autenticação...",
         });
         const url = data.auth_url as string;
-        // Use current window redirect to avoid cross-origin frame issues
-        window.location.assign(url);
+        // Open in a new tab to avoid iframe/X-Frame-Options issues; fallback to same window
+        const win = window.open(url, '_blank', 'noopener,noreferrer');
+        if (!win) {
+          window.location.href = url;
+        }
       }
 
     } catch (error) {
