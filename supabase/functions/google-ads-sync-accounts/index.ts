@@ -115,16 +115,16 @@ async function getAccountDetails(access_token: string, customerIds: string[], lo
         
         if (customerData) {
           accountDetails.push({
-            customer_id: customerId,
-            account_name: customerData.descriptive_name || `Account ${customerId}`,
-            currency_code: customerData.currency_code,
-            time_zone: customerData.time_zone,
+            customer_id: String(customerId),
+            account_name: String(customerData.descriptive_name || `Account ${customerId}`),
+            currency_code: customerData.currency_code || null,
+            time_zone: customerData.time_zone || null,
             is_manager: Boolean(customerData.manager),
-            status: customerData.status || 'ENABLED'
+            status: String(customerData.status || 'ENABLED')
           });
         } else {
           accountDetails.push({
-            customer_id: customerId,
+            customer_id: String(customerId),
             account_name: `Account ${customerId}`,
             currency_code: null,
             time_zone: null,
@@ -135,7 +135,7 @@ async function getAccountDetails(access_token: string, customerIds: string[], lo
       } else {
         // Fallback se não conseguir buscar detalhes
         accountDetails.push({
-          customer_id: customerId,
+          customer_id: String(customerId),
           account_name: `Account ${customerId}`,
           currency_code: null,
           time_zone: null,
@@ -147,7 +147,7 @@ async function getAccountDetails(access_token: string, customerIds: string[], lo
       log(`Error getting details for ${customerId}:`, error);
       // Fallback
       accountDetails.push({
-        customer_id: customerId,
+        customer_id: String(customerId),
         account_name: `Account ${customerId}`,
         currency_code: null,
         time_zone: null,
@@ -169,15 +169,17 @@ async function upsertCustomers(customerIds: string[], userId: string, access_tok
   
   // Save to accounts_map table with real account details
   const accountsData = accountDetails.map((account) => ({ 
-    customer_id: account.customer_id,
-    client_id: account.customer_id, // Using customer_id as client_id for now
-    account_name: account.account_name,
-    currency_code: account.currency_code,
-    time_zone: account.time_zone,
-    is_manager: account.is_manager,
-    account_type: account.is_manager ? 'MANAGER' : 'REGULAR',
-    status: account.status
+    customer_id: String(account.customer_id || ''),
+    client_id: String(account.customer_id || ''),
+    account_name: String(account.account_name || `Account ${account.customer_id}`),
+    currency_code: account.currency_code || null,
+    time_zone: account.time_zone || null,
+    is_manager: Boolean(account.is_manager),
+    account_type: Boolean(account.is_manager) ? 'MANAGER' : 'REGULAR',
+    status: String(account.status || 'ENABLED')
   }));
+
+  log(`Upserting ${accountsData.length} accounts to database...`);
 
   const upsertUrl = `${SUPABASE_URL}/rest/v1/accounts_map?on_conflict=customer_id`;
   const r = await fetch(upsertUrl, {
