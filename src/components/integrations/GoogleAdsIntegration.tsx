@@ -88,9 +88,24 @@ export function GoogleAdsIntegration() {
   // Connect to Google Ads
   const handleConnect = async () => {
     setIsConnecting(true);
+    
+    // Open blank popup immediately to avoid popup blockers
+    const popup = window.open('', '_blank', 'width=500,height=600,scrollbars=yes,resizable=yes');
+    
+    if (!popup) {
+      toast({
+        title: "Pop-up bloqueado",
+        description: "Por favor, permita pop-ups para este site e tente novamente.",
+        variant: "destructive",
+      });
+      setIsConnecting(false);
+      return;
+    }
+
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
+        popup.close();
         throw new Error('User not authenticated');
       }
 
@@ -105,20 +120,21 @@ export function GoogleAdsIntegration() {
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        popup.close();
+        throw error;
+      }
 
-      // Redirect to Google OAuth (full window to avoid popup blockers)
       if (data?.auth_url) {
         toast({
           title: "Redirecionando",
           description: "Abrindo Google para autenticação...",
         });
         const url = data.auth_url as string;
-        // Open in a new tab to avoid iframe/X-Frame-Options issues; fallback to same window
-        const win = window.open(url, '_blank', 'noopener,noreferrer');
-        if (!win) {
-          window.location.href = url;
-        }
+        // Redirect the already opened popup to Google auth
+        popup.location.href = url;
+      } else {
+        popup.close();
       }
 
     } catch (error) {
