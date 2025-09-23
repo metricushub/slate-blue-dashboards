@@ -100,9 +100,10 @@ serve(async (req) => {
       let stateData: { user_id?: string; company_id?: string; return_to?: string } = {};
       if (rawState) {
         try {
-          stateData = JSON.parse(rawState);
+          const decoded = decodeURIComponent(rawState);
+          stateData = JSON.parse(decoded);
         } catch (e) {
-          console.warn('Could not parse state parameter:', e);
+          console.warn('Could not parse state parameter:', e, rawState);
         }
       }
 
@@ -297,8 +298,12 @@ serve(async (req) => {
       if (bodyState) {
         try {
           stateData = JSON.parse(bodyState);
-        } catch (e) {
-          console.warn('Could not parse state parameter:', e);
+        } catch (e1) {
+          try {
+            stateData = JSON.parse(decodeURIComponent(bodyState));
+          } catch (e2) {
+            console.warn('Could not parse state parameter:', e2, bodyState);
+          }
         }
       }
 
