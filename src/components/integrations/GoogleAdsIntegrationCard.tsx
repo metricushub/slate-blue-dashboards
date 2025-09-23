@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { 
@@ -23,6 +24,13 @@ interface GoogleAdsStatus {
   lastIngest: string | null;
 }
 
+interface GoogleAdsAccount {
+  customer_id: string;
+  account_name?: string | null;
+  status?: string | null;
+  is_manager?: boolean | null;
+}
+
 export function GoogleAdsIntegrationCard() {
   const [status, setStatus] = useState<GoogleAdsStatus>({
     hasTokens: false,
@@ -30,6 +38,8 @@ export function GoogleAdsIntegrationCard() {
     accountsCount: 0,
     lastIngest: null
   });
+  const [accounts, setAccounts] = useState<GoogleAdsAccount[]>([]);
+  const [selectedAccount, setSelectedAccount] = useState<string>('');
   const [isConnecting, setIsConnecting] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isIngesting, setIsIngesting] = useState(false);
@@ -56,6 +66,18 @@ export function GoogleAdsIntegrationCard() {
       const accRes = await fetch(`${functionsHost}/google-ads-accounts`);
       const accJson = await accRes.json();
       const accountsRows = accRes.ok && accJson.ok ? (accJson.rows || []) : [];
+      
+      // Filter and set accounts for dropdown
+      const normalize = (s?: string | null) => (s || '').toUpperCase();
+      const activeAccounts = accountsRows.filter((a: GoogleAdsAccount) => 
+        ['ENABLED','ACTIVE'].includes(normalize(a.status)) && !a.is_manager
+      );
+      setAccounts(activeAccounts);
+      
+      // Auto-select first account if none selected
+      if (activeAccounts.length > 0 && !selectedAccount) {
+        setSelectedAccount(activeAccounts[0].customer_id);
+      }
 
 
       // Check last ingest
@@ -218,7 +240,7 @@ export function GoogleAdsIntegrationCard() {
     }
   };
 
-  // Test ingest with first available account
+  // Test ingest with selected account
   const handleTestIngest = async () => {
     setIsIngesting(true);
     try {
@@ -232,26 +254,16 @@ export function GoogleAdsIntegrationCard() {
         return;
       }
 
-      // Load accounts via Edge Function (service role) to avoid RLS filtering
-      const functionsHost = "https://zoahzxfjefjmkxylbfxf.functions.supabase.co";
-      const res = await fetch(`${functionsHost}/google-ads-accounts`);
-      const json = await res.json();
-      if (!res.ok || !json.ok) throw new Error(json.error || 'Falha ao obter contas');
-      const rows: Array<{ customer_id: string; account_name?: string | null; status?: string | null; is_manager?: boolean | null; }> = json.rows || [];
-
-      const normalize = (s?: string | null) => (s || '').toUpperCase();
-      const activeRows = rows.filter(a => !a.is_manager && ['ENABLED','ACTIVE'].includes(normalize(a.status)));
-
-      if (!activeRows.length) {
+      if (!selectedAccount) {
         toast({
-          title: 'Nenhuma conta ativa',
-          description: 'Não encontramos contas ENABLED/ACTIVE. Sincronize novamente ou verifique o status no Google Ads.',
+          title: 'Selecione uma conta',
+          description: 'Escolha uma conta para testar a ingestão.',
           variant: 'destructive',
         });
         return;
       }
 
-      const customerId = activeRows[0].customer_id;
+      const customerId = selectedAccount;
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - 7); // últimos 7 dias
       const endDate = new Date();
@@ -374,6 +386,25 @@ export function GoogleAdsIntegrationCard() {
         </div>
 
         <Separator />
+        
+        {/* Account Selection */}
+        {isConnected && accounts.length > 0 && (
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-muted-foreground">Conta para teste:</label>
+            <Select value={selectedAccount} onValueChange={setSelectedAccount}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Selecione uma conta..." />
+              </SelectTrigger>
+              <SelectContent>
+                {accounts.map((account) => (
+                  <SelectItem key={account.customer_id} value={account.customer_id}>
+                    {account.account_name || `Conta ${account.customer_id}`} • {account.status}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
         
         {/* Action Buttons */}
         <div className="grid grid-cols-2 gap-2">
