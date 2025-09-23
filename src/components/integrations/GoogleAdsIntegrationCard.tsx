@@ -32,6 +32,7 @@ export function GoogleAdsIntegrationCard() {
   });
   const [isConnecting, setIsConnecting] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isIngesting, setIsIngesting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
@@ -216,6 +217,82 @@ export function GoogleAdsIntegrationCard() {
     }
   };
 
+  // Test ingest with first available account
+  const handleTestIngest = async () => {
+    setIsIngesting(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({
+          title: 'Erro',
+          description: 'Usuário não autenticado',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // Get the first customer_id from google_tokens
+      const { data: tokens } = await supabase
+        .from('google_tokens')
+        .select('customer_id')
+        .eq('user_id', user.id)
+        .not('customer_id', 'is', null)
+        .limit(1);
+
+      if (!tokens || tokens.length === 0 || !tokens[0].customer_id) {
+        toast({
+          title: 'Erro',
+          description: 'Nenhuma conta Google Ads encontrada. Sincronize primeiro.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const customerId = tokens[0].customer_id;
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - 7); // Last 7 days
+      const endDate = new Date();
+
+      toast({
+        title: 'Iniciando teste de ingestão',
+        description: `Testando com conta ${customerId}...`,
+      });
+
+      const { data, error } = await supabase.functions.invoke('google-ads-ingest', {
+        body: {
+          user_id: user.id,
+          customer_id: customerId,
+          start_date: startDate.toISOString().split('T')[0],
+          end_date: endDate.toISOString().split('T')[0]
+        }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (data?.ok) {
+        toast({
+          title: 'Teste de ingestão concluído!',
+          description: `${data.records_processed || 0} registros processados`,
+        });
+        await checkStatus(); // Refresh status
+      } else {
+        throw new Error(data?.error || 'Erro desconhecido na ingestão');
+      }
+
+    } catch (error: any) {
+      console.error('Error testing ingest:', error);
+      toast({
+        title: 'Erro no teste de ingestão',
+        description: error.message || 'Falha ao testar ingestão de dados',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsIngesting(false);
+    }
+  };
+
   useEffect(() => {
     checkStatus();
   }, []);
@@ -318,9 +395,19 @@ export function GoogleAdsIntegrationCard() {
                 Atualizar
               </Button>
               
-              <Button variant="outline" size="sm" className="col-span-2">
-                <TrendingUp className="w-4 h-4 mr-1" />
-                Configurar Ingestão
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="col-span-2"
+                onClick={handleTestIngest}
+                disabled={isIngesting}
+              >
+                {isIngesting ? (
+                  <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                ) : (
+                  <TrendingUp className="w-4 h-4 mr-1" />
+                )}
+                {isIngesting ? 'Testando...' : 'Testar Ingestão'}
               </Button>
             </>
           )}
