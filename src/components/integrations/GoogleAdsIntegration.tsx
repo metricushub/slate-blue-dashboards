@@ -97,7 +97,7 @@ export function GoogleAdsIntegration() {
       }
 
       // Build the direct function URL with start action
-      const functionUrl = `https://zoahzxfjefjmkxylbfxf.supabase.co/functions/v1/google-oauth`;
+      const functionUrl = `https://zoahzxfjefjmkxylbfxf.functions.supabase.co/google-oauth`;
       const params = new URLSearchParams({
         action: 'start',
         user_id: user.id,

@@ -35,7 +35,10 @@ serve(async (req) => {
         console.log('GET start action - creating auth URL for redirect');
 
         const CLIENT_ID = Deno.env.get('GOOGLE_ADS_CLIENT_ID');
-        const redirectUri = `${Deno.env.get('SUPABASE_URL')}/functions/v1/google-oauth`;
+        const supaUrl = Deno.env.get('SUPABASE_URL') ?? '';
+        const projectRef = supaUrl.replace('https://', '').split('.')[0];
+        const redirectUri = `https://${projectRef}.functions.supabase.co/google-oauth`;
+
 
         const scopes = [
           'https://www.googleapis.com/auth/adwords',
@@ -54,8 +57,8 @@ serve(async (req) => {
           + `prompt=consent&`
           + `state=${encodeURIComponent(stateParam)}`;
 
-        console.log('Redirecting to Google OAuth with 302');
-        return Response.redirect(authUrl, 302);
+         console.log('Redirecting to Google OAuth with 302 to:', authUrl);
+         return Response.redirect(authUrl, 302);
       }
 
       // Handle Google redirect (GET with code & state)
@@ -78,7 +81,10 @@ serve(async (req) => {
       // Exchange code for tokens (same as POST flow)
       const CLIENT_ID = Deno.env.get('GOOGLE_ADS_CLIENT_ID');
       const CLIENT_SECRET = Deno.env.get('GOOGLE_ADS_CLIENT_SECRET');
-      const redirectUri = `${Deno.env.get('SUPABASE_URL')}/functions/v1/google-oauth`;
+       const supaUrl2 = Deno.env.get('SUPABASE_URL') ?? '';
+       const projectRef2 = supaUrl2.replace('https://', '').split('.')[0];
+       const redirectUri = `https://${projectRef2}.functions.supabase.co/google-oauth`;
+
 
       console.log('GET flow: Exchanging code for tokens');
 
@@ -188,7 +194,9 @@ serve(async (req) => {
     if (action === 'get_auth_url') {
       // Generate OAuth2 URL
       const CLIENT_ID = Deno.env.get('GOOGLE_ADS_CLIENT_ID');
-      const redirectUri = `${Deno.env.get('SUPABASE_URL')}/functions/v1/google-oauth`;
+       const supaUrl3 = Deno.env.get('SUPABASE_URL') ?? '';
+       const projectRef3 = supaUrl3.replace('https://', '').split('.')[0];
+       const redirectUri = `https://${projectRef3}.functions.supabase.co/google-oauth`;
 
       const scopes = [
         'https://www.googleapis.com/auth/adwords',
@@ -198,7 +206,7 @@ serve(async (req) => {
 
       const stateParam = JSON.stringify({ user_id, company_id, return_to });
 
-      const authUrl = `https://accounts.google.com/o/oauth2/auth?`
+      const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?`
         + `client_id=${CLIENT_ID}&`
         + `redirect_uri=${encodeURIComponent(redirectUri)}&`
         + `scope=${encodeURIComponent(scopes)}&`
@@ -217,7 +225,9 @@ serve(async (req) => {
       // Exchange code for tokens
       const CLIENT_ID = Deno.env.get('GOOGLE_ADS_CLIENT_ID');
       const CLIENT_SECRET = Deno.env.get('GOOGLE_ADS_CLIENT_SECRET');
-      const redirectUri = `${Deno.env.get('SUPABASE_URL')}/functions/v1/google-oauth`;
+       const supaUrl4 = Deno.env.get('SUPABASE_URL') ?? '';
+       const projectRef4 = supaUrl4.replace('https://', '').split('.')[0];
+       const redirectUri = `https://${projectRef4}.functions.supabase.co/google-oauth`;
 
       console.log('Exchanging code for tokens');
 
