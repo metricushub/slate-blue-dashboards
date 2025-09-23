@@ -2,23 +2,20 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 
 /**
- * google-ads-ping
- * 1) Lê o refresh_token mais recente da tabela google_ads_credentials
- * 2) Troca por um novo access_token
- * 3) Chama Google Ads API: customers:listAccessibleCustomers
- * 4) Retorna JSON com sucesso e lista de contas
+ * google-ads-ping (com selftest)
+ * - GET ?selftest=1 → não chama Google/Supabase; só verifica se secrets estão carregados e loga o request
+ * - Sem selftest → fluxo completo: pega refresh_token (Supabase), troca por access_token (Google OAuth),
+ *   e chama customers:listAccessibleCustomers (Google Ads).
  */
 
-const SUPABASE_URL  = Deno.env.get("SUPABASE_URL")!;
-const SERVICE_KEY   = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const DEV_TOKEN     = Deno.env.get("GOOGLE_ADS_DEVELOPER_TOKEN")!; // precisa existir
+const SUPABASE_URL  = Deno.env.get("SUPABASE_URL") || "";
+const SERVICE_KEY   = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+const DEV_TOKEN     = Deno.env.get("GOOGLE_ADS_DEVELOPER_TOKEN") || "";
 
 const OAUTH_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const ADS_API_BASE    = "https://googleads.googleapis.com/v21";
 
-function log(...args: any[]) {
-  console.log("[google-ads-ping]", ...args);
-}
+function log(...args: any[]) { console.log("[google-ads-ping]", ...args); }
 
 async function getLatestRefreshToken() {
   const url = new URL(`${SUPABASE_URL}/rest/v1/google_ads_credentials`);
@@ -27,10 +24,7 @@ async function getLatestRefreshToken() {
   url.searchParams.set("limit", "1");
 
   const resp = await fetch(url.toString(), {
-    headers: {
-      apikey: SERVICE_KEY,
-      Authorization: `Bearer ${SERVICE_KEY}`,
-    },
+    headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` },
   });
 
   if (!resp.ok) {
@@ -39,9 +33,7 @@ async function getLatestRefreshToken() {
   }
 
   const rows = await resp.json();
-  if (!rows?.length || !rows[0]?.refresh_token) {
-    throw new Error("no_refresh_token_found");
-  }
+  if (!rows?.length || !rows[0]?.refresh_token) throw new Error("no_refresh_token_found");
   return rows[0].refresh_token as string;
 }
 
@@ -60,38 +52,46 @@ async function exchangeRefreshToken(refresh_token: string) {
   });
 
   const text = await r.text();
-  let json: any;
-  try { json = JSON.parse(text); } catch { json = { raw: text }; }
-
-  if (!r.ok) {
-    throw new Error(`refresh_error ${r.status}: ${JSON.stringify(json)}`);
-  }
+  let json: any; try { json = JSON.parse(text); } catch { json = { raw: text }; }
+  if (!r.ok) throw new Error(`refresh_error ${r.status}: ${JSON.stringify(json)}`);
   return json.access_token as string;
 }
 
 async function listAccessibleCustomers(access_token: string) {
   const r = await fetch(`${ADS_API_BASE}/customers:listAccessibleCustomers`, {
-    headers: {
-      Authorization: `Bearer ${access_token}`,
-      "developer-token": DEV_TOKEN,
-    },
+    headers: { Authorization: `Bearer ${access_token}`, "developer-token": DEV_TOKEN },
   });
 
   const text = await r.text();
-  let json: any;
-  try { json = JSON.parse(text); } catch { json = { raw: text }; }
-
-  if (!r.ok) {
-    throw new Error(`ads_error ${r.status}: ${JSON.stringify(json)}`);
-  }
-
+  let json: any; try { json = JSON.parse(text); } catch { json = { raw: text }; }
+  if (!r.ok) throw new Error(`ads_error ${r.status}: ${JSON.stringify(json)}`);
   return json; // { resourceNames: [...] }
 }
 
 serve(async (req) => {
   const url = new URL(req.url);
-  log("REQ", { path: url.pathname });
+  log("REQ", { path: url.pathname, qp: Object.fromEntries(url.searchParams.entries()) });
 
+  // --- modo selftest: verifica se a função está de pé e se os secrets foram carregados
+  if (url.searchParams.get("selftest") === "1") {
+    const has = (v: string) => !!(v && v.trim().length > 0);
+    const report = {
+      ok: true,
+      mode: "selftest",
+      env: {
+        SUPABASE_URL: has(SUPABASE_URL),
+        SUPABASE_SERVICE_ROLE_KEY: has(SERVICE_KEY),
+        GOOGLE_ADS_DEVELOPER_TOKEN: has(DEV_TOKEN),
+        GOOGLE_OAUTH_CLIENT_ID: has(Deno.env.get("GOOGLE_OAUTH_CLIENT_ID") || ""),
+        GOOGLE_OAUTH_CLIENT_SECRET: has(Deno.env.get("GOOGLE_OAUTH_CLIENT_SECRET") || ""),
+        GOOGLE_OAUTH_REDIRECT_URI: has(Deno.env.get("GOOGLE_OAUTH_REDIRECT_URI") || ""),
+      },
+    };
+    log("SELFTEST", report);
+    return new Response(JSON.stringify(report), { headers: { "Content-Type": "application/json" } });
+  }
+
+  // --- fluxo real
   try {
     const refresh = await getLatestRefreshToken();
     log("got refresh_token", refresh.slice(0, 10) + "...");
@@ -102,19 +102,11 @@ serve(async (req) => {
     const result = await listAccessibleCustomers(access);
     const resourceNames: string[] = result?.resourceNames ?? [];
 
-    return new Response(
-      JSON.stringify({
-        ok: true,
-        customers_count: resourceNames.length,
-        customers: resourceNames, // ["customers/1234567890", ...]
-      }),
-      { headers: { "Content-Type": "application/json" } },
-    );
+    return new Response(JSON.stringify({ ok: true, customers_count: resourceNames.length, customers: resourceNames }),
+      { headers: { "Content-Type": "application/json" } });
   } catch (e) {
     log("ping_error", String(e));
-    return new Response(
-      JSON.stringify({ ok: false, error: String(e) }),
-      { status: 400, headers: { "Content-Type": "application/json" } },
-    );
+    return new Response(JSON.stringify({ ok: false, error: String(e) }),
+      { status: 400, headers: { "Content-Type": "application/json" } });
   }
 });
