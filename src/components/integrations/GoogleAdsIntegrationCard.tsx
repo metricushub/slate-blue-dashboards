@@ -263,6 +263,25 @@ export function GoogleAdsIntegrationCard() {
         return;
       }
 
+      // Guard: não permitir MCC
+      const normalizeId = (s: string) => s.replace(/-/g, '');
+      const selected = accounts.find(a => a.customer_id === selectedAccount);
+      const { data: tokenRows } = await supabase
+        .from('google_tokens')
+        .select('login_customer_id')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      const loginId = tokenRows?.[0]?.login_customer_id || null;
+      if (selected?.is_manager || (loginId && normalizeId(loginId) === normalizeId(selectedAccount))) {
+        toast({
+          title: 'Selecione uma conta cliente',
+          description: 'Não é possível consultar métricas diretamente em contas gerentes (MCC). Escolha uma conta filha.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
       const customerId = selectedAccount;
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - 7); // últimos 7 dias
@@ -322,6 +341,8 @@ export function GoogleAdsIntegrationCard() {
       const msg = String(error?.message || 'Falha ao testar ingestão de dados');
       const friendly = msg.includes('CUSTOMER_NOT_ENABLED')
         ? 'A conta selecionada não está habilitada (ou foi desativada). Escolha outra conta ENABLED em Google Ads e sincronize novamente.'
+        : msg.includes('REQUESTED_METRICS_FOR_MANAGER')
+        ? 'Essa é uma conta gerente (MCC). Selecione uma conta cliente (filha) para consultar métricas.'
         : msg;
       toast({
         title: 'Erro no teste de ingestão',
@@ -399,6 +420,7 @@ export function GoogleAdsIntegrationCard() {
                 {accounts.map((account) => (
                   <SelectItem key={account.customer_id} value={account.customer_id}>
                     {account.account_name || `Conta ${account.customer_id}`} • {account.status}
+                    {account.is_manager ? ' (MCC)' : ''}
                   </SelectItem>
                 ))}
               </SelectContent>
