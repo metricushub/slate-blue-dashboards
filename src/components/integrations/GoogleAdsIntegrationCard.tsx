@@ -268,7 +268,14 @@ export function GoogleAdsIntegrationCard() {
       });
 
       if (error) {
-        throw error;
+        console.error('Ingest error:', error);
+        const msg = (error as any)?.message || (error as any)?.error || 'Falha ao chamar função de ingestão';
+        toast({
+          title: 'Erro no teste de ingestão',
+          description: msg,
+          variant: 'destructive',
+        });
+        return;
       }
 
       if (data?.ok) {
@@ -278,14 +285,19 @@ export function GoogleAdsIntegrationCard() {
         });
         await checkStatus(); // Refresh status
       } else {
-        throw new Error(data?.error || 'Erro desconhecido na ingestão');
+        toast({
+          title: 'Erro no teste de ingestão',
+          description: data?.error || 'Erro desconhecido na ingestão',
+          variant: 'destructive',
+        });
+        return;
       }
 
     } catch (error: any) {
       console.error('Error testing ingest:', error);
       toast({
         title: 'Erro no teste de ingestão',
-        description: error.message || 'Falha ao testar ingestão de dados',
+        description: error?.message || 'Falha ao testar ingestão de dados',
         variant: 'destructive',
       });
     } finally {

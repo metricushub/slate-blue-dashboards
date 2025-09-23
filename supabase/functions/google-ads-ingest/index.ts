@@ -99,19 +99,23 @@ async function getValidAccessToken(userId: string, companyId?: string): Promise<
 }
 
 // Run Google Ads query
-async function runGoogleAdsQuery(accessToken: string, customerId: string, query: string): Promise<MetricData[]> {
+async function runGoogleAdsQuery(accessToken: string, customerId: string, query: string, loginCustomerId?: string): Promise<MetricData[]> {
   const cleanCustomerId = customerId.replace(/-/g, '');
   const url = `https://googleads.googleapis.com/v17/customers/${cleanCustomerId}/googleAds:searchStream`;
   
-  log('Making Google Ads API request', { customerId: cleanCustomerId, url });
+  log('Making Google Ads API request', { customerId: cleanCustomerId, url, hasLoginId: !!loginCustomerId });
+  
+  const headers: Record<string, string> = {
+    'Authorization': `Bearer ${accessToken}`,
+    'developer-token': GOOGLE_ADS_DEVELOPER_TOKEN,
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+  };
+  if (loginCustomerId) headers['login-customer-id'] = loginCustomerId.replace(/-/g, '');
   
   const response = await fetch(url, {
     method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${accessToken}`,
-      'developer-token': GOOGLE_ADS_DEVELOPER_TOKEN,
-      'Content-Type': 'application/json',
-    },
+    headers,
     body: JSON.stringify({ query })
   });
 
@@ -236,6 +240,15 @@ serve(async (req) => {
       const accessToken = await getValidAccessToken(user_id, company_id);
       log('Access token obtained');
 
+      // Optionally get login_customer_id (for MCC manager accounts)
+      const { data: tokenRows } = await supabase
+        .from('google_tokens')
+        .select('login_customer_id')
+        .eq('user_id', user_id)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      const loginCustomerId = tokenRows?.[0]?.login_customer_id || undefined;
+
       // Build Google Ads query
       const query = `
         SELECT 
@@ -252,7 +265,7 @@ serve(async (req) => {
       `;
 
       // Run query
-      const metrics = await runGoogleAdsQuery(accessToken, customer_id, query);
+      const metrics = await runGoogleAdsQuery(accessToken, customer_id, query, loginCustomerId);
       log(`Retrieved ${metrics.length} metric records`);
 
       // Send to ingest endpoint if we have data
