@@ -33,28 +33,39 @@ serve(async (req) => {
         }
       }
     );
+
+    // Service role client for server-side reads (filtered by user in logic)
+    const admin = createClient(SUPABASE_URL, SERVICE_KEY);
     
     // Get user from auth header
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
     if (userError || !user) throw new Error("unauthorized");
 
-    // Query linked accounts directly
-    const { data: linkedData, error: linkedError } = await supabaseClient
+    // Query linked connections for this user (no join)
+    const { data: linkedRows, error: linkedError } = await supabaseClient
       .from('google_ads_connections')
-      .select(`
-        customer_id,
-        client_id,
-        accounts_map!inner(account_name)
-      `)
+      .select('customer_id, client_id')
       .eq('user_id', user.id);
 
     if (linkedError) throw linkedError;
 
-    const linked = (linkedData || []).map(item => ({
+    // Fetch names for linked customer_ids using service role
+    const linkedIds = (linkedRows || []).map((r) => r.customer_id);
+    let namesMap = new Map<string, { account_name: string | null; is_manager: boolean | null }>();
+    if (linkedIds.length > 0) {
+      const { data: nameRows, error: nameError } = await admin
+        .from('accounts_map')
+        .select('customer_id, account_name, is_manager')
+        .in('customer_id', linkedIds);
+      if (nameError) throw nameError;
+      (nameRows || []).forEach((r) => namesMap.set(r.customer_id, { account_name: r.account_name, is_manager: r.is_manager }));
+    }
+
+    const linked = (linkedRows || []).map((item) => ({
       customer_id: item.customer_id,
       client_id: item.client_id,
-      name: (item as any).accounts_map?.account_name || `Account ${item.customer_id}`,
-      is_linked: true
+      name: namesMap.get(item.customer_id)?.account_name || `Account ${item.customer_id}`,
+      is_linked: true,
     }));
 
     // Query available accounts (from accounts_map, filtered by user's tokens)
@@ -76,8 +87,8 @@ serve(async (req) => {
       );
     }
 
-    // Query all accounts accessible through MCC
-    const { data: allAccounts, error: accountsError } = await supabaseClient
+    // Query all accounts using service role (filtered later)
+    const { data: allAccounts, error: accountsError } = await admin
       .from('accounts_map')
       .select('customer_id, account_name, is_manager')
       .eq('status', 'ENABLED')
@@ -86,9 +97,9 @@ serve(async (req) => {
     if (accountsError) throw accountsError;
 
     // Filter out already linked accounts
-    const linkedIds = linked.map(acc => acc.customer_id);
+    const linkedIdsSet = new Set(linked.map(acc => acc.customer_id));
     const available = (allAccounts || [])
-      .filter(acc => !linkedIds.includes(acc.customer_id))
+      .filter(acc => !linkedIdsSet.has(acc.customer_id))
       .map(acc => ({
         customer_id: acc.customer_id,
         name: acc.account_name || `Account ${acc.customer_id}`,

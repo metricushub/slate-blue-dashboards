@@ -27,24 +27,39 @@ export function GoogleAdsConnectionsOverview() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Load all connections with client and account details
-      const { data, error } = await supabase
+      // 1) Load connections (no joins)
+      const { data: connectionsRows, error: connError } = await supabase
         .from("google_ads_connections")
-        .select(`
-          customer_id,
-          client_id,
-          clients!inner(name),
-          accounts_map!inner(account_name)
-        `)
+        .select("customer_id, client_id")
         .eq("user_id", user.id);
+      if (connError) throw connError;
 
-      if (error) throw error;
+      const customerIds = Array.from(new Set((connectionsRows || []).map(r => r.customer_id)));
+      const clientIds   = Array.from(new Set((connectionsRows || []).map(r => r.client_id)));
 
-      const formatted = (data || []).map(item => ({
+      // 2) Load account names
+      let namesMap = new Map<string, string>();
+      if (customerIds.length > 0) {
+        const { data: accounts } = await supabase
+          .from("accounts_map")
+          .select("customer_id, account_name").in("customer_id", customerIds);
+        (accounts || []).forEach(a => namesMap.set(a.customer_id, a.account_name || `Account ${a.customer_id}`));
+      }
+
+      // 3) Load client names
+      let clientsMap = new Map<string, string>();
+      if (clientIds.length > 0) {
+        const { data: clients } = await supabase
+          .from("clients")
+          .select("id, name").in("id", clientIds as any);
+        (clients || []).forEach(c => clientsMap.set(c.id, c.name));
+      }
+
+      const formatted = (connectionsRows || []).map(item => ({
         customer_id: item.customer_id,
         client_id: item.client_id,
-        account_name: (item as any).accounts_map?.account_name || `Account ${item.customer_id}`,
-        client_name: (item as any).clients?.name || "Cliente desconhecido"
+        account_name: namesMap.get(item.customer_id) || `Account ${item.customer_id}`,
+        client_name: clientsMap.get(item.client_id) || "Cliente desconhecido",
       }));
 
       setConnections(formatted);
