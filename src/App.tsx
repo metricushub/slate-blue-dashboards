@@ -29,7 +29,6 @@ import ClientBriefingPage from "./components/briefing/ClientBriefingPage";
 // import ClientDocumentosPage from "./pages/ClientDocumentosPage";
 import NotFound from "./pages/NotFound";
 import DiagnosticsPage from "./pages/DiagnosticsPage";
-import DiagnosticoGoogleAdsPage from "./pages/DiagnosticoGoogleAdsPage";
 
 // Pages - Global
 import CalendarioPage from "./pages/CalendarioPage";
@@ -93,7 +92,6 @@ const App = () => (
                 <Route path="/analytics" element={<AnalyticsPage />} />
                 <Route path="/relatorios" element={<ReportsPage />} />
                 <Route path="/integracoes" element={<IntegrationsPage />} />
-                <Route path="/diagnostico-google-ads" element={<DiagnosticoGoogleAdsPage />} />
                 <Route path="/configuracoes" element={<SettingsPage />} />
                 <Route path="/configuracoes/briefing" element={<BriefingConfigPage />} />
                 <Route path="/diagnosticos" element={<DiagnosticsPage />} />

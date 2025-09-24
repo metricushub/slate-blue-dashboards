@@ -54,7 +54,6 @@ const navigationItems: NavigationItem[] = [
   { title: "Financeiro", url: "/financeiro", icon: DollarSign },
   { title: "Equipe", url: "/equipe", icon: UserCog },
   { title: "Integrações Gerais", url: "/integracoes", icon: Puzzle },
-  { title: "Diagnóstico Google Ads", url: "/diagnostico-google-ads", icon: Activity },
   { title: "Configurações", url: "/configuracoes", icon: Settings, subItems: [
     { title: "Geral", url: "/configuracoes" },
     { title: "Templates de Briefing", url: "/configuracoes/briefing" }
