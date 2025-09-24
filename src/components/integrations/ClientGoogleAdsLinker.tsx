@@ -36,43 +36,43 @@ export function ClientGoogleAdsLinker({ clientId }: Props) {
     try {
       setLoading(true);
       
-      // Load linked accounts for this client
-      const { data: linkedData, error: linkedError } = await supabase
-        .from("google_ads_connections")
-        .select(`
-          customer_id,
-          accounts_map!inner(account_name)
-        `)
-        .eq("client_id", clientId);
-        
-      if (linkedError) throw linkedError;
-      
-      const linked = (linkedData || []).map(item => ({
-        customer_id: item.customer_id,
-        descriptive_name: (item as any).accounts_map?.account_name || null
-      }));
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Usuário não autenticado");
+
+      // Call the updated endpoint
+      const { data: response } = await supabase.functions.invoke('google-ads-accounts', {
+        headers: {
+          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+        }
+      });
+
+      if (!response?.ok) throw new Error(response?.error || "Falha ao carregar contas");
+
+      // Filter linked accounts for this specific client
+      const linked = (response.linked || [])
+        .filter((acc: any) => acc.client_id === clientId)
+        .map((item: any) => ({
+          customer_id: item.customer_id,
+          descriptive_name: item.name
+        }));
       setLinkedAccounts(linked);
 
-      // Load available accounts (not linked yet)
-      const { data: allAccounts, error: accountsError } = await supabase
-        .from("accounts_map")
-        .select("customer_id, account_name, status, is_manager")
-        .eq("status", "ENABLED")
-        .not("is_manager", "is", true);
-        
-      if (accountsError) throw accountsError;
-
-      // Filter out already linked accounts
-      const linkedIds = linked.map(l => l.customer_id);
-      const available = (allAccounts || []).filter(acc => !linkedIds.includes(acc.customer_id));
+      // Available accounts are those not linked to any client
+      const available = (response.available || []).map((item: any) => ({
+        customer_id: item.customer_id,
+        account_name: item.name,
+        status: "ENABLED",
+        is_manager: item.is_manager
+      }));
       setAvailableAccounts(available);
 
       // Get token account info
       const { data: tokenData } = await supabase
         .from("google_tokens")
         .select("customer_id")
-        .eq("user_id", (await supabase.auth.getUser()).data.user?.id)
-        .single();
+        .eq("user_id", user.id)
+        .maybeSingle();
       setTokenAccount(tokenData?.customer_id || null);
 
     } catch (e: any) {
@@ -158,10 +158,11 @@ export function ClientGoogleAdsLinker({ clientId }: Props) {
         {/* Token Account Info */}
         {tokenAccount && (
           <div className="space-y-2">
-            <label className="text-sm font-medium">Conta de Autenticação</label>
+            <label className="text-sm font-medium">Informações da Autenticação</label>
             <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
-              <Badge variant="secondary">Conta do Token</Badge>
+              <Badge variant="outline">Conta do Token</Badge>
               <span className="text-sm">{tokenAccount}</span>
+              <span className="text-xs text-muted-foreground">(conta usada para autenticação OAuth)</span>
             </div>
           </div>
         )}

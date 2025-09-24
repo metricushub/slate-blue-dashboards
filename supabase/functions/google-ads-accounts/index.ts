@@ -22,17 +22,35 @@ serve(async (req) => {
     if (!SUPABASE_URL || !SERVICE_KEY) throw new Error("supabase_env_missing");
 
     const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
+    
+    // Get user from auth header
+    const authHeader = req.headers.get("authorization");
+    if (!authHeader) throw new Error("unauthorized");
+    
+    const token = authHeader.replace("Bearer ", "");
+    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+    if (userError || !user) throw new Error("unauthorized");
 
+    // Query the view for user's accounts
     const { data, error } = await supabase
-      .from('accounts_map')
-      .select('customer_id, account_name, status, currency_code, time_zone, is_manager, updated_at, created_at')
-      .order('created_at', { ascending: false })
-      .limit(500);
+      .from('v_ads_accounts_ui')
+      .select('customer_id, name, is_manager, is_linked, client_id')
+      .eq('user_id', user.id)
+      .order('name');
 
     if (error) throw error;
 
+    // Separate into linked and available
+    const linked = (data || []).filter(acc => acc.is_linked);
+    const available = (data || []).filter(acc => !acc.is_linked);
+
     return new Response(
-      JSON.stringify({ ok: true, total: data?.length ?? 0, rows: data ?? [] }),
+      JSON.stringify({ 
+        ok: true, 
+        linked,
+        available,
+        total: data?.length ?? 0 
+      }),
       { headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   } catch (e) {
