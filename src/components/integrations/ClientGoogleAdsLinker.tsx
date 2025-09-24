@@ -6,17 +6,14 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { Loader2, RefreshCw } from "lucide-react";
 
-interface LinkedAccount {
+interface GoogleAdsAccount {
   customer_id: string;
-  descriptive_name?: string | null;
-}
-
-interface AvailableAccount {
-  customer_id: string;
-  account_name?: string | null;
-  status?: string | null;
-  is_manager?: boolean | null;
+  name: string;
+  is_manager: boolean;
+  is_linked: boolean;
+  client_id?: string;
 }
 
 interface Props {
@@ -24,9 +21,7 @@ interface Props {
 }
 
 export function ClientGoogleAdsLinker({ clientId }: Props) {
-  const [linkedAccounts, setLinkedAccounts] = useState<LinkedAccount[]>([]);
-  const [availableAccounts, setAvailableAccounts] = useState<AvailableAccount[]>([]);
-  const [tokenAccount, setTokenAccount] = useState<string | null>(null);
+  const [accounts, setAccounts] = useState<GoogleAdsAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState<string | null>(null);
@@ -36,94 +31,80 @@ export function ClientGoogleAdsLinker({ clientId }: Props) {
     try {
       setLoading(true);
       
-      // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Usuário não autenticado");
+      // Usar a nova função RPC para listar contas
+      const { data, error } = await supabase.rpc('list_ads_accounts');
+      if (error) {
+        console.error('RPC error:', error);
+        throw error;
+      }
 
-      // Call the updated endpoint
-      const { data: response } = await supabase.functions.invoke('google-ads-accounts', {
-        headers: {
-          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
-        }
+      console.log('GoogleAds accounts from RPC:', data);
+      setAccounts(data || []);
+      
+    } catch (error: any) {
+      console.error('Erro ao carregar contas:', error);
+      toast({
+        title: "Erro",
+        description: error.message || "Erro ao carregar contas",
+        variant: "destructive",
       });
-
-      if (!response?.ok) throw new Error(response?.error || "Falha ao carregar contas");
-
-      console.log("Response from google-ads-accounts:", response);
-
-      // Filter linked accounts for this specific client
-      const linked = (response.linked || [])
-        .filter((acc: any) => acc.client_id === clientId)
-        .map((item: any) => ({
-          customer_id: item.customer_id,
-          descriptive_name: item.name
-        }));
-      setLinkedAccounts(linked);
-      console.log("Linked accounts for client:", linked);
-
-      // Available accounts are those not linked to any client
-      const available = (response.available || []).map((item: any) => ({
-        customer_id: item.customer_id,
-        account_name: item.name,
-        status: "ENABLED",
-        is_manager: item.is_manager
-      }));
-      setAvailableAccounts(available);
-      console.log("Available accounts:", available);
-
-      // Get token account info
-      const { data: tokenData } = await supabase
-        .from("google_tokens")
-        .select("customer_id")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      setTokenAccount(tokenData?.customer_id || null);
-
-    } catch (e: any) {
-      toast({ title: "Erro", description: e.message || "Falha ao carregar contas", variant: "destructive" });
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { load(); }, [clientId]);
+  useEffect(() => {
+    load();
+  }, [clientId]);
 
-  const sortedAvailableAccounts = useMemo(() => {
-    return availableAccounts.sort((a, b) => 
-      (a.account_name || '').localeCompare(b.account_name || '')
-    );
-  }, [availableAccounts]);
+  // Separar contas vinculadas e disponíveis
+  const linkedAccounts = useMemo(() => {
+    return accounts.filter(acc => acc.is_linked && acc.client_id === clientId);
+  }, [accounts, clientId]);
+
+  const availableAccounts = useMemo(() => {
+    return accounts
+      .filter(acc => !acc.is_linked)
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [accounts]);
 
   const linkAccount = async () => {
     if (!selectedAccount) {
-      toast({ title: "Selecione uma conta", description: "Escolha uma conta para vincular ao cliente.", variant: "destructive" });
+      toast({ 
+        title: "Selecione uma conta", 
+        description: "Escolha uma conta para vincular ao cliente.", 
+        variant: "destructive" 
+      });
       return;
     }
+    
     setSaving(true);
     try {
-      const user = await supabase.auth.getUser();
-      if (!user.data.user) throw new Error("Usuário não autenticado");
+      // Usar a nova função RPC para vincular conta
+      const { error } = await supabase.rpc('link_ads_account', {
+        p_customer_id: selectedAccount,
+        p_client_id: clientId,
+      });
 
-      const { error } = await supabase
-        .from("google_ads_connections")
-        .upsert(
-          { 
-            user_id: user.data.user.id,
-            client_id: clientId, 
-            customer_id: selectedAccount 
-          }, 
-          { 
-            onConflict: "user_id,customer_id",
-            ignoreDuplicates: false
-          }
-        );
-      if (error) throw error;
-      
-      toast({ title: "Conta vinculada", description: `Conta ${selectedAccount} vinculada com sucesso.` });
+      if (error) {
+        console.error('Link error:', error);
+        throw error;
+      }
+
+      toast({
+        title: "Conta vinculada",
+        description: `Conta ${selectedAccount} vinculada com sucesso.`,
+      });
+
       setSelectedAccount(null);
-      await load(); // Refresh data
-    } catch (e: any) {
-      toast({ title: "Erro ao vincular", description: e.message || "Falha ao vincular conta", variant: "destructive" });
+      await load();
+    } catch (error: any) {
+      console.error('Erro ao vincular conta:', error);
+      toast({
+        title: "Erro ao vincular",
+        description: error.message || "Falha ao vincular conta",
+        variant: "destructive",
+      });
     } finally {
       setSaving(false);
     }
@@ -132,22 +113,29 @@ export function ClientGoogleAdsLinker({ clientId }: Props) {
   const unlinkAccount = async (customerId: string) => {
     setSaving(true);
     try {
-      const user = await supabase.auth.getUser();
-      if (!user.data.user) throw new Error("Usuário não autenticado");
+      // Usar a nova função RPC para desvincular conta
+      const { error } = await supabase.rpc('unlink_ads_account', {
+        p_customer_id: customerId,
+      });
 
-      const { error } = await supabase
-        .from("google_ads_connections")
-        .delete()
-        .eq("user_id", user.data.user.id)
-        .eq("customer_id", customerId)
-        .eq("client_id", clientId);
-      
-      if (error) throw error;
-      
-      toast({ title: "Conta desvinculada", description: `Conta ${customerId} desvinculada com sucesso.` });
-      await load(); // Refresh data
-    } catch (e: any) {
-      toast({ title: "Erro ao desvincular", description: e.message || "Falha ao desvincular conta", variant: "destructive" });
+      if (error) {
+        console.error('Unlink error:', error);
+        throw error;
+      }
+
+      toast({
+        title: "Conta desvinculada",
+        description: `Conta ${customerId} desvinculada com sucesso.`,
+      });
+
+      await load();
+    } catch (error: any) {
+      console.error('Erro ao desvincular conta:', error);
+      toast({
+        title: "Erro ao desvincular",
+        description: error.message || "Falha ao desvincular conta",
+        variant: "destructive",
+      });
     } finally {
       setSaving(false);
     }
@@ -159,15 +147,12 @@ export function ClientGoogleAdsLinker({ clientId }: Props) {
         <CardTitle>Vincular conta ao cliente</CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Token Account Info */}
-        {tokenAccount && (
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Informações da Autenticação</label>
-            <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
-              <Badge variant="outline">Conta do Token</Badge>
-              <span className="text-sm">{tokenAccount}</span>
-              <span className="text-xs text-muted-foreground">(conta usada para autenticação OAuth)</span>
-            </div>
+        {/* Debug Info */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="text-xs text-muted-foreground bg-gray-50 p-2 rounded">
+            Total contas: {accounts.length} | 
+            Vinculadas: {linkedAccounts.length} | 
+            Disponíveis: {availableAccounts.length}
           </div>
         )}
 
@@ -185,7 +170,7 @@ export function ClientGoogleAdsLinker({ clientId }: Props) {
                   <div className="flex items-center gap-2">
                     <Badge variant="default" className="bg-green-600">Vinculada</Badge>
                     <span className="text-sm font-medium">
-                      {account.descriptive_name || `Account ${account.customer_id}`}
+                      {account.name}
                     </span>
                     <span className="text-xs text-muted-foreground">({account.customer_id})</span>
                   </div>
@@ -195,7 +180,7 @@ export function ClientGoogleAdsLinker({ clientId }: Props) {
                     onClick={() => unlinkAccount(account.customer_id)}
                     disabled={saving}
                   >
-                    Desvincular
+                    {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Desvincular"}
                   </Button>
                 </div>
               ))}
@@ -212,15 +197,15 @@ export function ClientGoogleAdsLinker({ clientId }: Props) {
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
-                <SelectLabel>Contas Disponíveis</SelectLabel>
-                {sortedAvailableAccounts.map((account) => (
+                <SelectLabel>Contas Disponíveis ({availableAccounts.length})</SelectLabel>
+                {availableAccounts.map((account) => (
                   <SelectItem key={account.customer_id} value={account.customer_id}>
-                    {account.account_name || `Account ${account.customer_id}`}
+                    {account.name}
                   </SelectItem>
                 ))}
-                {sortedAvailableAccounts.length === 0 && (
+                {availableAccounts.length === 0 && (
                   <SelectItem value="" disabled>
-                    Nenhuma conta disponível
+                    {loading ? "Carregando..." : "Nenhuma conta disponível"}
                   </SelectItem>
                 )}
               </SelectGroup>
@@ -229,18 +214,45 @@ export function ClientGoogleAdsLinker({ clientId }: Props) {
         </div>
 
         <div className="flex gap-2">
-          <Button onClick={linkAccount} disabled={saving || loading || !selectedAccount}>
-            {saving ? "Vinculando..." : "Vincular Conta"}
+          <Button 
+            onClick={linkAccount} 
+            disabled={saving || loading || !selectedAccount || availableAccounts.length === 0}
+          >
+            {saving ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Vinculando...
+              </>
+            ) : (
+              "Vincular Conta"
+            )}
           </Button>
           <Button variant="outline" onClick={load} disabled={loading}>
-            Atualizar Lista
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Carregando...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Atualizar Lista
+              </>
+            )}
           </Button>
         </div>
 
         <Separator />
-        <p className="text-sm text-muted-foreground">
-          Após vincular, o painel do cliente usará essa conta para métricas e diagnósticos.
-        </p>
+        <div className="text-sm text-muted-foreground">
+          <p>
+            Após vincular, o painel do cliente usará essa conta para métricas e diagnósticos.
+          </p>
+          {availableAccounts.length === 0 && !loading && (
+            <p className="text-orange-600 mt-2">
+              ⚠️ Para ter contas disponíveis, primeiro sincronize suas contas na página de Integrações.
+            </p>
+          )}
+        </div>
       </CardContent>
     </Card>
   );
