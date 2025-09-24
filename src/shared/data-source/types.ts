@@ -15,6 +15,10 @@ export interface DataSource extends LegacyDataSource {
   listOptimizations(clientId: string): Promise<Optimization[]>;
   upsertOptimization(input: OptimizationInput): Promise<Optimization>;
   
+  // Mutations for clients (optional per adapter)
+  updateClient?(id: string, updates: Partial<Client>): Promise<void>;
+  deleteClient?(id: string): Promise<void>;
+  
   // Lead stages methods
   getLeadStages?(): Promise<LeadStageConfig[]>;
   saveLeadStages?(stages: LeadStageConfig[]): Promise<LeadStageConfig[]>;

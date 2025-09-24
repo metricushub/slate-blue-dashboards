@@ -6,6 +6,8 @@ export interface DataSource {
   getCampaigns(clientId: string): Promise<Campaign[]>;
   getAlerts(clientId: string): Promise<Alert[]>;
   addClient?(client: Client): Promise<void>;
+  updateClient?(id: string, updates: Partial<Client>): Promise<void>;
+  deleteClient?(id: string): Promise<void>;
 }
 
 // Configuration interface for Sheets adapter

@@ -193,6 +193,47 @@ export class SupabaseAdapter implements DataSource {
       console.error('Erro ao adicionar cliente:', error);
       throw new Error(`Erro ao adicionar cliente: ${error.message}`);
     }
+
+    await this.refreshCache();
+  }
+
+  async updateClient(id: string, updates: Partial<Client>): Promise<void> {
+    const dbUpdates: any = {};
+    if (typeof updates.name !== 'undefined') dbUpdates.name = updates.name;
+    if (typeof updates.status !== 'undefined') dbUpdates.status = updates.status as any;
+    if (typeof updates.stage !== 'undefined') dbUpdates.stage = updates.stage as any;
+    if (typeof updates.owner !== 'undefined') dbUpdates.owner = updates.owner;
+    if (typeof updates.website !== 'undefined') dbUpdates.website = updates.website;
+    if (typeof updates.logoUrl !== 'undefined') dbUpdates.logo_url = updates.logoUrl;
+    if (typeof (updates.budgetMonth ?? updates.monthlyBudget) !== 'undefined') dbUpdates.monthly_budget = updates.budgetMonth ?? updates.monthlyBudget;
+    if (typeof updates.segment !== 'undefined') dbUpdates.segment = updates.segment;
+    if (typeof updates.tags !== 'undefined') dbUpdates.tags = updates.tags;
+
+    const { error } = await supabase
+      .from('clients')
+      .update(dbUpdates)
+      .eq('id', id);
+
+    if (error) {
+      console.error('Erro ao atualizar cliente:', error);
+      throw new Error(`Erro ao atualizar cliente: ${error.message}`);
+    }
+
+    await this.refreshCache();
+  }
+
+  async deleteClient(id: string): Promise<void> {
+    const { error } = await supabase
+      .from('clients')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('Erro ao excluir cliente:', error);
+      throw new Error(`Erro ao excluir cliente: ${error.message}`);
+    }
+
+    await this.refreshCache();
   }
 
   // Data mapping methods

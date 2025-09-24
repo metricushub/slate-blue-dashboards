@@ -154,18 +154,16 @@ const ClientsPage = () => {
 
   const handleArchiveClient = async (clientId: string) => {
     try {
-      // Find the client to archive
       const clientToArchive = clients.find(c => c.id === clientId);
       if (!clientToArchive) return;
 
-      // Update client status to 'Arquivado'
-      const updatedClient = { ...clientToArchive, status: 'Arquivado' as const };
-      
-      // TODO: Implement actual update in data source
-      // For now, we'll update local state
-      setClients(prevClients => 
-        prevClients.map(c => c.id === clientId ? updatedClient : c)
-      );
+      if (dataSource.updateClient) {
+        await dataSource.updateClient(clientId, { status: 'Arquivado' as any });
+        await loadClients();
+      } else {
+        const updatedClient = { ...clientToArchive, status: 'Arquivado' as const };
+        setClients(prevClients => prevClients.map(c => c.id === clientId ? updatedClient : c));
+      }
 
       toast({
         title: "Sucesso",
@@ -183,20 +181,20 @@ const ClientsPage = () => {
 
   const handleDeleteClient = async (clientId: string) => {
     try {
-      // Find the client to delete for confirmation
       const clientToDelete = clients.find(c => c.id === clientId);
       if (!clientToDelete) return;
 
-      // Show confirmation dialog
       const confirmed = window.confirm(
         `Tem certeza que deseja excluir o cliente "${clientToDelete.name}"? Esta ação não pode ser desfeita.`
       );
-
       if (!confirmed) return;
 
-      // TODO: Implement actual deletion in data source
-      // For now, we'll update local state
-      setClients(prevClients => prevClients.filter(c => c.id !== clientId));
+      if (dataSource.deleteClient) {
+        await dataSource.deleteClient(clientId);
+        await loadClients();
+      } else {
+        setClients(prevClients => prevClients.filter(c => c.id !== clientId));
+      }
 
       toast({
         title: "Sucesso", 
