@@ -13,11 +13,12 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Search, Plus, AlertTriangle, Users, Clock, Target } from "lucide-react";
+import { Search, Plus, AlertTriangle, Users, Clock, Target, Link } from "lucide-react";
 import { useDataSource } from "@/hooks/useDataSource";
 import { Client } from "@/types";
 import { ClientCard } from "@/components/home/ClientCard";
 import { ClientCreationWizard } from "@/components/modals/ClientCreationWizard";
+import { GoogleAdsConnectionModal } from "@/components/integrations/GoogleAdsConnectionModal";
 import { toast } from "@/hooks/use-toast";
 
 const ClientsPage = () => {
@@ -31,6 +32,7 @@ const ClientsPage = () => {
   const [stageFilter, setStageFilter] = useState<string>("all");
   const [orderBy, setOrderBy] = useState<string>("name_asc");
   const [showRegistrationModal, setShowRegistrationModal] = useState(false);
+  const [showGoogleAdsConnectionModal, setShowGoogleAdsConnectionModal] = useState(false);
 
   const loadClients = async () => {
     try {
@@ -324,6 +326,35 @@ const ClientsPage = () => {
         </Card>
       </div>
 
+      {/* Google Ads Connections Section */}
+      <Card className="bg-gradient-to-br from-blue-50/50 to-blue-100/30 border-blue-200/50">
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="p-2 rounded-lg bg-blue-500/10">
+                <Link className="h-5 w-5 text-blue-600" />
+              </div>
+              Contas Google Ads Vinculadas
+            </div>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => setShowGoogleAdsConnectionModal(true)}
+              className="text-blue-600 border-blue-300 hover:bg-blue-50"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Gerenciar Vinculações
+            </Button>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            Gerencie as vinculações entre contas do Google Ads (customer_id) e seus clientes internos. 
+            Durante a ingestão de métricas, as contas vinculadas terão o client_id preenchido automaticamente, 
+            permitindo filtrar relatórios por cliente.
+          </p>
+        </CardContent>
+      </Card>
 
       {/* Search and Filters */}
       <div className="flex flex-col sm:flex-row gap-4">
@@ -415,6 +446,12 @@ const ClientsPage = () => {
         open={showRegistrationModal}
         onOpenChange={setShowRegistrationModal}
         onComplete={handleClientRegistered}
+      />
+
+      {/* Google Ads Connection Modal */}
+      <GoogleAdsConnectionModal
+        open={showGoogleAdsConnectionModal}
+        onOpenChange={setShowGoogleAdsConnectionModal}
       />
     </div>
   );
