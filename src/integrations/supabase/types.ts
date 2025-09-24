@@ -1188,7 +1188,74 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      google_ads_metrics: {
+        Row: {
+          campaign_id: string | null
+          clicks: number | null
+          client_id: string | null
+          conv_rate: number | null
+          conversions: number | null
+          cost_micros: number | null
+          cpa: number | null
+          created_at: string | null
+          ctr: number | null
+          customer_id: string | null
+          date: string | null
+          impressions: number | null
+          leads: number | null
+          platform: string | null
+          revenue: number | null
+          roas: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          campaign_id?: string | null
+          clicks?: number | null
+          client_id?: string | null
+          conv_rate?: number | null
+          conversions?: number | null
+          cost_micros?: number | null
+          cpa?: number | null
+          created_at?: string | null
+          ctr?: number | null
+          customer_id?: string | null
+          date?: string | null
+          impressions?: number | null
+          leads?: number | null
+          platform?: string | null
+          revenue?: number | null
+          roas?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          campaign_id?: string | null
+          clicks?: number | null
+          client_id?: string | null
+          conv_rate?: number | null
+          conversions?: number | null
+          cost_micros?: number | null
+          cpa?: number | null
+          created_at?: string | null
+          ctr?: number | null
+          customer_id?: string | null
+          date?: string | null
+          impressions?: number | null
+          leads?: number | null
+          platform?: string | null
+          revenue?: number | null
+          roas?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "metrics_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       generate_metrics_row_key: {
