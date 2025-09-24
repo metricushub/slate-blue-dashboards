@@ -170,11 +170,16 @@ serve(async (req) => {
         const conversions = Number(metric.conversions || 0);
         const revenue = Number(metric.revenue || 0);
 
+        // Ensure proper data types and validation
+        const processedClientId = finalClientId && isValidUUID(finalClientId) ? finalClientId : null;
+        const processedCustomerId = finalCustomerId ? finalCustomerId.replace(/[^0-9]/g, '') : null;
+        const processedCampaignId = metric.campaign_id ? String(metric.campaign_id) : null;
+        
         const calculatedMetric = {
           date: metric.date,
-          client_id: finalClientId, // Only set if valid UUID, otherwise null
-          customer_id: finalCustomerId, // Always TEXT, normalized
-          campaign_id: metric.campaign_id ? String(metric.campaign_id) : null, // Always TEXT
+          client_id: processedClientId,
+          customer_id: processedCustomerId,
+          campaign_id: processedCampaignId,
           platform: metric.platform,
           impressions,
           clicks,
@@ -187,6 +192,19 @@ serve(async (req) => {
           ctr: metric.ctr || (impressions > 0 ? (clicks / impressions) * 100 : 0),
           conv_rate: metric.conv_rate || (clicks > 0 ? (leads / clicks) * 100 : 0)
         };
+
+        // Log detailed metric data before adding to array
+        console.log(`Métrica ${i} processada:`, {
+          date: calculatedMetric.date,
+          client_id: calculatedMetric.client_id ? `UUID:${calculatedMetric.client_id.substring(0,8)}...` : 'NULL',
+          customer_id: calculatedMetric.customer_id || 'NULL',
+          campaign_id: calculatedMetric.campaign_id || 'NULL',
+          platform: calculatedMetric.platform,
+          original_client_id: metric.client_id,
+          client_id_valid: processedClientId ? 'YES' : 'NO',
+          customer_id_normalized: processedCustomerId ? 'YES' : 'NO',
+          campaign_id_converted: processedCampaignId ? 'YES' : 'NO'
+        });
 
         // Log detailed metric data before adding to array (masking sensitive data)
         console.log(`Métrica processada ${i}:`, {
@@ -236,6 +254,19 @@ serve(async (req) => {
       }
 
       console.log(`Inserindo ${metricsWithRowKey.length} métricas com row_key`);
+      
+      // Log sample data being inserted (first metric)
+      if (metricsWithRowKey.length > 0) {
+        const sampleMetric = metricsWithRowKey[0];
+        console.log('Exemplo de métrica que será inserida:', {
+          date: sampleMetric.date,
+          client_id: sampleMetric.client_id ? `UUID:${sampleMetric.client_id.substring(0,8)}...` : 'NULL',
+          customer_id: sampleMetric.customer_id || 'NULL',
+          campaign_id: sampleMetric.campaign_id || 'NULL',
+          platform: sampleMetric.platform,
+          row_key: sampleMetric.row_key ? sampleMetric.row_key.substring(0,12) + '...' : 'NULL'
+        });
+      }
 
       // Log first few records to be inserted (for debugging UUID issues)
       if (metricsWithRowKey.length > 0) {
