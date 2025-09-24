@@ -85,9 +85,19 @@ export function ClientGoogleAdsLinker({ clientId }: Props) {
       <CardContent className="space-y-4">
         <div className="space-y-2">
           <label className="text-sm text-muted-foreground">Conta Google Ads</label>
+          {!current && (
+            <div className="text-xs text-muted-foreground mb-2 p-2 bg-blue-50 rounded border">
+              💡 Nenhuma conta vinculada ainda. Selecione uma conta abaixo para vincular ao cliente.
+            </div>
+          )}
+          {current && (
+            <div className="text-xs text-green-600 mb-2 p-2 bg-green-50 rounded border">
+              ✅ Conta {current} já está vinculada a este cliente
+            </div>
+          )}
           <Select value={current ?? undefined} onValueChange={setCurrent} disabled={loading}>
             <SelectTrigger className="w-full">
-              <SelectValue placeholder={loading ? "Carregando contas..." : "Selecione uma conta"} />
+              <SelectValue placeholder={loading ? "Carregando contas..." : "Selecione uma conta para vincular"} />
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
