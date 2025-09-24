@@ -560,6 +560,45 @@ export type Database = {
         }
         Relationships: []
       }
+      google_ads_accounts: {
+        Row: {
+          created_at: string | null
+          currency_code: string | null
+          customer_id: string
+          descriptive_name: string | null
+          id: string
+          is_manager: boolean | null
+          status: string | null
+          time_zone: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          currency_code?: string | null
+          customer_id: string
+          descriptive_name?: string | null
+          id?: string
+          is_manager?: boolean | null
+          status?: string | null
+          time_zone?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          currency_code?: string | null
+          customer_id?: string
+          descriptive_name?: string | null
+          id?: string
+          is_manager?: boolean | null
+          status?: string | null
+          time_zone?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       google_ads_connections: {
         Row: {
           client_id: string
@@ -1465,6 +1504,24 @@ export type Database = {
       get_current_user_role: {
         Args: Record<PropertyKey, never>
         Returns: string
+      }
+      link_ads_account: {
+        Args: { p_client_id: string; p_customer_id: string }
+        Returns: undefined
+      }
+      list_ads_accounts: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          client_id: string
+          customer_id: string
+          is_linked: boolean
+          is_manager: boolean
+          name: string
+        }[]
+      }
+      unlink_ads_account: {
+        Args: { p_customer_id: string }
+        Returns: undefined
       }
     }
     Enums: {
