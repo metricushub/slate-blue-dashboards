@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_bindings: {
+        Row: {
+          created_at: string
+          customer_id: string
+          last_verified_at: string
+          resolved_login_customer_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          customer_id: string
+          last_verified_at?: string
+          resolved_login_customer_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string
+          last_verified_at?: string
+          resolved_login_customer_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       accounts_map: {
         Row: {
           account_name: string | null

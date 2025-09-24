@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, ExternalLink, RefreshCw, CheckCircle, AlertTriangle } from "lucide-react";
 import { GoogleAdsConnectionModal } from "./GoogleAdsConnectionModal";
+import { MccManagerModal } from "./MccManagerModal";
 
 interface GoogleAdsAccount {
   id: string;
@@ -449,6 +450,7 @@ export function GoogleAdsIntegration() {
                 >
                   Vincular Contas aos Clientes
                 </Button>
+                <MccManagerModal />
                 <Button variant="outline" onClick={checkStatus}>
                   Atualizar Status
                 </Button>
