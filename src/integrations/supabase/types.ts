@@ -819,12 +819,13 @@ export type Database = {
         Row: {
           campaign_id: string | null
           clicks: number | null
-          client_id: string
+          client_id: string | null
           conv_rate: number | null
           conversions: number | null
           cpa: number | null
           created_at: string
           ctr: number | null
+          customer_id: string | null
           date: string
           id: string
           impressions: number | null
@@ -838,12 +839,13 @@ export type Database = {
         Insert: {
           campaign_id?: string | null
           clicks?: number | null
-          client_id: string
+          client_id?: string | null
           conv_rate?: number | null
           conversions?: number | null
           cpa?: number | null
           created_at?: string
           ctr?: number | null
+          customer_id?: string | null
           date: string
           id?: string
           impressions?: number | null
@@ -857,12 +859,13 @@ export type Database = {
         Update: {
           campaign_id?: string | null
           clicks?: number | null
-          client_id?: string
+          client_id?: string | null
           conv_rate?: number | null
           conversions?: number | null
           cpa?: number | null
           created_at?: string
           ctr?: number | null
+          customer_id?: string | null
           date?: string
           id?: string
           impressions?: number | null

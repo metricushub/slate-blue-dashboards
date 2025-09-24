@@ -219,7 +219,8 @@ async function sendToIngestEndpoint(metrics: MetricData[], customerId: string): 
   // Transform metrics for our schema
   const transformedMetrics = metrics.map(metric => ({
     date: metric.date,
-    client_id: customerId,
+    client_id: customerId, // This will be validated as customer_id in ingest-metrics
+    customer_id: customerId, // Explicitly pass customer_id
     platform: 'google_ads',
     campaign_id: metric.campaign_id,
     impressions: metric.impressions,

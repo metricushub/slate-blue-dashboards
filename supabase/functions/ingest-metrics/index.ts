@@ -8,7 +8,8 @@ const corsHeaders = {
 
 interface MetricPayload {
   date: string;
-  client_id: string;
+  client_id: string; // Can be UUID (internal client) or customer_id (Google Ads)
+  customer_id?: string; // Google Ads customer ID
   campaign_id?: string;
   platform: 'google_ads' | 'meta_ads' | 'google' | 'meta';
   impressions?: number;
@@ -21,6 +22,17 @@ interface MetricPayload {
   roas?: number;
   ctr?: number;
   conv_rate?: number;
+}
+
+// Helper function to validate UUID format
+function isValidUUID(str: string): boolean {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str);
+}
+
+// Helper function to sanitize customer ID (remove hyphens/dots)
+function sanitizeCustomerId(customerId: string): string {
+  return customerId.replace(/[-\.]/g, '');
 }
 
 serve(async (req) => {
@@ -87,6 +99,69 @@ serve(async (req) => {
           throw new Error('Data deve estar no formato YYYY-MM-DD');
         }
 
+        // Determine customer_id and client_id based on input
+        let finalCustomerId: string | null = null;
+        let finalClientId: string | null = null;
+        let clientIdInvalid = false;
+        let clientBindingFound = false;
+
+        // If customer_id is provided, use it (Google Ads case)
+        if (metric.customer_id) {
+          finalCustomerId = sanitizeCustomerId(metric.customer_id);
+          
+          // Check if client_id is a valid UUID
+          if (isValidUUID(metric.client_id)) {
+            finalClientId = metric.client_id;
+            clientBindingFound = true;
+          } else {
+            clientIdInvalid = true;
+            // Try to find mapping from customer_id to client_id
+            try {
+              const { data: connection } = await supabase
+                .from('google_ads_connections')
+                .select('client_id')
+                .eq('customer_id', finalCustomerId)
+                .single();
+              
+              if (connection) {
+                finalClientId = connection.client_id;
+                clientBindingFound = true;
+              }
+            } catch {
+              // No mapping found, continue with client_id = null
+            }
+          }
+        } else {
+          // Legacy case: client_id might be UUID or customer_id
+          if (isValidUUID(metric.client_id)) {
+            finalClientId = metric.client_id;
+            clientBindingFound = true;
+          } else {
+            // Treat client_id as customer_id
+            finalCustomerId = sanitizeCustomerId(metric.client_id);
+            clientIdInvalid = true;
+            
+            // Try to find mapping
+            try {
+              const { data: connection } = await supabase
+                .from('google_ads_connections')
+                .select('client_id')
+                .eq('customer_id', finalCustomerId)
+                .single();
+              
+              if (connection) {
+                finalClientId = connection.client_id;
+                clientBindingFound = true;
+              }
+            } catch {
+              // No mapping found, continue with client_id = null
+            }
+          }
+        }
+
+        // Log validation status
+        console.log(`Métrica ${i}: customer_id=${finalCustomerId}, client_id_invalid=${clientIdInvalid}, client_binding_found=${clientBindingFound}`);
+
         // Calculate derived metrics if not provided
         const impressions = Number(metric.impressions || 0);
         const clicks = Number(metric.clicks || 0);
@@ -97,7 +172,8 @@ serve(async (req) => {
 
         const calculatedMetric = {
           date: metric.date,
-          client_id: metric.client_id,
+          client_id: finalClientId,
+          customer_id: finalCustomerId,
           campaign_id: metric.campaign_id || null,
           platform: metric.platform,
           impressions,
@@ -130,7 +206,7 @@ serve(async (req) => {
       const { error: insertError, count } = await supabase
         .from('metrics')
         .upsert(validatedMetrics, {
-          onConflict: 'date,client_id,platform,campaign_id',
+          onConflict: 'date,platform,customer_id,campaign_id',
           ignoreDuplicates: false
         })
         .select('id', { count: 'exact' });
