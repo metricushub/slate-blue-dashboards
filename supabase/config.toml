@@ -24,3 +24,32 @@ verify_jwt = false
 
 [functions.google-ads-diag]
 verify_jwt = false
+
+[functions.google-ads-connect]
+verify_jwt = false
+
+[functions.google-ads-sync]
+verify_jwt = false
+
+[functions.google-ads-ingest-daily]
+verify_jwt = false
+
+[functions.resolve-mcc]
+verify_jwt = false
+
+# New diagnostic endpoints - protected by x-api-key
+[functions.google-ads-diag-context]
+verify_jwt = false
+
+[functions.google-ads-diag-hierarchy]
+verify_jwt = false
+
+[functions.google-ads-diag-ping-ingest]
+verify_jwt = false
+
+# Reporting endpoints - protected by x-api-key
+[functions.reports-last30]
+verify_jwt = false
+
+[functions.reports-daily-campaign]
+verify_jwt = false

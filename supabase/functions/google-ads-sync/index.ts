@@ -211,7 +211,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in google-ads-sync function:', error);
     return new Response(JSON.stringify({ 
-      error: error.message || 'Internal server error' 
+      error: error instanceof Error ? error.message : 'Internal server error' 
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

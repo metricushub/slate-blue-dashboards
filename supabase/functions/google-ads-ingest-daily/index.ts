@@ -39,7 +39,7 @@ async function withBackoff<T>(
       const result = await operation();
       return { success: true, result, retries };
     } catch (error) {
-      const errorMessage = error.message || 'Unknown error';
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       
       // Se for o último retry ou erro não for recuperável
       if (retries === maxRetries || !isRetryableError(error)) {
@@ -228,7 +228,7 @@ serve(async (req) => {
         results.push({
           customer_id: token.customer_id,
           success: false,
-          error: `Unexpected error: ${error.message}`,
+          error: `Unexpected error: ${error instanceof Error ? error.message : String(error)}`,
           retries: 0
         });
         errorCount++;
@@ -290,7 +290,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         error: 'Internal server error', 
-        details: error.message 
+        details: error instanceof Error ? error.message : String(error) 
       }),
       { 
         status: 500, 

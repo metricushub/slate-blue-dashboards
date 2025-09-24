@@ -180,12 +180,12 @@ serve(async (req) => {
         }
 
         // Calculate derived metrics if not provided with proper normalization
-        const impressions = parseInt(metric.impressions) || 0;
-        const clicks = parseInt(metric.clicks) || 0;
-        const spend = parseFloat(metric.spend) || 0;
-        const leads = parseInt(metric.leads) || 0;
-        const conversions = parseInt(metric.conversions) || 0;
-        const revenue = parseFloat(metric.revenue) || 0;
+        const impressions = parseInt(String(metric.impressions || 0)) || 0;
+        const clicks = parseInt(String(metric.clicks || 0)) || 0;
+        const spend = parseFloat(String(metric.spend || 0)) || 0;
+        const leads = parseInt(String(metric.leads || 0)) || 0;
+        const conversions = parseInt(String(metric.conversions || 0)) || 0;
+        const revenue = parseFloat(String(metric.revenue || 0)) || 0;
 
         // Ensure proper data types and validation
         const processedClientId = finalClientId && isValidUUID(finalClientId) ? finalClientId : null;
@@ -205,10 +205,10 @@ serve(async (req) => {
           conversions,
           revenue,
           // Normalize rates to 6 decimal places max
-          cpa: metric.cpa ? parseFloat(parseFloat(metric.cpa).toFixed(6)) : (leads > 0 ? parseFloat((spend / leads).toFixed(6)) : 0),
-          roas: metric.roas ? parseFloat(parseFloat(metric.roas).toFixed(6)) : (spend > 0 ? parseFloat((revenue / spend).toFixed(6)) : 0),
-          ctr: metric.ctr ? parseFloat(parseFloat(metric.ctr).toFixed(6)) : (impressions > 0 ? parseFloat(((clicks / impressions) * 100).toFixed(6)) : 0),
-          conv_rate: metric.conv_rate ? parseFloat(parseFloat(metric.conv_rate).toFixed(6)) : (clicks > 0 ? parseFloat(((leads / clicks) * 100).toFixed(6)) : 0)
+          cpa: metric.cpa ? parseFloat(String(metric.cpa)) : (leads > 0 ? parseFloat((spend / leads).toFixed(6)) : 0),
+          roas: metric.roas ? parseFloat(String(metric.roas)) : (spend > 0 ? parseFloat((revenue / spend).toFixed(6)) : 0),
+          ctr: metric.ctr ? parseFloat(String(metric.ctr)) : (impressions > 0 ? parseFloat(((clicks / impressions) * 100).toFixed(6)) : 0),
+          conv_rate: metric.conv_rate ? parseFloat(String(metric.conv_rate)) : (clicks > 0 ? parseFloat(((leads / clicks) * 100).toFixed(6)) : 0)
         };
 
         // Log detailed metric data before adding to array
@@ -233,7 +233,7 @@ serve(async (req) => {
       } catch (error) {
         errors.push({
           index: i,
-          error: error.message,
+          error: error instanceof Error ? error.message : String(error),
           metric
         });
       }
@@ -340,7 +340,7 @@ serve(async (req) => {
     console.error('Erro geral na função:', error);
     return new Response(JSON.stringify({ 
       error: 'Internal server error',
-      details: error.message 
+      details: error instanceof Error ? error.message : String(error)
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

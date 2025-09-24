@@ -306,7 +306,7 @@ serve(async (req) => {
     }
 
     log("callback received code", { hasState: !!state });
-    return exchangeCodeForTokens(code, state);
+    return exchangeCodeForTokens(code, state || undefined);
   }
 
   // 3) Health/info

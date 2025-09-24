@@ -104,7 +104,7 @@ serve(async (req) => {
       } catch (error) {
         errors.push({
           index: i,
-          error: error.message,
+          error: error instanceof Error ? error.message : String(error),
           campaign
         });
       }
@@ -121,7 +121,7 @@ serve(async (req) => {
           onConflict: 'id',
           ignoreDuplicates: false
         })
-        .select('id', { count: 'exact' });
+        .select('id');
 
       if (insertError) {
         console.error('Erro ao inserir campanhas:', insertError);
@@ -154,7 +154,7 @@ serve(async (req) => {
     console.error('Erro geral na função:', error);
     return new Response(JSON.stringify({ 
       error: 'Internal server error',
-      details: error.message 
+      details: error instanceof Error ? error.message : String(error)
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

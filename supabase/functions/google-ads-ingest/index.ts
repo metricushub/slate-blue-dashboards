@@ -387,7 +387,7 @@ serve(async (req) => {
         .update({
           status: 'failed',
           completed_at: new Date().toISOString(),
-          error_message: processingError.message
+          error_message: processingError instanceof Error ? processingError.message : String(processingError)
         })
         .eq('id', ingestion.id);
 
