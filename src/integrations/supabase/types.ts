@@ -1432,6 +1432,25 @@ export type Database = {
           },
         ]
       }
+      v_ads_accounts_ui: {
+        Row: {
+          client_id: string | null
+          customer_id: string | null
+          is_linked: boolean | null
+          is_manager: boolean | null
+          name: string | null
+          user_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "google_ads_connections_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       generate_metrics_row_key: {
