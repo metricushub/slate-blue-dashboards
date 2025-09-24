@@ -169,25 +169,6 @@ serve(async (req) => {
             .from('google_ads_connections')
             .select('client_id')
             .eq('customer_id', finalCustomerId)
-            .eq('user_id', user.id)
-            .single();
-          
-          if (connection) {
-            linkedClientId = connection.client_id;
-            console.log(`Métrica ${i}: Encontrada vinculação customer_id=${finalCustomerId} -> client_id=${linkedClientId}`);
-          } else {
-            console.log(`Métrica ${i}: Nenhuma vinculação encontrada para customer_id=${finalCustomerId}, usando client_id=NULL`);
-          }
-        }
-
-        // Buscar client_id através da tabela google_ads_connections
-        let linkedClientId = null;
-        if (finalCustomerId) {
-          const { data: connection } = await supabase
-            .from('google_ads_connections')
-            .select('client_id')
-            .eq('customer_id', finalCustomerId)
-            .eq('user_id', user.id)
             .single();
           
           if (connection) {
@@ -246,29 +227,6 @@ serve(async (req) => {
           campaign_id_converted: processedCampaignId ? 'YES' : 'NO',
           rates_normalized: 'YES',
           vinculacao_encontrada: linkedClientId ? 'SIM' : 'NAO'
-        });
-          platform: calculatedMetric.platform,
-          impressions: calculatedMetric.impressions,
-          clicks: calculatedMetric.clicks,
-          spend: calculatedMetric.spend,
-          conversions: calculatedMetric.conversions,
-          original_client_id: metric.client_id,
-          client_id_valid: processedClientId ? 'YES' : 'NO',
-          customer_id_normalized: processedCustomerId ? 'YES' : 'NO',
-          campaign_id_converted: processedCampaignId ? 'YES' : 'NO',
-          rates_normalized: 'YES'
-        });
-
-        // Log detailed metric data before adding to array (masking sensitive data)
-        console.log(`Métrica processada ${i}:`, {
-          date: calculatedMetric.date,
-          client_id: calculatedMetric.client_id ? calculatedMetric.client_id.substring(0, 8) + '...' : 'NULL',
-          customer_id: calculatedMetric.customer_id,
-          campaign_id: calculatedMetric.campaign_id,
-          platform: calculatedMetric.platform,
-          impressions: calculatedMetric.impressions,
-          clicks: calculatedMetric.clicks,
-          spend: calculatedMetric.spend
         });
 
         validatedMetrics.push(calculatedMetric);
