@@ -2,6 +2,17 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Search, Plus, AlertTriangle, Users, Clock, Target } from "lucide-react";
 import { useDataSource } from "@/hooks/useDataSource";
 import { Client } from "@/types";
@@ -141,6 +152,66 @@ const ClientsPage = () => {
     }
   };
 
+  const handleArchiveClient = async (clientId: string) => {
+    try {
+      // Find the client to archive
+      const clientToArchive = clients.find(c => c.id === clientId);
+      if (!clientToArchive) return;
+
+      // Update client status to 'Arquivado'
+      const updatedClient = { ...clientToArchive, status: 'Arquivado' as const };
+      
+      // TODO: Implement actual update in data source
+      // For now, we'll update local state
+      setClients(prevClients => 
+        prevClients.map(c => c.id === clientId ? updatedClient : c)
+      );
+
+      toast({
+        title: "Sucesso",
+        description: `Cliente ${clientToArchive.name} foi arquivado`,
+      });
+    } catch (error) {
+      console.error("Error archiving client:", error);
+      toast({
+        title: "Erro",
+        description: "Falha ao arquivar cliente",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteClient = async (clientId: string) => {
+    try {
+      // Find the client to delete for confirmation
+      const clientToDelete = clients.find(c => c.id === clientId);
+      if (!clientToDelete) return;
+
+      // Show confirmation dialog
+      const confirmed = window.confirm(
+        `Tem certeza que deseja excluir o cliente "${clientToDelete.name}"? Esta ação não pode ser desfeita.`
+      );
+
+      if (!confirmed) return;
+
+      // TODO: Implement actual deletion in data source
+      // For now, we'll update local state
+      setClients(prevClients => prevClients.filter(c => c.id !== clientId));
+
+      toast({
+        title: "Sucesso", 
+        description: `Cliente ${clientToDelete.name} foi excluído`,
+      });
+    } catch (error) {
+      console.error("Error deleting client:", error);
+      toast({
+        title: "Erro",
+        description: "Falha ao excluir cliente",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (loading) {
     return (
       <div className="space-y-8">
@@ -275,10 +346,13 @@ const ClientsPage = () => {
             className="px-3 py-2 border rounded-md text-sm"
           >
             <option value="all">Todos os status</option>
+            <option value="Ativo">Ativo</option>
             <option value="active">Ativo</option>
             <option value="onboarding">Em Onboarding</option>
             <option value="at_risk">Em Risco</option>
+            <option value="Pausado">Pausado</option>
             <option value="paused">Pausado</option>
+            <option value="Arquivado">Arquivado</option>
           </select>
           
           <select
@@ -328,7 +402,12 @@ const ClientsPage = () => {
           </div>
         ) : (
           filteredClients.map((client) => (
-            <ClientCard key={client.id} client={client} />
+            <ClientCard 
+              key={client.id} 
+              client={client}
+              onArchive={handleArchiveClient}
+              onDelete={handleDeleteClient}
+            />
           ))
         )}
       </div>

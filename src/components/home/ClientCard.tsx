@@ -2,16 +2,25 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { AlertTriangle, Eye, CheckSquare, TrendingUp, TrendingDown } from "lucide-react";
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { AlertTriangle, Eye, CheckSquare, TrendingUp, TrendingDown, MoreVertical, Archive, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Client } from "@/types";
 import { cn } from "@/lib/utils";
 
 interface ClientCardProps {
   client: Client;
+  onArchive?: (clientId: string) => void;
+  onDelete?: (clientId: string) => void;
 }
 
-export function ClientCard({ client }: ClientCardProps) {
+export function ClientCard({ client, onArchive, onDelete }: ClientCardProps) {
   const navigate = useNavigate();
 
   const getStatusBadge = (status: Client['status']) => {
@@ -21,6 +30,11 @@ export function ClientCard({ client }: ClientCardProps) {
       at_risk: "bg-destructive-light text-destructive border-destructive/20",
       paused: "bg-muted text-muted-foreground",
       churned: "bg-muted text-muted-foreground",
+      Ativo: "bg-success-light text-success border-success/20",
+      Pausado: "bg-muted text-muted-foreground",
+      Risco: "bg-destructive-light text-destructive border-destructive/20",
+      Prospect: "bg-primary-light text-primary border-primary/20",
+      Arquivado: "bg-muted text-muted-foreground",
     };
 
     const labels = {
@@ -29,6 +43,11 @@ export function ClientCard({ client }: ClientCardProps) {
       at_risk: "Em Risco", 
       paused: "Pausado",
       churned: "Churned",
+      Ativo: "Ativo",
+      Pausado: "Pausado", 
+      Risco: "Em Risco",
+      Prospect: "Prospect",
+      Arquivado: "Arquivado",
     };
 
     return (
@@ -89,7 +108,33 @@ export function ClientCard({ client }: ClientCardProps) {
               <p className="text-sm text-muted-foreground">{client.stage}</p>
             </div>
           </div>
-          {getStatusBadge(client.status)}
+          <div className="flex items-center gap-2">
+            {getStatusBadge(client.status)}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem 
+                  onClick={() => onArchive?.(client.id)}
+                  disabled={client.status === 'Arquivado'}
+                >
+                  <Archive className="h-4 w-4 mr-2" />
+                  Arquivar
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem 
+                  onClick={() => onDelete?.(client.id)}
+                  className="text-destructive focus:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Excluir
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </CardHeader>
 
