@@ -1432,29 +1432,6 @@ export type Database = {
           },
         ]
       }
-      v_ads_daily_campaign: {
-        Row: {
-          campaign_id: string | null
-          clicks: number | null
-          cost: number | null
-          cost_micros: number | null
-          cpc: number | null
-          ctr: number | null
-          customer_id: string | null
-          date: string | null
-          impressions: number | null
-        }
-        Relationships: []
-      }
-      v_ads_last30_summary: {
-        Row: {
-          clicks: number | null
-          cost: number | null
-          customer_id: string | null
-          impressions: number | null
-        }
-        Relationships: []
-      }
     }
     Functions: {
       generate_metrics_row_key: {
