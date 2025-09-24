@@ -162,13 +162,13 @@ serve(async (req) => {
         // Log validation status
         console.log(`Métrica ${i}: customer_id=${finalCustomerId}, client_id_invalid=${clientIdInvalid}, client_binding_found=${clientBindingFound}`);
 
-        // Calculate derived metrics if not provided
-        const impressions = Number(metric.impressions || 0);
-        const clicks = Number(metric.clicks || 0);
-        const spend = Number(metric.spend || 0);
-        const leads = Number(metric.leads || 0);
-        const conversions = Number(metric.conversions || 0);
-        const revenue = Number(metric.revenue || 0);
+        // Calculate derived metrics if not provided with proper normalization
+        const impressions = parseInt(metric.impressions) || 0;
+        const clicks = parseInt(metric.clicks) || 0;
+        const spend = parseFloat(metric.spend) || 0;
+        const leads = parseInt(metric.leads) || 0;
+        const conversions = parseInt(metric.conversions) || 0;
+        const revenue = parseFloat(metric.revenue) || 0;
 
         // Ensure proper data types and validation
         const processedClientId = finalClientId && isValidUUID(finalClientId) ? finalClientId : null;
@@ -187,10 +187,11 @@ serve(async (req) => {
           leads,
           conversions,
           revenue,
-          cpa: metric.cpa || (leads > 0 ? spend / leads : 0),
-          roas: metric.roas || (spend > 0 ? revenue / spend : 0),
-          ctr: metric.ctr || (impressions > 0 ? (clicks / impressions) * 100 : 0),
-          conv_rate: metric.conv_rate || (clicks > 0 ? (leads / clicks) * 100 : 0)
+          // Normalize rates to 6 decimal places max
+          cpa: metric.cpa ? parseFloat(parseFloat(metric.cpa).toFixed(6)) : (leads > 0 ? parseFloat((spend / leads).toFixed(6)) : 0),
+          roas: metric.roas ? parseFloat(parseFloat(metric.roas).toFixed(6)) : (spend > 0 ? parseFloat((revenue / spend).toFixed(6)) : 0),
+          ctr: metric.ctr ? parseFloat(parseFloat(metric.ctr).toFixed(6)) : (impressions > 0 ? parseFloat(((clicks / impressions) * 100).toFixed(6)) : 0),
+          conv_rate: metric.conv_rate ? parseFloat(parseFloat(metric.conv_rate).toFixed(6)) : (clicks > 0 ? parseFloat(((leads / clicks) * 100).toFixed(6)) : 0)
         };
 
         // Log detailed metric data before adding to array
@@ -200,10 +201,15 @@ serve(async (req) => {
           customer_id: calculatedMetric.customer_id || 'NULL',
           campaign_id: calculatedMetric.campaign_id || 'NULL',
           platform: calculatedMetric.platform,
+          impressions: calculatedMetric.impressions,
+          clicks: calculatedMetric.clicks,
+          spend: calculatedMetric.spend,
+          conversions: calculatedMetric.conversions,
           original_client_id: metric.client_id,
           client_id_valid: processedClientId ? 'YES' : 'NO',
           customer_id_normalized: processedCustomerId ? 'YES' : 'NO',
-          campaign_id_converted: processedCampaignId ? 'YES' : 'NO'
+          campaign_id_converted: processedCampaignId ? 'YES' : 'NO',
+          rates_normalized: 'YES'
         });
 
         // Log detailed metric data before adding to array (masking sensitive data)
