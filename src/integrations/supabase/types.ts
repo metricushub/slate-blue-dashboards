@@ -460,21 +460,35 @@ export type Database = {
       }
       google_ads_connections: {
         Row: {
-          created_at: string | null
+          client_id: string
+          created_at: string
           customer_id: string
-          id: string
+          updated_at: string
+          user_id: string
         }
         Insert: {
-          created_at?: string | null
+          client_id: string
+          created_at?: string
           customer_id: string
-          id?: string
+          updated_at?: string
+          user_id: string
         }
         Update: {
-          created_at?: string | null
+          client_id?: string
+          created_at?: string
           customer_id?: string
-          id?: string
+          updated_at?: string
+          user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "google_ads_connections_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       google_ads_credentials: {
         Row: {

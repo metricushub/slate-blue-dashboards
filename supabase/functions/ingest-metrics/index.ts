@@ -162,6 +162,42 @@ serve(async (req) => {
         // Log validation status
         console.log(`Métrica ${i}: customer_id=${finalCustomerId}, client_id_invalid=${clientIdInvalid}, client_binding_found=${clientBindingFound}`);
 
+        // Buscar client_id através da tabela google_ads_connections
+        let linkedClientId = null;
+        if (finalCustomerId) {
+          const { data: connection } = await supabase
+            .from('google_ads_connections')
+            .select('client_id')
+            .eq('customer_id', finalCustomerId)
+            .eq('user_id', user.id)
+            .single();
+          
+          if (connection) {
+            linkedClientId = connection.client_id;
+            console.log(`Métrica ${i}: Encontrada vinculação customer_id=${finalCustomerId} -> client_id=${linkedClientId}`);
+          } else {
+            console.log(`Métrica ${i}: Nenhuma vinculação encontrada para customer_id=${finalCustomerId}, usando client_id=NULL`);
+          }
+        }
+
+        // Buscar client_id através da tabela google_ads_connections
+        let linkedClientId = null;
+        if (finalCustomerId) {
+          const { data: connection } = await supabase
+            .from('google_ads_connections')
+            .select('client_id')
+            .eq('customer_id', finalCustomerId)
+            .eq('user_id', user.id)
+            .single();
+          
+          if (connection) {
+            linkedClientId = connection.client_id;
+            console.log(`Métrica ${i}: Encontrada vinculação customer_id=${finalCustomerId} -> client_id=${linkedClientId}`);
+          } else {
+            console.log(`Métrica ${i}: Nenhuma vinculação encontrada para customer_id=${finalCustomerId}, usando client_id=NULL`);
+          }
+        }
+
         // Calculate derived metrics if not provided with proper normalization
         const impressions = parseInt(metric.impressions) || 0;
         const clicks = parseInt(metric.clicks) || 0;
@@ -177,10 +213,10 @@ serve(async (req) => {
         
         const calculatedMetric = {
           date: metric.date,
-          client_id: processedClientId,
+          client_id: linkedClientId, // Usar client_id da vinculação ou NULL
           customer_id: processedCustomerId,
           campaign_id: processedCampaignId,
-          platform: metric.platform,
+          platform: metric.platform || 'google_ads',
           impressions,
           clicks,
           spend,
@@ -197,9 +233,20 @@ serve(async (req) => {
         // Log detailed metric data before adding to array
         console.log(`Métrica ${i} processada:`, {
           date: calculatedMetric.date,
-          client_id: calculatedMetric.client_id ? `UUID:${calculatedMetric.client_id.substring(0,8)}...` : 'NULL',
+          client_id: linkedClientId ? linkedClientId.substring(0,8) + '...' : 'NULL (sem vinculação)',
           customer_id: calculatedMetric.customer_id || 'NULL',
           campaign_id: calculatedMetric.campaign_id || 'NULL',
+          platform: calculatedMetric.platform,
+          impressions: calculatedMetric.impressions,
+          clicks: calculatedMetric.clicks,
+          spend: calculatedMetric.spend,
+          conversions: calculatedMetric.conversions,
+          original_client_id: metric.client_id,
+          customer_id_normalized: processedCustomerId ? 'YES' : 'NO',
+          campaign_id_converted: processedCampaignId ? 'YES' : 'NO',
+          rates_normalized: 'YES',
+          vinculacao_encontrada: linkedClientId ? 'SIM' : 'NAO'
+        });
           platform: calculatedMetric.platform,
           impressions: calculatedMetric.impressions,
           clicks: calculatedMetric.clicks,

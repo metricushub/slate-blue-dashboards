@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, ExternalLink, RefreshCw, CheckCircle, AlertTriangle } from "lucide-react";
+import { GoogleAdsConnectionModal } from "./GoogleAdsConnectionModal";
 
 interface GoogleAdsAccount {
   id: string;
@@ -25,6 +26,7 @@ export function GoogleAdsIntegration() {
   const [isConnecting, setIsConnecting] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isIngesting, setIsIngesting] = useState(false);
+  const [connectionModalOpen, setConnectionModalOpen] = useState(false);
   const [status, setStatus] = useState<GoogleAdsStatus>({
     hasTokens: false,
     lastLogin: null,
@@ -440,6 +442,13 @@ export function GoogleAdsIntegration() {
                   )}
                   Sincronizar Contas
                 </Button>
+                <Button
+                  onClick={() => setConnectionModalOpen(true)}
+                  disabled={accounts.length === 0}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  Vincular Contas aos Clientes
+                </Button>
                 <Button variant="outline" onClick={checkStatus}>
                   Atualizar Status
                 </Button>
@@ -507,6 +516,11 @@ export function GoogleAdsIntegration() {
           </div>
         </CardContent>
       </Card>
+
+      <GoogleAdsConnectionModal
+        open={connectionModalOpen}
+        onOpenChange={setConnectionModalOpen}
+      />
     </div>
   );
 }
