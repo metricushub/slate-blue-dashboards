@@ -833,6 +833,7 @@ export type Database = {
           platform: string
           revenue: number | null
           roas: number | null
+          row_key: string | null
           spend: number | null
           updated_at: string
         }
@@ -853,6 +854,7 @@ export type Database = {
           platform: string
           revenue?: number | null
           roas?: number | null
+          row_key?: string | null
           spend?: number | null
           updated_at?: string
         }
@@ -873,6 +875,7 @@ export type Database = {
           platform?: string
           revenue?: number | null
           roas?: number | null
+          row_key?: string | null
           spend?: number | null
           updated_at?: string
         }
@@ -1195,6 +1198,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_metrics_row_key: {
+        Args: {
+          p_campaign_id: string
+          p_customer_id: string
+          p_date: string
+          p_platform: string
+        }
+        Returns: string
+      }
       get_current_user_role: {
         Args: Record<PropertyKey, never>
         Returns: string
