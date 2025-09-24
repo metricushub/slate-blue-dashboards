@@ -21,35 +21,87 @@ serve(async (req) => {
   try {
     if (!SUPABASE_URL || !SERVICE_KEY) throw new Error("supabase_env_missing");
 
-    const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
+    // Create client with anon key for user auth
+    const supabaseClient = createClient(
+      SUPABASE_URL, 
+      Deno.env.get("SUPABASE_ANON_KEY") || "",
+      {
+        global: {
+          headers: {
+            Authorization: req.headers.get("authorization") || ""
+          }
+        }
+      }
+    );
     
     // Get user from auth header
-    const authHeader = req.headers.get("authorization");
-    if (!authHeader) throw new Error("unauthorized");
-    
-    const token = authHeader.replace("Bearer ", "");
-    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
     if (userError || !user) throw new Error("unauthorized");
 
-    // Query the view for user's accounts
-    const { data, error } = await supabase
-      .from('v_ads_accounts_ui')
-      .select('customer_id, name, is_manager, is_linked, client_id')
+    // Query linked accounts directly
+    const { data: linkedData, error: linkedError } = await supabaseClient
+      .from('google_ads_connections')
+      .select(`
+        customer_id,
+        client_id,
+        accounts_map!inner(account_name)
+      `)
+      .eq('user_id', user.id);
+
+    if (linkedError) throw linkedError;
+
+    const linked = (linkedData || []).map(item => ({
+      customer_id: item.customer_id,
+      client_id: item.client_id,
+      name: (item as any).accounts_map?.account_name || `Account ${item.customer_id}`,
+      is_linked: true
+    }));
+
+    // Query available accounts (from accounts_map, filtered by user's tokens)
+    const { data: tokenData } = await supabaseClient
+      .from('google_tokens')
+      .select('login_customer_id')
       .eq('user_id', user.id)
-      .order('name');
+      .maybeSingle();
 
-    if (error) throw error;
+    if (!tokenData?.login_customer_id) {
+      return new Response(
+        JSON.stringify({ 
+          ok: true, 
+          linked,
+          available: [],
+          total: linked.length 
+        }),
+        { headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
 
-    // Separate into linked and available
-    const linked = (data || []).filter(acc => acc.is_linked);
-    const available = (data || []).filter(acc => !acc.is_linked);
+    // Query all accounts accessible through MCC
+    const { data: allAccounts, error: accountsError } = await supabaseClient
+      .from('accounts_map')
+      .select('customer_id, account_name, is_manager')
+      .eq('status', 'ENABLED')
+      .eq('is_manager', false);
+
+    if (accountsError) throw accountsError;
+
+    // Filter out already linked accounts
+    const linkedIds = linked.map(acc => acc.customer_id);
+    const available = (allAccounts || [])
+      .filter(acc => !linkedIds.includes(acc.customer_id))
+      .map(acc => ({
+        customer_id: acc.customer_id,
+        name: acc.account_name || `Account ${acc.customer_id}`,
+        is_manager: acc.is_manager,
+        is_linked: false
+      }));
 
     return new Response(
       JSON.stringify({ 
         ok: true, 
         linked,
         available,
-        total: data?.length ?? 0 
+        total: linked.length + available.length 
       }),
       { headers: { "Content-Type": "application/json", ...corsHeaders } }
     );

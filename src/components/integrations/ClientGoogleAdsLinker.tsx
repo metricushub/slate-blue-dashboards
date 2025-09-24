@@ -49,6 +49,8 @@ export function ClientGoogleAdsLinker({ clientId }: Props) {
 
       if (!response?.ok) throw new Error(response?.error || "Falha ao carregar contas");
 
+      console.log("Response from google-ads-accounts:", response);
+
       // Filter linked accounts for this specific client
       const linked = (response.linked || [])
         .filter((acc: any) => acc.client_id === clientId)
@@ -57,6 +59,7 @@ export function ClientGoogleAdsLinker({ clientId }: Props) {
           descriptive_name: item.name
         }));
       setLinkedAccounts(linked);
+      console.log("Linked accounts for client:", linked);
 
       // Available accounts are those not linked to any client
       const available = (response.available || []).map((item: any) => ({
@@ -66,6 +69,7 @@ export function ClientGoogleAdsLinker({ clientId }: Props) {
         is_manager: item.is_manager
       }));
       setAvailableAccounts(available);
+      console.log("Available accounts:", available);
 
       // Get token account info
       const { data: tokenData } = await supabase

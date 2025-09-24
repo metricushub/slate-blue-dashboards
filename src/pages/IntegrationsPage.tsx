@@ -22,6 +22,7 @@ import { toast } from "@/hooks/use-toast";
 import { SheetsAdapter } from "@/shared/data-source/adapters/sheets";
 import { Link } from "react-router-dom";
 import { GoogleAdsIntegrationCard } from "@/components/integrations/GoogleAdsIntegrationCard";
+import { GoogleAdsConnectionsOverview } from "@/components/integrations/GoogleAdsConnectionsOverview";
 
 export function IntegrationsPage() {
   const { dataSource, sourceType, isLoading, refreshCache } = useDataSource();
@@ -261,6 +262,9 @@ export function IntegrationsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Google Ads Connections Overview */}
+      <GoogleAdsConnectionsOverview />
 
       {/* Diagnostics Footer */}
       <Card>
