@@ -366,6 +366,81 @@ export type Database = {
         }
         Relationships: []
       }
+      clients_backup: {
+        Row: {
+          budget_month: number | null
+          budget_spent_month: number | null
+          created_at: string | null
+          ga4_last_event_at: string | null
+          goals_cpa: number | null
+          goals_leads: number | null
+          goals_roas: number | null
+          id: string | null
+          last_update: string | null
+          latest_cpa: number | null
+          latest_leads: number | null
+          latest_roas: number | null
+          logo_url: string | null
+          monthly_budget: number | null
+          name: string | null
+          owner: string | null
+          segment: string | null
+          stage: string | null
+          status: string | null
+          tags: string[] | null
+          updated_at: string | null
+          website: string | null
+        }
+        Insert: {
+          budget_month?: number | null
+          budget_spent_month?: number | null
+          created_at?: string | null
+          ga4_last_event_at?: string | null
+          goals_cpa?: number | null
+          goals_leads?: number | null
+          goals_roas?: number | null
+          id?: string | null
+          last_update?: string | null
+          latest_cpa?: number | null
+          latest_leads?: number | null
+          latest_roas?: number | null
+          logo_url?: string | null
+          monthly_budget?: number | null
+          name?: string | null
+          owner?: string | null
+          segment?: string | null
+          stage?: string | null
+          status?: string | null
+          tags?: string[] | null
+          updated_at?: string | null
+          website?: string | null
+        }
+        Update: {
+          budget_month?: number | null
+          budget_spent_month?: number | null
+          created_at?: string | null
+          ga4_last_event_at?: string | null
+          goals_cpa?: number | null
+          goals_leads?: number | null
+          goals_roas?: number | null
+          id?: string | null
+          last_update?: string | null
+          latest_cpa?: number | null
+          latest_leads?: number | null
+          latest_roas?: number | null
+          logo_url?: string | null
+          monthly_budget?: number | null
+          name?: string | null
+          owner?: string | null
+          segment?: string | null
+          stage?: string | null
+          status?: string | null
+          tags?: string[] | null
+          updated_at?: string | null
+          website?: string | null
+        }
+        Relationships: []
+      }
       financial_categories: {
         Row: {
           color: string | null
@@ -580,6 +655,66 @@ export type Database = {
           start_date?: string
           status?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      google_ads_metrics_backup: {
+        Row: {
+          campaign_id: string | null
+          clicks: number | null
+          client_id: string | null
+          conv_rate: number | null
+          conversions: number | null
+          cost_micros: number | null
+          cpa: number | null
+          created_at: string | null
+          ctr: number | null
+          customer_id: string | null
+          date: string | null
+          impressions: number | null
+          leads: number | null
+          platform: string | null
+          revenue: number | null
+          roas: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          campaign_id?: string | null
+          clicks?: number | null
+          client_id?: string | null
+          conv_rate?: number | null
+          conversions?: number | null
+          cost_micros?: number | null
+          cpa?: number | null
+          created_at?: string | null
+          ctr?: number | null
+          customer_id?: string | null
+          date?: string | null
+          impressions?: number | null
+          leads?: number | null
+          platform?: string | null
+          revenue?: number | null
+          roas?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          campaign_id?: string | null
+          clicks?: number | null
+          client_id?: string | null
+          conv_rate?: number | null
+          conversions?: number | null
+          cost_micros?: number | null
+          cpa?: number | null
+          created_at?: string | null
+          ctr?: number | null
+          customer_id?: string | null
+          date?: string | null
+          impressions?: number | null
+          leads?: number | null
+          platform?: string | null
+          revenue?: number | null
+          roas?: number | null
+          updated_at?: string | null
         }
         Relationships: []
       }
