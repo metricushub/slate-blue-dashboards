@@ -1,4 +1,3 @@
-import { GoogleAdsIntegration } from "@/components/integrations/GoogleAdsIntegration";
 import { ClientGoogleAdsLinker } from "@/components/integrations/ClientGoogleAdsLinker";
 import { useParams } from "react-router-dom";
 
@@ -13,7 +12,7 @@ const ConfigDadosGoogleAds = () => {
         </p>
       </div>
       
-      <GoogleAdsIntegration />
+      
 
       {clientId && (
         <ClientGoogleAdsLinker clientId={clientId} />

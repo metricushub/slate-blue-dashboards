@@ -61,11 +61,19 @@ export function GoogleAdsIntegrationCard() {
         .order('created_at', { ascending: false })
         .limit(1);
 
-      // Check accounts (use Edge Function to avoid RLS masking)
-      const functionsHost = "https://zoahzxfjefjmkxylbfxf.functions.supabase.co";
-      const accRes = await fetch(`${functionsHost}/google-ads-accounts`);
-      const accJson = await accRes.json();
-      const accountsRows = accRes.ok && accJson.ok ? (accJson.rows || []) : [];
+      // Check accounts (use Edge Function with auth)
+      const { data: accData, error: accError } = await supabase.functions.invoke('google-ads-accounts');
+      if (accError) throw accError;
+      const rows = accData?.ok ? [
+        ...((accData.linked as any[]) || []),
+        ...((accData.available as any[]) || [])
+      ] : [];
+      const accountsRows: GoogleAdsAccount[] = rows.map((a: any) => ({
+        customer_id: a.customer_id,
+        account_name: a.name || `Account ${a.customer_id}`,
+        status: 'ENABLED',
+        is_manager: !!a.is_manager,
+      }));
       
       // Filter and set accounts for dropdown
       const normalize = (s?: string | null) => (s || '').toUpperCase();
@@ -216,18 +224,17 @@ export function GoogleAdsIntegrationCard() {
   const handleSyncAccounts = async () => {
     setIsSyncing(true);
     try {
-      const functionsHost = "https://zoahzxfjefjmkxylbfxf.functions.supabase.co";
-      const response = await fetch(`${functionsHost}/google-ads-sync-accounts`);
-      const data = await response.json();
+      const { data, error } = await supabase.functions.invoke('google-ads-sync-accounts');
+      if (error) throw error;
       
-      if (data.ok) {
+      if (data?.ok) {
         toast({
           title: "Sincronização concluída",
           description: `${data.total || 0} contas sincronizadas`,
         });
         await checkStatus();
       } else {
-        throw new Error(data.error || 'Erro na sincronização');
+        throw new Error((data as any)?.error || 'Erro na sincronização');
       }
     } catch (error: any) {
       toast({
