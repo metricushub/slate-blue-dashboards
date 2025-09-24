@@ -881,13 +881,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "metrics_campaign_id_fkey"
-            columns: ["campaign_id"]
-            isOneToOne: false
-            referencedRelation: "campaigns"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "metrics_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false

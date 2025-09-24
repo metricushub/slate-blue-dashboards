@@ -30,9 +30,9 @@ function isValidUUID(str: string): boolean {
   return uuidRegex.test(str);
 }
 
-// Helper function to sanitize customer ID (remove hyphens/dots)
+// Helper function to sanitize customer ID (remove hyphens/dots, keep only numbers)
 function sanitizeCustomerId(customerId: string): string {
-  return customerId.replace(/[-\.]/g, '');
+  return customerId.replace(/[^0-9]/g, '');
 }
 
 serve(async (req) => {
@@ -172,9 +172,9 @@ serve(async (req) => {
 
         const calculatedMetric = {
           date: metric.date,
-          client_id: finalClientId,
-          customer_id: finalCustomerId,
-          campaign_id: metric.campaign_id || null,
+          client_id: finalClientId, // Only set if valid UUID, otherwise null
+          customer_id: finalCustomerId, // Always TEXT, normalized
+          campaign_id: metric.campaign_id ? String(metric.campaign_id) : null, // Always TEXT
           platform: metric.platform,
           impressions,
           clicks,
@@ -187,6 +187,18 @@ serve(async (req) => {
           ctr: metric.ctr || (impressions > 0 ? (clicks / impressions) * 100 : 0),
           conv_rate: metric.conv_rate || (clicks > 0 ? (leads / clicks) * 100 : 0)
         };
+
+        // Log detailed metric data before adding to array (masking sensitive data)
+        console.log(`Métrica processada ${i}:`, {
+          date: calculatedMetric.date,
+          client_id: calculatedMetric.client_id ? calculatedMetric.client_id.substring(0, 8) + '...' : 'NULL',
+          customer_id: calculatedMetric.customer_id,
+          campaign_id: calculatedMetric.campaign_id,
+          platform: calculatedMetric.platform,
+          impressions: calculatedMetric.impressions,
+          clicks: calculatedMetric.clicks,
+          spend: calculatedMetric.spend
+        });
 
         validatedMetrics.push(calculatedMetric);
       } catch (error) {
@@ -224,6 +236,21 @@ serve(async (req) => {
       }
 
       console.log(`Inserindo ${metricsWithRowKey.length} métricas com row_key`);
+
+      // Log first few records to be inserted (for debugging UUID issues)
+      if (metricsWithRowKey.length > 0) {
+        console.log('Amostra de registros a serem inseridos:', metricsWithRowKey.slice(0, 3).map(record => ({
+          row_key: record.row_key?.substring(0, 8) + '...',
+          date: record.date,
+          client_id: record.client_id ? (record.client_id.length > 20 ? record.client_id.substring(0, 8) + '...' : record.client_id) : 'NULL',
+          customer_id: record.customer_id,
+          campaign_id: record.campaign_id,
+          platform: record.platform,
+          client_id_type: typeof record.client_id,
+          customer_id_type: typeof record.customer_id,
+          campaign_id_type: typeof record.campaign_id
+        })));
+      }
 
       // Use upsert with row_key conflict resolution, only updating metric fields
       const { error: insertError, data } = await supabase
