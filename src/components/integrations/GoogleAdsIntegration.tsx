@@ -52,12 +52,13 @@ export function GoogleAdsIntegration() {
         .order('created_at', { ascending: false })
         .limit(1);
 
-      // Check accounts (only non-manager accounts)  
-      const { data: accountsData } = await supabase
-        .from('accounts_map')
-        .select('*')
-        .eq('is_manager', false)
-        .order('account_name', { ascending: true });
+      // List all accessible accounts via RPC view (handles RLS internally)
+      const { data: accountsData, error: accountsError } = await supabase.rpc('list_ads_accounts');
+      if (accountsError) {
+        console.error('RPC list_ads_accounts error:', accountsError);
+      }
+
+      const nonManagerAccounts = (accountsData || []).filter((a: any) => !a.is_manager);
 
       // Check last ingest
       const { data: ingests } = await supabase
@@ -71,19 +72,18 @@ export function GoogleAdsIntegration() {
       setStatus({
         hasTokens: tokens && tokens.length > 0,
         lastLogin: tokens?.[0]?.created_at || null,
-        accountsCount: accountsData?.length || 0,
+        accountsCount: nonManagerAccounts.length,
         lastIngest: ingests?.[0]?.completed_at || null
       });
 
-      if (accountsData) {
-        setAccounts(accountsData.map(acc => ({
-          id: acc.customer_id,
-          name: acc.account_name || `Account ${acc.customer_id}`,
-          type: acc.account_type || 'REGULAR',
-          currencyCode: acc.currency_code || 'BRL',
-          manager: acc.is_manager || false
-        })));
-      }
+      setAccounts(nonManagerAccounts.map((acc: any) => ({
+        id: acc.customer_id,
+        name: acc.name || `Account ${acc.customer_id}`,
+        type: 'REGULAR',
+        currencyCode: 'BRL',
+        manager: !!acc.is_manager
+      })));
+
 
     } catch (error) {
       console.error('Error checking Google Ads status:', error);
