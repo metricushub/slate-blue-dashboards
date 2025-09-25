@@ -316,6 +316,22 @@ export function GoogleAdsIntegration() {
             </div>
           </div>
 
+          {/* Important Notice */}
+          <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg dark:bg-orange-900/20 dark:border-orange-800">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="h-5 w-5 text-orange-600 mt-0.5" />
+              <div>
+                <h4 className="font-medium text-orange-800 dark:text-orange-200">
+                  ⚠️ Problema de Hierarquia
+                </h4>
+                <div className="text-sm text-orange-700 dark:text-orange-300 mt-1">
+                  <p>As contas mostradas não podem carregar dados porque não são gerenciadas pelo MCC correto (2478435835).</p>
+                  <p className="mt-2"><strong>Solução:</strong> Faça login com a conta Google que administra o MCC 2478435835.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Actions */}
           <div className="flex gap-2 flex-wrap">
             {!status.hasTokens ? (
@@ -341,6 +357,14 @@ export function GoogleAdsIntegration() {
               </div>
             ) : (
               <>
+                <Button onClick={handleConnect} disabled={isConnecting} className="bg-green-600 hover:bg-green-700">
+                  {isConnecting ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <ExternalLink className="mr-2 h-4 w-4" />
+                  )}
+                  Reconectar com MCC Correto
+                </Button>
                 <Button variant="outline" onClick={handleSyncAccounts} disabled={isSyncing}>
                   {isSyncing ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -349,14 +373,6 @@ export function GoogleAdsIntegration() {
                   )}
                   Sincronizar Contas
                 </Button>
-                <Button
-                  onClick={() => setConnectionModalOpen(true)}
-                  disabled={accounts.length === 0}
-                  className="bg-blue-600 hover:bg-blue-700"
-                >
-                  Vincular Contas aos Clientes
-                </Button>
-                <MccManagerModal />
                 <Button variant="outline" onClick={checkStatus}>
                   Atualizar Status
                 </Button>
@@ -372,13 +388,13 @@ export function GoogleAdsIntegration() {
             />
           )}
 
-          {/* Accounts List - Only show real accounts */}
+          {/* Contas encontradas mas com problema de hierarquia */}
           {accounts.length > 0 && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h4 className="font-medium">Contas Google Ads Disponíveis</h4>
+                <h4 className="font-medium">Contas Encontradas</h4>
                 <div className="text-sm text-muted-foreground">
-                  {accounts.length} contas encontradas
+                  {accounts.length} contas (⚠️ sem acesso para dados)
                 </div>
               </div>
               
@@ -392,7 +408,7 @@ export function GoogleAdsIntegration() {
                     !['1111111111', '1234567890', '0987654321'].includes(account.id)
                   )
                   .map((account) => (
-                    <div key={account.id} className="p-4 border rounded-lg hover:border-primary/50 transition-colors">
+                    <div key={account.id} className="p-4 border rounded-lg bg-gray-50 dark:bg-gray-800/50">
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
@@ -400,9 +416,13 @@ export function GoogleAdsIntegration() {
                             {account.manager && (
                               <Badge variant="secondary">Manager</Badge>
                             )}
+                            <Badge variant="destructive" className="text-xs">Sem Acesso</Badge>
                           </div>
                           <div className="text-sm text-muted-foreground mt-1">
                             ID: {account.id}
+                          </div>
+                          <div className="text-xs text-red-600 dark:text-red-400 mt-1">
+                            ⚠️ Não gerenciada pelo MCC 2478435835
                           </div>
                         </div>
                         
@@ -410,24 +430,18 @@ export function GoogleAdsIntegration() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => setConnectionModalOpen(true)}
+                            disabled
+                            className="opacity-50 cursor-not-allowed"
                           >
                             Vincular Cliente
                           </Button>
                           <Button
-                            variant="default"
+                            variant="outline"
                             size="sm"
-                            onClick={() => handleLoadData(account.id, account.name)}
-                            disabled={isIngesting || account.manager}
-                            className="bg-blue-600 hover:bg-blue-700"
+                            disabled
+                            className="opacity-50 cursor-not-allowed"
                           >
-                            {isIngesting ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : account.manager ? (
-                              "Manager"
-                            ) : (
-                              "Carregar Dados"
-                            )}
+                            Carregar Dados
                           </Button>
                         </div>
                       </div>
@@ -444,12 +458,23 @@ export function GoogleAdsIntegration() {
                 <div className="text-center py-8 text-muted-foreground">
                   <div className="text-sm">Nenhuma conta real encontrada</div>
                   <div className="text-xs mt-1">
-                    Clique em "Sincronizar Contas" para atualizar a lista
+                    Conecte com a conta Google que administra o MCC correto
                   </div>
                 </div>
               )}
             </div>
           )}
+
+          {/* Instructions */}
+          <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg dark:bg-blue-900/20 dark:border-blue-800">
+            <h4 className="font-medium text-sm mb-2">📋 Instruções para Conectar</h4>
+            <div className="text-xs space-y-2">
+              <div><strong>1.</strong> Clique em "Reconectar com MCC Correto"</div>
+              <div><strong>2.</strong> Faça login com a conta Google que administra o MCC 2478435835</div>
+              <div><strong>3.</strong> Após conectar, as contas corretas aparecerão com acesso para carregar dados</div>
+              <div><strong>4.</strong> Vincule as contas aos seus clientes para visualizar os dados no dashboard</div>
+            </div>
+          </div>
 
           {/* Summary */}
           <div className="mt-6 p-3 bg-blue-50 border border-blue-200 rounded-lg dark:bg-blue-900/20 dark:border-blue-800">
