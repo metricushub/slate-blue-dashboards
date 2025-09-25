@@ -219,8 +219,8 @@ export function IntegrationsPage() {
           </CardContent>
         </Card>
 
-        {/* Google Ads Card - Active */}
-        <div className="lg:col-span-2">
+        {/* Google Ads Card - Active (Novo fluxo 1-clique completo) */}
+        <div className="lg:col-span-3 space-y-4">
           <GoogleAdsIntegration />
         </div>
 

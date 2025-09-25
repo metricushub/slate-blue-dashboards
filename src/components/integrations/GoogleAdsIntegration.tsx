@@ -278,7 +278,7 @@ export function GoogleAdsIntegration() {
       {/* Configuration Form */}
       <Card>
         <CardHeader>
-          <CardTitle>⚙️ Configurar Credenciais Google Ads</CardTitle>
+          <CardTitle>🚀 NOVO FLUXO 1-CLIQUE: Configurar Google Ads OAuth</CardTitle>
           <CardDescription>
             Insira as credenciais corretas do seu projeto no Google Cloud Console
           </CardDescription>
