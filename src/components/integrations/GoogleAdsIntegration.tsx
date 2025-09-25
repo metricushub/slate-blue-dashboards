@@ -283,7 +283,7 @@ export function GoogleAdsIntegration() {
             <div className="w-6 h-6 bg-blue-600 rounded flex items-center justify-center">
               <span className="text-white text-xs font-bold">G</span>
             </div>
-            Google Ads Integration
+            🚀 NOVO FLUXO 1-CLIQUE: Google Ads Integration
           </CardTitle>
           <CardDescription>
             Conecte sua conta do Google Ads para importar métricas automaticamente
