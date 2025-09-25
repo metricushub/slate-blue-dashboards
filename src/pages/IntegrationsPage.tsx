@@ -21,7 +21,7 @@ import { useDataSource } from "@/hooks/useDataSource";
 import { toast } from "@/hooks/use-toast";
 import { SheetsAdapter } from "@/shared/data-source/adapters/sheets";
 import { Link } from "react-router-dom";
-import { GoogleAdsIntegrationCard } from "@/components/integrations/GoogleAdsIntegrationCard";
+import { GoogleAdsIntegration } from "@/components/integrations/GoogleAdsIntegration";
 import { GoogleAdsConnectionsOverview } from "@/components/integrations/GoogleAdsConnectionsOverview";
 
 export function IntegrationsPage() {
@@ -220,7 +220,9 @@ export function IntegrationsPage() {
         </Card>
 
         {/* Google Ads Card - Active */}
-        <GoogleAdsIntegrationCard />
+        <div className="lg:col-span-2">
+          <GoogleAdsIntegration />
+        </div>
 
         {/* Meta Ads Card - Under Construction */}
         <Card className="relative opacity-75">
