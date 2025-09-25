@@ -52,12 +52,12 @@ export function GoogleAdsIntegration() {
         .order('created_at', { ascending: false })
         .limit(1);
 
-      // Check accounts (only non-manager accounts)
+      // Check accounts (only non-manager accounts)  
       const { data: accountsData } = await supabase
         .from('accounts_map')
         .select('*')
         .eq('is_manager', false)
-        .order('created_at', { ascending: false });
+        .order('account_name', { ascending: true });
 
       // Check last ingest
       const { data: ingests } = await supabase
@@ -274,7 +274,7 @@ export function GoogleAdsIntegration() {
   }, []);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" key={`google-ads-${Date.now()}`}>
 
       {/* Status Card */}
       <Card>
@@ -283,7 +283,7 @@ export function GoogleAdsIntegration() {
             <div className="w-6 h-6 bg-blue-600 rounded flex items-center justify-center">
               <span className="text-white text-xs font-bold">G</span>
             </div>
-            🚀 NOVO FLUXO 1-CLIQUE: Google Ads Integration
+            🚀 NOVO FLUXO 1-CLIQUE: Google Ads Integration ✅ ATUALIZADO
           </CardTitle>
           <CardDescription>
             Conecte sua conta do Google Ads para importar métricas automaticamente

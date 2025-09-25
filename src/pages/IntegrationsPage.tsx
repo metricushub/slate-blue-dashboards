@@ -109,7 +109,7 @@ export function IntegrationsPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Integrações</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Integrações ✅ ATUALIZADO</h1>
         <p className="text-muted-foreground">
           Configure e gerencie integrações com ferramentas externas
         </p>
@@ -220,7 +220,7 @@ export function IntegrationsPage() {
         </Card>
 
         {/* Google Ads Card - Active (Novo fluxo 1-clique completo) */}
-        <div className="lg:col-span-3 space-y-4">
+        <div className="lg:col-span-3 space-y-4" key={`google-ads-section-${Date.now()}`}>
           <GoogleAdsIntegration />
         </div>
 
