@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -52,10 +52,11 @@ export function GoogleAdsIntegration() {
         .order('created_at', { ascending: false })
         .limit(1);
 
-      // Check accounts
+      // Check accounts (only non-manager accounts)
       const { data: accountsData } = await supabase
         .from('accounts_map')
         .select('*')
+        .eq('is_manager', false)
         .order('created_at', { ascending: false });
 
       // Check last ingest
@@ -89,7 +90,7 @@ export function GoogleAdsIntegration() {
     }
   };
 
-  // Connect to Google Ads
+  // Connect to Google Ads with 1-click flow
   const handleConnect = async () => {
     console.log('🔄 Iniciando conexão Google Ads...');
     setIsConnecting(true);
@@ -101,31 +102,14 @@ export function GoogleAdsIntegration() {
       }
       console.log('✅ Usuário autenticado:', user.email);
 
-      // Build the direct function URL with start action
-      const functionUrl = `https://zoahzxfjefjmkxylbfxf.functions.supabase.co/google-oauth`;
-      const params = new URLSearchParams({
-        action: 'start',
-        user_id: user.id,
-        return_to: window.location.href,
-      });
-
-      const startUrl = `${functionUrl}?${params.toString()}`;
-      console.log('🔗 URL gerada:', startUrl);
+      // Build the OAuth start URL with user_id and next URL
+      const startUrl = `https://zoahzxfjefjmkxylbfxf.functions.supabase.co/google-oauth/start?user_id=${user.id}&next=${encodeURIComponent(window.location.href)}`;
+      console.log('🔗 URL OAuth:', startUrl);
       setFallbackUrl(startUrl);
 
-      // Test connection to edge function first (health check)
-      console.log('🧪 Testando conexão com edge function...');
-      try {
-        const healthUrl = `${functionUrl}?action=ping`;
-        const testResponse = await fetch(healthUrl, { method: 'GET' });
-        console.log('📊 Status da edge function:', testResponse.status);
-      } catch (testError) {
-        console.error('❌ Erro testando edge function:', testError);
-      }
-
-      // Open popup directly to our function (which 302 redirects to Google)
-      console.log('🪟 Abrindo popup...');
-      const popup = window.open(startUrl, '_blank', 'width=500,height=600,scrollbars=yes,resizable=yes');
+      // Open popup for OAuth
+      console.log('🪟 Abrindo popup OAuth...');
+      const popup = window.open(startUrl, 'google_ads_oauth', 'width=500,height=600,scrollbars=yes,resizable=yes');
       if (!popup) {
         console.error('❌ Popup bloqueado');
         toast({
@@ -137,15 +121,42 @@ export function GoogleAdsIntegration() {
         return;
       }
 
-      toast({ title: 'Redirecionando', description: 'Abrindo Google para autenticação...' });
+      toast({ title: 'Conectando', description: 'Autenticando com Google Ads...' });
 
-      // When the popup is closed, refresh status
+      // Listen for messages from the OAuth popup
+      const messageListener = (event: MessageEvent) => {
+        if (event.data?.source === 'metricus:google_oauth') {
+          if (event.data.ok) {
+            console.log('✅ OAuth concluído com sucesso');
+            toast({ title: 'Sucesso', description: 'Conectado ao Google Ads!' });
+            // Auto-sync accounts after successful connection
+            setTimeout(() => {
+              handleSyncAccounts();
+            }, 1000);
+          } else {
+            console.error('❌ OAuth falhou:', event.data.error);
+            toast({
+              title: 'Erro na autenticação',
+              description: event.data.error || 'Falha na autenticação',
+              variant: 'destructive',
+            });
+          }
+          window.removeEventListener('message', messageListener);
+        }
+      };
+      
+      window.addEventListener('message', messageListener);
+
+      // Check if popup is closed without success
       const checkClosed = setInterval(() => {
         if (popup.closed) {
           clearInterval(checkClosed);
           setIsConnecting(false);
-          console.log('🔄 Popup fechado, atualizando status...');
-          checkStatus();
+          console.log('🔄 Popup fechado, verificando status...');
+          setTimeout(() => {
+            checkStatus();
+          }, 500);
+          window.removeEventListener('message', messageListener);
         }
       }, 1000);
 
@@ -160,7 +171,7 @@ export function GoogleAdsIntegration() {
     }
   };
 
-  // Sync accounts
+  // Sync accounts using the correct function
   const handleSyncAccounts = async () => {
     setIsSyncing(true);
     try {
@@ -169,18 +180,19 @@ export function GoogleAdsIntegration() {
         throw new Error('User not authenticated');
       }
 
-      const { data, error } = await supabase.functions.invoke('google-ads-sync', {
+      console.log('📥 Sincronizando contas Google Ads...');
+      const { data, error } = await supabase.functions.invoke('google-ads-sync-accounts', {
         body: {
-          user_id: user.id,
-          company_id: null
+          user_id: user.id
         }
       });
 
       if (error) throw error;
 
+      console.log('✅ Sincronização concluída:', data);
       toast({
-        title: "Sucesso",
-        description: `${data.accounts_synced || 0} contas sincronizadas`,
+        title: "Contas Sincronizadas",
+        description: `${data.total || 0} contas encontradas e sincronizadas`,
       });
 
       // Refresh status
@@ -189,7 +201,7 @@ export function GoogleAdsIntegration() {
     } catch (error) {
       console.error('Error syncing accounts:', error);
       toast({
-        title: "Erro",
+        title: "Erro na sincronização",
         description: error.message || "Erro ao sincronizar contas",
         variant: "destructive",
       });
@@ -198,8 +210,19 @@ export function GoogleAdsIntegration() {
     }
   };
 
-  // Run test ingestion
-  const handleTestIngest = async (customerId: string) => {
+  // Load data (ingest) for selected account
+  const handleLoadData = async (customerId: string, accountName: string) => {
+    // Check if it's a manager account (not allowed)
+    const account = accounts.find(acc => acc.id === customerId);
+    if (account?.manager) {
+      toast({
+        title: "Conta Manager",
+        description: "Não é possível carregar dados de contas Manager (MCC). Selecione uma conta filha.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsIngesting(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -207,29 +230,37 @@ export function GoogleAdsIntegration() {
         throw new Error('User not authenticated');
       }
 
+      console.log(`📊 Carregando dados da conta ${accountName} (${customerId})...`);
+      
+      // Use últimos 7 dias como padrão
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - 7);
+
       const { data, error } = await supabase.functions.invoke('google-ads-ingest', {
         body: {
           user_id: user.id,
           customer_id: customerId,
-          manual: true
+          start_date: startDate.toISOString().split('T')[0],
+          end_date: endDate.toISOString().split('T')[0]
         }
       });
 
       if (error) throw error;
 
       toast({
-        title: "Sucesso",
-        description: `Ingestão concluída: ${data.records_processed || 0} registros processados`,
+        title: "Dados Carregados",
+        description: `${data.records_processed || 0} registros processados para ${accountName}`,
       });
 
       // Refresh status
       await checkStatus();
 
     } catch (error) {
-      console.error('Error running ingest:', error);
+      console.error('Error loading data:', error);
       toast({
-        title: "Erro",
-        description: error.message || "Erro ao executar ingestão",
+        title: "Erro no carregamento",
+        description: error.message || "Erro ao carregar dados da conta",
         variant: "destructive",
       });
     } finally {
@@ -238,9 +269,9 @@ export function GoogleAdsIntegration() {
   };
 
   // Initialize status check on mount
-  useState(() => {
+  useEffect(() => {
     checkStatus();
-  });
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -315,57 +346,19 @@ export function GoogleAdsIntegration() {
               
               toast({
                 title: '✅ Credenciais válidas!',
-                description: 'Agora atualize os secrets GOOGLE_ADS_CLIENT_ID e GOOGLE_ADS_CLIENT_SECRET no Supabase dashboard.'
+                description: 'Agora atualize os secrets GOOGLE_OAUTH_CLIENT_ID e GOOGLE_OAUTH_CLIENT_SECRET no Supabase dashboard.'
               });
             }}
             className="w-full"
           >
             Validar Credenciais
           </Button>
-          <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg dark:bg-yellow-900/20 dark:border-yellow-800">
             <p className="text-sm">
               <strong>Próximo passo:</strong> Após validar, vá ao Supabase dashboard e atualize os secrets:
-              <br />• <code>GOOGLE_ADS_CLIENT_ID</code>
-              <br />• <code>GOOGLE_ADS_CLIENT_SECRET</code>
+              <br />• <code>GOOGLE_OAUTH_CLIENT_ID</code>
+              <br />• <code>GOOGLE_OAUTH_CLIENT_SECRET</code>
             </p>
-          </div>
-          
-          {/* Debug Section */}
-          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <h4 className="font-medium text-sm mb-2">🔧 Diagnóstico</h4>
-            <div className="space-y-2">
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={async () => {
-                  console.log('🧪 Testando edge function diretamente...');
-                  const testUrl = 'https://zoahzxfjefjmkxylbfxf.functions.supabase.co/google-oauth?action=ping';
-                  try {
-                    const response = await fetch(testUrl, { method: 'GET' });
-                    console.log('📊 Status:', response.status);
-                    console.log('📋 Headers:', Object.fromEntries(response.headers.entries()));
-                    const text = await response.text();
-                    console.log('📄 Response:', text);
-                    toast({
-                      title: 'Teste concluído',
-                      description: `Status: ${response.status}. Veja o console para detalhes.`
-                    });
-                  } catch (error) {
-                    console.error('❌ Erro no teste:', error);
-                    toast({
-                      title: 'Erro no teste',
-                      description: error.message,
-                      variant: 'destructive'
-                    });
-                  }
-                }}
-              >
-                Testar Edge Function
-              </Button>
-              <p className="text-xs text-muted-foreground">
-                Abra o console do navegador (F12) para ver os logs detalhados
-              </p>
-            </div>
           </div>
         </CardContent>
       </Card>
@@ -411,10 +404,10 @@ export function GoogleAdsIntegration() {
           </div>
 
           {/* Actions */}
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             {!status.hasTokens ? (
               <div className="flex flex-col gap-1">
-                <Button onClick={handleConnect} disabled={isConnecting}>
+                <Button onClick={handleConnect} disabled={isConnecting} className="bg-blue-600 hover:bg-blue-700">
                   {isConnecting ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   ) : (
@@ -461,7 +454,10 @@ export function GoogleAdsIntegration() {
           {/* Accounts List */}
           {accounts.length > 0 && (
             <div className="space-y-2">
-              <h4 className="font-medium">Contas Vinculadas</h4>
+              <h4 className="font-medium">Contas Google Ads (Não-Manager)</h4>
+              <div className="text-sm text-muted-foreground">
+                Apenas contas não-manager são listadas para carregamento de dados
+              </div>
               {accounts.map((account) => (
                 <div key={account.id} className="flex items-center justify-between p-3 border rounded-lg">
                   <div>
@@ -476,13 +472,14 @@ export function GoogleAdsIntegration() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => handleTestIngest(account.id)}
+                    onClick={() => handleLoadData(account.id, account.name)}
                     disabled={isIngesting}
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
                   >
                     {isIngesting ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
-                      "Testar Ingestão"
+                      "Carregar Dados"
                     )}
                   </Button>
                 </div>
@@ -490,39 +487,27 @@ export function GoogleAdsIntegration() {
             </div>
           )}
 
-          {/* Integration Info */}
-          <div className="p-4 bg-muted rounded-lg">
-            <h4 className="font-medium mb-2">Funcionalidades Implementadas</h4>
-            <div className="space-y-1 text-sm">
-              <div className="flex items-center gap-2">
-                <CheckCircle className="h-4 w-4 text-green-500" />
-                <span>OAuth2 Flow - Login seguro com Google</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle className="h-4 w-4 text-green-500" />
-                <span>Account Mapping - Listagem de contas MCC/ads</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle className="h-4 w-4 text-green-500" />
-                <span>GAQL Query - Ingestão de métricas (últimos 7 dias)</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle className="h-4 w-4 text-green-500" />
-                <span>Token Security - Armazenamento seguro no servidor</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4 text-yellow-500" />
-                <span>Ingest Automation - Será implementado em próxima iteração</span>
-              </div>
+          {/* Summary */}
+          <div className="mt-6 p-3 bg-blue-50 border border-blue-200 rounded-lg dark:bg-blue-900/20 dark:border-blue-800">
+            <h4 className="font-medium text-sm mb-2">🎯 Fluxo 1-Clique Implementado</h4>
+            <div className="text-xs space-y-1">
+              <div>✅ OAuth automático com popup</div>
+              <div>✅ Sincronização automática após conexão</div>
+              <div>✅ Listagem de contas não-manager</div>
+              <div>✅ Carregamento de dados com MCC correto (2478435835)</div>
+              <div>✅ API v21 com developer-token e headers obrigatórios</div>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      <GoogleAdsConnectionModal
-        open={connectionModalOpen}
-        onOpenChange={setConnectionModalOpen}
-      />
+      {/* Connection Modal */}
+      {connectionModalOpen && (
+        <GoogleAdsConnectionModal
+          open={connectionModalOpen}
+          onOpenChange={setConnectionModalOpen}
+        />
+      )}
     </div>
   );
 }

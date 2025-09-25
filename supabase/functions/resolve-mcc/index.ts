@@ -69,12 +69,18 @@ async function getUserMccs(supabase: any, userId: string): Promise<string[]> {
     .map((token: any) => sanitizeCustomerId(token.customer_id));
 }
 
-// Function to test MCC management via GAQL
+// Function to test MCC management via GAQL (v21 with developer-token)
 async function testMccManagement(accessToken: string, mccId: string, targetCustomerId: string): Promise<boolean> {
   const sanitizedMcc = sanitizeCustomerId(mccId);
   const sanitizedTarget = sanitizeCustomerId(targetCustomerId);
   
   console.log(`Testing MCC ${sanitizedMcc} for target ${sanitizedTarget}`);
+  
+  const developerToken = Deno.env.get('GOOGLE_ADS_DEVELOPER_TOKEN');
+  if (!developerToken) {
+    console.log('❌ Missing developer token');
+    return false;
+  }
   
   const gaqlQuery = `
     SELECT 
@@ -91,10 +97,11 @@ async function testMccManagement(accessToken: string, mccId: string, targetCusto
   };
   
   try {
-    const response = await fetch(`https://googleads.googleapis.com/v16/customers/${sanitizedMcc}/googleAds:search`, {
+    const response = await fetch(`https://googleads.googleapis.com/v21/customers/${sanitizedMcc}/googleAds:search`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${accessToken}`,
+        'developer-token': developerToken,
         'Content-Type': 'application/json',
         'login-customer-id': sanitizedMcc
       },
