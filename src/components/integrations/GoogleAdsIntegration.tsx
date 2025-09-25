@@ -364,39 +364,90 @@ export function GoogleAdsIntegration() {
             )}
           </div>
 
-          {/* Accounts List */}
+          {/* Google Ads Connection Modal */}
+          {connectionModalOpen && (
+            <GoogleAdsConnectionModal
+              open={connectionModalOpen}
+              onOpenChange={setConnectionModalOpen}
+            />
+          )}
+
+          {/* Accounts List - Only show real accounts */}
           {accounts.length > 0 && (
-            <div className="space-y-2">
-              <h4 className="font-medium">Contas Google Ads (Não-Manager)</h4>
-              <div className="text-sm text-muted-foreground">
-                Apenas contas não-manager são listadas para carregamento de dados
-              </div>
-              {accounts.map((account) => (
-                <div key={account.id} className="flex items-center justify-between p-3 border rounded-lg">
-                  <div>
-                    <div className="font-medium">{account.name}</div>
-                    <div className="text-sm text-muted-foreground">
-                      ID: {account.id} • {account.type} • {account.currencyCode}
-                      {account.manager && (
-                        <Badge variant="secondary" className="ml-2">Manager</Badge>
-                      )}
-                    </div>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleLoadData(account.id, account.name)}
-                    disabled={isIngesting}
-                    className="bg-blue-600 hover:bg-blue-700 text-white"
-                  >
-                    {isIngesting ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      "Carregar Dados"
-                    )}
-                  </Button>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="font-medium">Contas Google Ads Disponíveis</h4>
+                <div className="text-sm text-muted-foreground">
+                  {accounts.length} contas encontradas
                 </div>
-              ))}
+              </div>
+              
+              <div className="grid gap-3">
+                {accounts
+                  .filter(account => 
+                    // Filter out demo/test accounts and accounts with generic names
+                    !account.name.includes('Demo') && 
+                    !account.name.includes('Teste') && 
+                    !account.name.startsWith('Account ') &&
+                    !['1111111111', '1234567890', '0987654321'].includes(account.id)
+                  )
+                  .map((account) => (
+                    <div key={account.id} className="p-4 border rounded-lg hover:border-primary/50 transition-colors">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <div className="font-medium">{account.name}</div>
+                            {account.manager && (
+                              <Badge variant="secondary">Manager</Badge>
+                            )}
+                          </div>
+                          <div className="text-sm text-muted-foreground mt-1">
+                            ID: {account.id}
+                          </div>
+                        </div>
+                        
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setConnectionModalOpen(true)}
+                          >
+                            Vincular Cliente
+                          </Button>
+                          <Button
+                            variant="default"
+                            size="sm"
+                            onClick={() => handleLoadData(account.id, account.name)}
+                            disabled={isIngesting || account.manager}
+                            className="bg-blue-600 hover:bg-blue-700"
+                          >
+                            {isIngesting ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : account.manager ? (
+                              "Manager"
+                            ) : (
+                              "Carregar Dados"
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+              
+              {accounts.filter(account => 
+                !account.name.includes('Demo') && 
+                !account.name.includes('Teste') && 
+                !account.name.startsWith('Account ') &&
+                !['1111111111', '1234567890', '0987654321'].includes(account.id)
+              ).length === 0 && (
+                <div className="text-center py-8 text-muted-foreground">
+                  <div className="text-sm">Nenhuma conta real encontrada</div>
+                  <div className="text-xs mt-1">
+                    Clique em "Sincronizar Contas" para atualizar a lista
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -414,13 +465,6 @@ export function GoogleAdsIntegration() {
         </CardContent>
       </Card>
 
-      {/* Connection Modal */}
-      {connectionModalOpen && (
-        <GoogleAdsConnectionModal
-          open={connectionModalOpen}
-          onOpenChange={setConnectionModalOpen}
-        />
-      )}
     </div>
   );
 }
