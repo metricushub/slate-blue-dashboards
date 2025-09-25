@@ -128,6 +128,7 @@ export function GoogleAdsIntegration() {
         if (event.data?.source === 'metricus:google_oauth') {
           if (event.data.ok) {
             console.log('✅ OAuth concluído com sucesso');
+            setIsConnecting(false);
             toast({ title: 'Sucesso', description: 'Conectado ao Google Ads!' });
             // Auto-sync accounts after successful connection
             setTimeout(() => {
@@ -140,6 +141,7 @@ export function GoogleAdsIntegration() {
               description: event.data.error || 'Falha na autenticação',
               variant: 'destructive',
             });
+            setIsConnecting(false);
           }
           window.removeEventListener('message', messageListener);
         }
