@@ -208,10 +208,22 @@ async function upsertCustomers(customerIds: string[], userId: string, access_tok
     status: String(account.status || 'ENABLED')
   }));
 
+  // Prepare data for google_ads_accounts table (UI source)
+  const googleAdsAccountsData = accountDetails.map((account) => ({
+    user_id: userId,
+    customer_id: String(account.customer_id || ''),
+    descriptive_name: String(account.account_name || `Account ${account.customer_id}`),
+    is_manager: Boolean(account.is_manager),
+    status: String(account.status || 'ENABLED'),
+    currency_code: account.currency_code || null,
+    time_zone: account.time_zone || null
+  }));
+
   log(`Upserting ${accountsData.length} accounts to database...`);
   const mccAccounts = accountDetails.filter(account => account.is_manager);
   log(`MCC accounts found: ${mccAccounts.length}`);
 
+  // Upsert to accounts_map
   const upsertUrl = `${SUPABASE_URL}/rest/v1/accounts_map?on_conflict=customer_id`;
   const r = await fetch(upsertUrl, {
     method: "POST",
@@ -226,7 +238,25 @@ async function upsertCustomers(customerIds: string[], userId: string, access_tok
 
   if (!r.ok && r.status !== 409) {
     const err = await r.text();
-    throw new Error(`db_upsert ${r.status}: ${err}`);
+    throw new Error(`db_upsert_accounts_map ${r.status}: ${err}`);
+  }
+
+  // Upsert to google_ads_accounts (UI source)
+  const upsertGoogleAdsUrl = `${SUPABASE_URL}/rest/v1/google_ads_accounts?on_conflict=user_id,customer_id`;
+  const r2 = await fetch(upsertGoogleAdsUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: SERVICE_KEY,
+      Authorization: `Bearer ${SERVICE_KEY}`,
+      Prefer: "resolution=merge-duplicates,return=representation",
+    },
+    body: JSON.stringify(googleAdsAccountsData),
+  });
+
+  if (!r2.ok && r2.status !== 409) {
+    const err = await r2.text();
+    throw new Error(`db_upsert_ui ${r2.status}: ${err}`);
   }
 
   // Always save the correct MCC in database (2478435835)
