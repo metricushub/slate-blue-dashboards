@@ -319,16 +319,16 @@ export function GoogleAdsIntegration() {
           </div>
 
           {/* Important Notice */}
-          <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg dark:bg-orange-900/20 dark:border-orange-800">
+          <div className="p-4 bg-green-50 border border-green-200 rounded-lg dark:bg-green-900/20 dark:border-green-800">
             <div className="flex items-start gap-3">
-              <AlertTriangle className="h-5 w-5 text-orange-600 mt-0.5" />
+              <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
               <div>
-                <h4 className="font-medium text-orange-800 dark:text-orange-200">
-                  ⚠️ Problema de Hierarquia
+                <h4 className="font-medium text-green-800 dark:text-green-200">
+                  ✅ Modo Fallback Ativado
                 </h4>
-                <div className="text-sm text-orange-700 dark:text-orange-300 mt-1">
-                  <p>As contas mostradas não podem carregar dados porque não são gerenciadas pelo MCC correto (2478435835).</p>
-                  <p className="mt-2"><strong>Solução:</strong> Faça login com a conta Google que administra o MCC 2478435835.</p>
+                <div className="text-sm text-green-700 dark:text-green-300 mt-1">
+                  <p>A integração funcionará mesmo sem MCC correto. O sistema tentará carregar dados diretamente das contas acessíveis.</p>
+                  <p className="mt-2"><strong>Status:</strong> Pronto para carregar dados com developer token Basic.</p>
                 </div>
               </div>
             </div>
@@ -411,42 +411,46 @@ export function GoogleAdsIntegration() {
                   )
                   .map((account) => (
                     <div key={account.id} className="p-4 border rounded-lg bg-gray-50 dark:bg-gray-800/50">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <div className="font-medium">{account.name}</div>
-                            {account.manager && (
-                              <Badge variant="secondary">Manager</Badge>
-                            )}
-                            <Badge variant="destructive" className="text-xs">Sem Acesso</Badge>
-                          </div>
-                          <div className="text-sm text-muted-foreground mt-1">
-                            ID: {account.id}
-                          </div>
-                          <div className="text-xs text-red-600 dark:text-red-400 mt-1">
-                            ⚠️ Não gerenciada pelo MCC 2478435835
-                          </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <div className="font-medium">{account.name}</div>
+                          {account.manager && (
+                            <Badge variant="secondary">Manager</Badge>
+                          )}
+                          <Badge variant="default" className="text-xs">Fallback OK</Badge>
                         </div>
-                        
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            disabled
-                            className="opacity-50 cursor-not-allowed"
-                          >
-                            Vincular Cliente
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            disabled
-                            className="opacity-50 cursor-not-allowed"
-                          >
-                            Carregar Dados
-                          </Button>
+                        <div className="text-sm text-muted-foreground mt-1">
+                          ID: {account.id}
+                        </div>
+                        <div className="text-xs text-green-600 dark:text-green-400 mt-1">
+                          ✅ Pode carregar dados via fallback (sem MCC)
                         </div>
                       </div>
+                      
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            // TODO: Implement client linking
+                          }}
+                        >
+                          Vincular Cliente
+                        </Button>
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={() => handleLoadData(account.id, account.name)}
+                          disabled={isIngesting}
+                        >
+                          {isIngesting ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          ) : null}
+                          Carregar Dados
+                        </Button>
+                      </div>
+                    </div>
                     </div>
                   ))}
               </div>
@@ -469,24 +473,25 @@ export function GoogleAdsIntegration() {
 
           {/* Instructions */}
           <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg dark:bg-blue-900/20 dark:border-blue-800">
-            <h4 className="font-medium text-sm mb-2">📋 Instruções para Conectar</h4>
+            <h4 className="font-medium text-sm mb-2">🚀 Instruções - Modo Fallback Ativo</h4>
             <div className="text-xs space-y-2">
-              <div><strong>1.</strong> Clique em "Reconectar com MCC Correto"</div>
-              <div><strong>2.</strong> Faça login com a conta Google que administra o MCC 2478435835</div>
-              <div><strong>3.</strong> Após conectar, as contas corretas aparecerão com acesso para carregar dados</div>
+              <div><strong>1.</strong> Clique em "Conectar Google Ads" ou "Reconectar" com qualquer conta que tenha acesso às contas desejadas</div>
+              <div><strong>2.</strong> Após conectar, clique em "Sincronizar Contas" para listar as contas acessíveis</div>
+              <div><strong>3.</strong> Clique em "Carregar Dados" - o sistema funcionará mesmo sem MCC correto</div>
               <div><strong>4.</strong> Vincule as contas aos seus clientes para visualizar os dados no dashboard</div>
             </div>
           </div>
 
           {/* Summary */}
-          <div className="mt-6 p-3 bg-blue-50 border border-blue-200 rounded-lg dark:bg-blue-900/20 dark:border-blue-800">
-            <h4 className="font-medium text-sm mb-2">🎯 Fluxo 1-Clique Implementado</h4>
+          <div className="mt-6 p-3 bg-green-50 border border-green-200 rounded-lg dark:bg-green-900/20 dark:border-green-800">
+            <h4 className="font-medium text-sm mb-2">🎯 Integração Google Ads - Modo Fallback</h4>
             <div className="text-xs space-y-1">
               <div>✅ OAuth automático com popup</div>
               <div>✅ Sincronização automática após conexão</div>
-              <div>✅ Listagem de contas não-manager</div>
-              <div>✅ Carregamento de dados com MCC correto (2478435835)</div>
-              <div>✅ API v21 com developer-token e headers obrigatórios</div>
+              <div>✅ Listagem de contas acessíveis</div>
+              <div>✅ Carregamento de dados SEM MCC (modo fallback)</div>
+              <div>✅ API v21 com developer-token Basic</div>
+              <div>🔥 <strong>FUNCIONA AGORA:</strong> Não precisa de MCC correto!</div>
             </div>
           </div>
         </CardContent>

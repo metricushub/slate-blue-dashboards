@@ -145,18 +145,23 @@ async function validateHierarchy(accessToken: string, targetCustomerId: string, 
     throw new Error(`O MCC ${cleanMcc} não gerencia a conta ${targetCustomerId}. Conecte a conta certa ou altere o MCC/dev-token.`);
   }
 }
-async function runGoogleAdsQuery(accessToken: string, customerId: string, query: string, loginCustomerId: string): Promise<MetricData[]> {
+
+async function runGoogleAdsQuery(accessToken: string, customerId: string, query: string, loginCustomerId?: string): Promise<MetricData[]> {
   const cleanCustomerId = customerId.replace(/-/g, '');
   
   // Mandatory diagnostics before API call
-  log(`[ads-call] { endpoint: "googleAds:searchStream", urlCustomerId: "${cleanCustomerId}", targetCustomerId: "${cleanCustomerId}", loginCustomerId: "${loginCustomerId}" }`);
+  log(`[ads-call] { endpoint: "googleAds:searchStream", urlCustomerId: "${cleanCustomerId}", targetCustomerId: "${cleanCustomerId}", loginCustomerId: "${loginCustomerId || 'none'}" }`);
   
   const headers: Record<string, string> = {
     'Authorization': `Bearer ${accessToken}`,
     'developer-token': GOOGLE_ADS_DEVELOPER_TOKEN,
-    'login-customer-id': loginCustomerId,
     'Content-Type': 'application/json',
   };
+
+  // Only add login-customer-id if provided (for fallback mode)
+  if (loginCustomerId) {
+    headers['login-customer-id'] = loginCustomerId;
+  }
 
   const response = await fetch(`https://googleads.googleapis.com/v21/customers/${cleanCustomerId}/googleAds:searchStream`, {
     method: 'POST',
@@ -171,7 +176,8 @@ async function runGoogleAdsQuery(accessToken: string, customerId: string, query:
     log('Google Ads API error:', response.status, errorText);
     
     if (response.status === 403 && errorText.includes('USER_PERMISSION_DENIED')) {
-      throw new Error(`Acesso negado à conta ${cleanCustomerId}. Verifique se o MCC ${loginCustomerId} gerencia esta conta e se o developer token está aprovado.`);
+      const mccInfo = loginCustomerId ? ` MCC ${loginCustomerId}` : ' (sem MCC)';
+      throw new Error(`Acesso negado à conta ${cleanCustomerId}. Verifique se o${mccInfo} gerencia esta conta e se o developer token está aprovado.`);
     }
     
     throw new Error(`Google Ads API error: ${response.status} - ${errorText}`);
@@ -313,9 +319,30 @@ serve(async (req) => {
       const { accessToken, loginCustomerId } = await getValidAccessTokenAndMcc(user_id, company_id);
       log(`Access token and MCC obtained. MCC: ***${loginCustomerId.slice(-4)}`);
 
-      // Validate hierarchy before proceeding
-      await validateHierarchy(accessToken, customer_id, loginCustomerId);
-      log(`Hierarchy validated for customer ${customer_id} with MCC ***${loginCustomerId.slice(-4)}`);
+      // Check if fallback mode is enabled
+      const allowFallback = Deno.env.get("ALLOW_FALLBACK_NO_MCC") === "true";
+      const allow_fallback_no_mcc = body.allow_fallback_no_mcc || allowFallback;
+      
+      let shouldUseFallback = false;
+      let finalLoginCustomerId: string | undefined = loginCustomerId;
+
+      // Try to validate hierarchy first
+      try {
+        await validateHierarchy(accessToken, customer_id, loginCustomerId);
+        log(`Hierarchy validated for customer ${customer_id} with MCC ***${loginCustomerId.slice(-4)}`);
+      } catch (hierarchyError) {
+        const errorMessage = hierarchyError instanceof Error ? hierarchyError.message : String(hierarchyError);
+        log(`Hierarchy validation failed: ${errorMessage}`);
+        
+        if (allow_fallback_no_mcc) {
+          log(`FALLBACK ENABLED: Will attempt ingest WITHOUT login-customer-id`);
+          shouldUseFallback = true;
+          finalLoginCustomerId = undefined; // Don't use MCC header
+        } else {
+          log(`FALLBACK DISABLED: Throwing hierarchy error`);
+          throw hierarchyError;
+        }
+      }
 
       // Build Google Ads query
       const query = `
@@ -333,8 +360,11 @@ serve(async (req) => {
         ORDER BY segments.date DESC
       `;
 
-      // Run query with saved MCC
-      const metrics = await runGoogleAdsQuery(accessToken, customer_id, query, loginCustomerId);
+      // Run query with or without MCC depending on fallback mode
+      if (shouldUseFallback) {
+        log(`Running query in FALLBACK mode (no login-customer-id) for account ${customer_id}`);
+      }
+      const metrics = await runGoogleAdsQuery(accessToken, customer_id, query, finalLoginCustomerId);
       log(`Query executed successfully. Total results: ${metrics.length}`);
       
       // Log insights about the results
@@ -373,7 +403,8 @@ serve(async (req) => {
           ingestion_id: ingestion.id,
           records_processed: metrics.length,
           customer_id,
-          date_range: { start_date: startDate, end_date: endDate }
+          date_range: { start_date: startDate, end_date: endDate },
+          fallback_used: shouldUseFallback
         }),
         { headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
