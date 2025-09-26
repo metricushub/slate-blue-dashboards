@@ -255,12 +255,13 @@ async function upsertCustomers(customerIds: string[], userId: string, access_tok
   log(`Getting details for ${customerIds.length} accounts...`);
   let accountDetails = await getAccountDetails(access_token, customerIds, loginCustomerId);
   
-  // Check if we have non-manager accounts
-  const nonManagerAccounts = accountDetails.filter(account => !account.is_manager);
-  log(`Non-manager accounts found: ${nonManagerAccounts.length}`);
+  // Check if we have non-manager accounts with real names (not generic)
+  const hasRealName = (n: any) => !!n && !String(n).startsWith('Account ');
+  const nonManagerRealNamed = accountDetails.filter(account => !account.is_manager && hasRealName(account.account_name));
+  log(`Non-manager accounts with real names: ${nonManagerRealNamed.length}`);
   
-  // MCC expansion fallback if no non-manager accounts found
-  if (nonManagerAccounts.length === 0) {
+  // MCC expansion fallback if no real non-manager accounts found
+  if (nonManagerRealNamed.length === 0) {
     const forcedMccId = Deno.env.get("FORCED_MCC_LOGIN_ID");
     if (forcedMccId) {
       log(`MCC expansion fallback: searching child accounts of MCC ${forcedMccId}`);
@@ -271,6 +272,19 @@ async function upsertCustomers(customerIds: string[], userId: string, access_tok
       }
     }
   }
+  
+  // De-duplicate by customer_id, prefer entries with real names
+  const byId = new Map<string, any>();
+  for (const acc of accountDetails) {
+    const id = String(acc.customer_id || '');
+    const existing = byId.get(id);
+    const accHasReal = hasRealName(acc.account_name);
+    const existingHasReal = existing ? hasRealName(existing.account_name) : false;
+    if (!existing || (accHasReal && !existingHasReal)) {
+      byId.set(id, acc);
+    }
+  }
+  accountDetails = Array.from(byId.values());
   
   // Always use the provided MCC (2478435835)
   let detectedLoginCustomerId = loginCustomerId;
