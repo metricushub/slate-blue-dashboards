@@ -184,12 +184,93 @@ async function getAccountDetails(access_token: string, customerIds: string[], lo
   return accountDetails;
 }
 
+async function getMccChildAccounts(access_token: string, mccId: string) {
+  if (!DEV_TOKEN) throw new Error("dev_token_missing");
+  
+  const sanitizedMccId = mccId.replace(/-/g, '');
+  const headers = {
+    'Authorization': `Bearer ${access_token}`,
+    'developer-token': DEV_TOKEN,
+    'login-customer-id': sanitizedMccId,
+    'Content-Type': 'application/json'
+  };
+
+  const query = `
+    SELECT 
+      customer_client.client_customer,
+      customer_client.descriptive_name,
+      customer_client.manager,
+      customer_client.status,
+      customer_client.level
+    FROM customer_client 
+    WHERE customer_client.level <= 1
+  `;
+
+  try {
+    log(`Searching MCC ${sanitizedMccId} for child accounts...`);
+    const response = await fetch(`${ADS_API_BASE}/customers/${sanitizedMccId}/googleAds:search`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ query })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      log(`MCC child search failed (${response.status}): ${errorText}`);
+      return [];
+    }
+
+    const result = await response.json();
+    const childAccounts: any[] = [];
+
+    if (result.results) {
+      for (const row of result.results) {
+        const client = row.customerClient;
+        if (client && client.clientCustomer && !client.manager) {
+          const clientCustomerId = client.clientCustomer.replace('customers/', '');
+          childAccounts.push({
+            customer_id: clientCustomerId,
+            account_name: client.descriptiveName || `Account ${clientCustomerId}`,
+            currency_code: null,
+            time_zone: null,
+            is_manager: false,
+            status: client.status || 'ENABLED'
+          });
+          log(`Found child account: ${clientCustomerId} - ${client.descriptiveName || 'no name'}`);
+        }
+      }
+    }
+
+    return childAccounts;
+  } catch (error) {
+    log(`Error searching MCC child accounts: ${error}`);
+    return [];
+  }
+}
+
 async function upsertCustomers(customerIds: string[], userId: string, access_token: string, loginCustomerId?: string | null) {
   if (!SUPABASE_URL || !SERVICE_KEY) throw new Error("service_role_required_for_upsert");
 
   // Get detailed account information
   log(`Getting details for ${customerIds.length} accounts...`);
-  const accountDetails = await getAccountDetails(access_token, customerIds, loginCustomerId);
+  let accountDetails = await getAccountDetails(access_token, customerIds, loginCustomerId);
+  
+  // Check if we have non-manager accounts
+  const nonManagerAccounts = accountDetails.filter(account => !account.is_manager);
+  log(`Non-manager accounts found: ${nonManagerAccounts.length}`);
+  
+  // MCC expansion fallback if no non-manager accounts found
+  if (nonManagerAccounts.length === 0) {
+    const forcedMccId = Deno.env.get("FORCED_MCC_LOGIN_ID");
+    if (forcedMccId) {
+      log(`MCC expansion fallback: searching child accounts of MCC ${forcedMccId}`);
+      const childAccounts = await getMccChildAccounts(access_token, forcedMccId);
+      if (childAccounts.length > 0) {
+        log(`MCC expansion fallback used: ${childAccounts.length} child accounts`);
+        accountDetails = [...accountDetails, ...childAccounts];
+      }
+    }
+  }
   
   // Always use the provided MCC (2478435835)
   let detectedLoginCustomerId = loginCustomerId;
