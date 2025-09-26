@@ -1,8 +1,9 @@
 // deno-lint-ignore-file no-explicit-any
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-// Lê refresh_token mais recente → renova access_token → chama listAccessibleCustomers
-// → salva TODOS os customer_ids (sem prefixo) em google_ads_connections (upsert)
+// Lê refresh_token do usuário atual → renova access_token → chama listAccessibleCustomers
+// → salva TODOS os customer_ids (sem prefixo) com detalhes em accounts_map (upsert)
 
 const SUPABASE_URL  = Deno.env.get("SUPABASE_URL") || "";
 const SERVICE_KEY   = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
@@ -15,12 +16,13 @@ const ADS_API_BASE    = "https://googleads.googleapis.com/v21";
 
 function log(...args: any[]) { console.log("[google-ads-sync-accounts]", ...args); }
 
-async function getLatestRefreshToken() {
+async function getLatestRefreshToken(user_id: string) {
   if (!SUPABASE_URL || !AUTH_KEY) throw new Error("supabase_env_missing");
   const url = new URL(`${SUPABASE_URL}/rest/v1/google_tokens`);
   url.searchParams.set("select", "id,refresh_token,access_token,token_expiry,user_id,login_customer_id");
   url.searchParams.set("order", "created_at.desc");
   url.searchParams.set("limit", "1");
+  url.searchParams.set("user_id", `eq.${user_id}`);
 
   const resp = await fetch(url.toString(), {
     headers: { apikey: AUTH_KEY, Authorization: `Bearer ${AUTH_KEY}` },
@@ -28,7 +30,7 @@ async function getLatestRefreshToken() {
   if (!resp.ok) throw new Error(`db_select ${resp.status}: ${await resp.text()}`);
 
   const rows = await resp.json();
-  if (!rows?.length || !rows[0]?.refresh_token) throw new Error("no_refresh_token_found");
+  if (!rows?.length || !rows[0]?.refresh_token) throw new Error("no_refresh_token_found_for_user");
   return { 
     refresh_token: rows[0].refresh_token as string,
     user_id: rows[0].user_id as string,
@@ -354,6 +356,35 @@ async function upsertCustomers(customerIds: string[], userId: string, access_tok
     throw new Error(`db_upsert_ui ${r2.status}: ${err}`);
   }
 
+  // 2) Upsert também em google_ads_accounts (fonte da view v_ads_accounts_ui)
+  const uiRows = accountDetails.map((a) => ({
+    user_id: userId,
+    customer_id: String(a.customer_id || ''),
+    descriptive_name: String(a.account_name || `Account ${a.customer_id}`),
+    is_manager: Boolean(a.is_manager),
+    status: String(a.status || 'ENABLED'),
+    currency_code: a.currency_code || null,
+    time_zone: a.time_zone || null,
+    updated_at: new Date().toISOString(),
+  }));
+
+  const upsertUiUrl = `${SUPABASE_URL}/rest/v1/google_ads_accounts?on_conflict=user_id,customer_id`;
+  const r2 = await fetch(upsertUiUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: SERVICE_KEY,
+      Authorization: `Bearer ${SERVICE_KEY}`,
+      Prefer: "resolution=merge-duplicates,return=representation",
+    },
+    body: JSON.stringify(uiRows),
+  });
+
+  if (!r2.ok && r2.status !== 409) {
+    const err2 = await r2.text();
+    throw new Error(`db_upsert_ui ${r2.status}: ${err2}`);
+  }
+
   // Always save the correct MCC in database (2478435835)
   if (customerIds.length > 0) {
     const updateUrl = new URL(`${SUPABASE_URL}/rest/v1/google_tokens`);
@@ -393,8 +424,17 @@ serve(async (req) => {
   log("REQ", { path: url.pathname });
 
   try {
-    log("Step 1: Getting refresh token from database...");
-    const tokenData = await getLatestRefreshToken();
+    // Identify current user via Supabase Auth header
+    const supabaseAuth = createClient(
+      SUPABASE_URL,
+      ANON_KEY,
+      { global: { headers: { Authorization: req.headers.get('authorization') || '' } } }
+    );
+    const { data: { user }, error: userErr } = await supabaseAuth.auth.getUser();
+    if (userErr || !user) throw new Error('unauthorized');
+
+    log("Step 1: Getting refresh token from database for current user...");
+    const tokenData = await getLatestRefreshToken(user.id);
     log(`Found token for user: ${tokenData.user_id}`);
     
     log("Step 2: Exchanging refresh token for access token...");
@@ -405,12 +445,12 @@ serve(async (req) => {
     const ids = await listAccessibleCustomers(access);
     log(`Found ${ids.length} accessible customer accounts: ${ids.join(', ')}`);
     
-    // Always use the correct MCC for the approved developer token: 2478435835
-    const forcedMcc = Deno.env.get("FORCED_MCC_LOGIN_ID") || '2478435835';
+    // Prefer saved login_customer_id for better names; do not force a global MCC
+    const preferredMcc = tokenData.login_customer_id || Deno.env.get("FORCED_MCC_LOGIN_ID") || undefined;
     
     log("Step 4: Upserting customers with detailed account information...");
-    log(`Using login-customer-id: ${forcedMcc}`);
-    await upsertCustomers(ids, tokenData.user_id, access, forcedMcc);
+    log(`Using login-customer-id: ${preferredMcc || 'none'}`);
+    await upsertCustomers(ids, tokenData.user_id, access, preferredMcc || null);
     log("Account synchronization completed successfully");
 
     return new Response(
