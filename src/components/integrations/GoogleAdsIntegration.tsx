@@ -244,7 +244,8 @@ export function GoogleAdsIntegration() {
           user_id: user.id,
           customer_id: customerId,
           start_date: startDate.toISOString().split('T')[0],
-          end_date: endDate.toISOString().split('T')[0]
+          end_date: endDate.toISOString().split('T')[0],
+          allow_fallback_no_mcc: true
         }
       });
 
