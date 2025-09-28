@@ -157,7 +157,6 @@ async function runGoogleAdsQuery(accessToken: string, customerId: string, query:
     'developer-token': GOOGLE_ADS_DEVELOPER_TOKEN,
     'Content-Type': 'application/json',
   };
-
   // Only add login-customer-id if provided (for fallback mode)
   if (loginCustomerId) {
     headers['login-customer-id'] = loginCustomerId;
@@ -285,7 +284,7 @@ serve(async (req) => {
     const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
     const body = await req.json();
     
-    const { user_id, company_id, customer_id, start_date, end_date } = body;
+    const { user_id, company_id, customer_id, start_date, end_date, allow_fallback_no_mcc } = body;
     
     if (!user_id || !customer_id) {
       throw new Error("Missing required parameters: user_id, customer_id");
@@ -319,27 +318,21 @@ serve(async (req) => {
       const { accessToken, loginCustomerId } = await getValidAccessTokenAndMcc(user_id, company_id);
       log(`Access token and MCC obtained. MCC: ***${loginCustomerId.slice(-4)}`);
 
-      // Check if fallback mode is enabled
-      const allowFallback = Deno.env.get("ALLOW_FALLBACK_NO_MCC") === "true";
-      const allow_fallback_no_mcc = body.allow_fallback_no_mcc || allowFallback;
-      
-      let shouldUseFallback = false;
-      let finalLoginCustomerId: string | undefined = loginCustomerId;
+      // Determine if fallback (no MCC) is allowed
+      const envAllow = (Deno.env.get('ALLOW_FALLBACK_NO_MCC') || 'true').toLowerCase() === 'true';
+      const allowFallback = allow_fallback_no_mcc === true ? true : envAllow;
 
-      // Try to validate hierarchy first
+      // Try to validate hierarchy first; if fails and fallback allowed, proceed without MCC
+      let shouldUseFallback = false;
       try {
         await validateHierarchy(accessToken, customer_id, loginCustomerId);
         log(`Hierarchy validated for customer ${customer_id} with MCC ***${loginCustomerId.slice(-4)}`);
       } catch (hierarchyError) {
-        const errorMessage = hierarchyError instanceof Error ? hierarchyError.message : String(hierarchyError);
-        log(`Hierarchy validation failed: ${errorMessage}`);
-        
-        if (allow_fallback_no_mcc) {
-          log(`FALLBACK ENABLED: Will attempt ingest WITHOUT login-customer-id`);
+        log('Hierarchy validation failed:', hierarchyError);
+        if (allowFallback) {
           shouldUseFallback = true;
-          finalLoginCustomerId = undefined; // Don't use MCC header
+          log('FALLBACK: proceeding without login-customer-id header to query directly at child account');
         } else {
-          log(`FALLBACK DISABLED: Throwing hierarchy error`);
           throw hierarchyError;
         }
       }
@@ -364,7 +357,7 @@ serve(async (req) => {
       if (shouldUseFallback) {
         log(`Running query in FALLBACK mode (no login-customer-id) for account ${customer_id}`);
       }
-      const metrics = await runGoogleAdsQuery(accessToken, customer_id, query, finalLoginCustomerId);
+      const metrics = await runGoogleAdsQuery(accessToken, customer_id, query, shouldUseFallback ? undefined : loginCustomerId);
       log(`Query executed successfully. Total results: ${metrics.length}`);
       
       // Log insights about the results

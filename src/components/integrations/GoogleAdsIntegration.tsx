@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, ExternalLink, RefreshCw, CheckCircle, AlertTriangle } from "lucide-react";
+import { Loader2, ExternalLink, RefreshCw, CheckCircle } from "lucide-react";
 import { GoogleAdsConnectionModal } from "./GoogleAdsConnectionModal";
 import { MccManagerModal } from "./MccManagerModal";
 
@@ -26,8 +26,9 @@ interface GoogleAdsStatus {
 export function GoogleAdsIntegration() {
   const [isConnecting, setIsConnecting] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [isIngesting, setIsIngesting] = useState(false);
+  const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
   const [connectionModalOpen, setConnectionModalOpen] = useState(false);
+  const [linkCustomerId, setLinkCustomerId] = useState<string | null>(null);
   const [status, setStatus] = useState<GoogleAdsStatus>({
     hasTokens: false,
     lastLogin: null,
@@ -52,12 +53,11 @@ export function GoogleAdsIntegration() {
         .order('created_at', { ascending: false })
         .limit(1);
 
-      // List all accessible accounts via RPC view (handles RLS internally)
+      // List all accessible accounts via RPC (filters manager accounts server-side or we filter here)
       const { data: accountsData, error: accountsError } = await supabase.rpc('list_ads_accounts');
       if (accountsError) {
         console.error('RPC list_ads_accounts error:', accountsError);
       }
-
       const nonManagerAccounts = (accountsData || []).filter((a: any) => !a.is_manager);
 
       // Check last ingest
@@ -70,7 +70,7 @@ export function GoogleAdsIntegration() {
         .limit(1);
 
       setStatus({
-        hasTokens: tokens && tokens.length > 0,
+        hasTokens: !!(tokens && tokens.length > 0),
         lastLogin: tokens?.[0]?.created_at || null,
         accountsCount: nonManagerAccounts.length,
         lastIngest: ingests?.[0]?.completed_at || null
@@ -83,7 +83,6 @@ export function GoogleAdsIntegration() {
         currencyCode: 'BRL',
         manager: !!acc.is_manager
       })));
-
 
     } catch (error) {
       console.error('Error checking Google Ads status:', error);
@@ -146,18 +145,15 @@ export function GoogleAdsIntegration() {
           window.removeEventListener('message', messageListener);
         }
       };
-      
       window.addEventListener('message', messageListener);
 
-      // Check if popup is closed without success
+      // Also detect popup close without success
       const checkClosed = setInterval(() => {
         if (popup.closed) {
           clearInterval(checkClosed);
           setIsConnecting(false);
           console.log('🔄 Popup fechado, verificando status...');
-          setTimeout(() => {
-            checkStatus();
-          }, 500);
+          setTimeout(() => { checkStatus(); }, 500);
           window.removeEventListener('message', messageListener);
         }
       }, 1000);
@@ -184,28 +180,26 @@ export function GoogleAdsIntegration() {
 
       console.log('📥 Sincronizando contas Google Ads...');
       const { data, error } = await supabase.functions.invoke('google-ads-sync-accounts', {
-        body: {
-          user_id: user.id
-        }
+        body: { user_id: user.id }
       });
 
       if (error) throw error;
 
       console.log('✅ Sincronização concluída:', data);
       toast({
-        title: "Contas Sincronizadas",
-        description: `${data.total || 0} contas encontradas e sincronizadas`,
+        title: 'Contas Sincronizadas',
+        description: `${data?.total || 0} contas encontradas e sincronizadas`,
       });
 
       // Refresh status
       await checkStatus();
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error syncing accounts:', error);
       toast({
-        title: "Erro na sincronização",
-        description: error.message || "Erro ao sincronizar contas",
-        variant: "destructive",
+        title: 'Erro na sincronização',
+        description: error.message || 'Erro ao sincronizar contas',
+        variant: 'destructive',
       });
     } finally {
       setIsSyncing(false);
@@ -218,14 +212,18 @@ export function GoogleAdsIntegration() {
     const account = accounts.find(acc => acc.id === customerId);
     if (account?.manager) {
       toast({
-        title: "Conta Manager",
-        description: "Não é possível carregar dados de contas Manager (MCC). Selecione uma conta filha.",
-        variant: "destructive",
+        title: 'Conta Manager',
+        description: 'Não é possível carregar dados de contas Manager (MCC). Selecione uma conta filha.',
+        variant: 'destructive',
       });
       return;
     }
 
-    setIsIngesting(true);
+    setLoadingIds((prev) => {
+      const next = new Set(prev);
+      next.add(customerId);
+      return next;
+    });
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
@@ -233,7 +231,7 @@ export function GoogleAdsIntegration() {
       }
 
       console.log(`📊 Carregando dados da conta ${accountName} (${customerId})...`);
-      
+
       // Use últimos 7 dias como padrão
       const endDate = new Date();
       const startDate = new Date();
@@ -245,29 +243,33 @@ export function GoogleAdsIntegration() {
           customer_id: customerId,
           start_date: startDate.toISOString().split('T')[0],
           end_date: endDate.toISOString().split('T')[0],
-          allow_fallback_no_mcc: true
+          allow_fallback_no_mcc: true,
         }
       });
 
       if (error) throw error;
 
       toast({
-        title: "Dados Carregados",
+        title: 'Dados Carregados',
         description: `${data.records_processed || 0} registros processados para ${accountName}`,
       });
 
       // Refresh status
       await checkStatus();
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading data:', error);
       toast({
-        title: "Erro no carregamento",
-        description: error.message || "Erro ao carregar dados da conta",
-        variant: "destructive",
+        title: 'Erro no carregamento',
+        description: error.message || 'Erro ao carregar dados da conta',
+        variant: 'destructive',
       });
     } finally {
-      setIsIngesting(false);
+      setLoadingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(customerId);
+        return next;
+      });
     }
   };
 
@@ -360,14 +362,6 @@ export function GoogleAdsIntegration() {
               </div>
             ) : (
               <>
-                <Button onClick={handleConnect} disabled={isConnecting} className="bg-green-600 hover:bg-green-700">
-                  {isConnecting ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <ExternalLink className="mr-2 h-4 w-4" />
-                  )}
-                  Reconectar com MCC Correto
-                </Button>
                 <Button variant="outline" onClick={handleSyncAccounts} disabled={isSyncing}>
                   {isSyncing ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -376,6 +370,14 @@ export function GoogleAdsIntegration() {
                   )}
                   Sincronizar Contas
                 </Button>
+                <Button
+                  onClick={() => { setLinkCustomerId(null); setConnectionModalOpen(true); }}
+                  disabled={accounts.length === 0}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  Vincular Contas aos Clientes
+                </Button>
+                <MccManagerModal />
                 <Button variant="outline" onClick={checkStatus}>
                   Atualizar Status
                 </Button>
@@ -383,105 +385,51 @@ export function GoogleAdsIntegration() {
             )}
           </div>
 
-          {/* Google Ads Connection Modal */}
-          {connectionModalOpen && (
-            <GoogleAdsConnectionModal
-              open={connectionModalOpen}
-              onOpenChange={setConnectionModalOpen}
-            />
-          )}
-
-          {/* Contas encontradas mas com problema de hierarquia */}
+          {/* Accounts List */}
           {accounts.length > 0 && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h4 className="font-medium">Contas Encontradas</h4>
-                <div className="text-sm text-muted-foreground">
-                  {accounts.length} contas (⚠️ sem acesso para dados)
-                </div>
+            <div className="space-y-2">
+              <h4 className="font-medium">Contas Google Ads (Não-Manager)</h4>
+              <div className="text-sm text-muted-foreground">
+                Apenas contas não-manager são listadas para carregamento de dados
               </div>
-              
-              <div className="grid gap-3">
-                {accounts
-                  .filter(account => 
-                    // Filter out demo/test accounts and accounts with generic names
-                    !account.name.includes('Demo') && 
-                    !account.name.includes('Teste') && 
-                    !account.name.startsWith('Account ') &&
-                    !['1111111111', '1234567890', '0987654321'].includes(account.id)
-                  )
-                  .map((account) => (
-                    <div key={account.id} className="p-4 border rounded-lg bg-gray-50 dark:bg-gray-800/50">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <div className="font-medium">{account.name}</div>
-                          {account.manager && (
-                            <Badge variant="secondary">Manager</Badge>
-                          )}
-                          <Badge variant="default" className="text-xs">Fallback OK</Badge>
-                        </div>
-                        <div className="text-sm text-muted-foreground mt-1">
-                          ID: {account.id}
-                        </div>
-                        <div className="text-xs text-green-600 dark:text-green-400 mt-1">
-                          ✅ Pode carregar dados via fallback (sem MCC)
-                        </div>
-                      </div>
-                      
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            // TODO: Implement client linking
-                          }}
-                        >
-                          Vincular Cliente
-                        </Button>
-                        <Button
-                          variant="default"
-                          size="sm"
-                          onClick={() => handleLoadData(account.id, account.name)}
-                          disabled={isIngesting}
-                        >
-                          {isIngesting ? (
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          ) : null}
-                          Carregar Dados
-                        </Button>
-                      </div>
+              {accounts.map((account) => (
+                <div key={account.id} className="flex items-center justify-between p-3 border rounded-lg">
+                  <div>
+                    <div className="font-medium">{account.name}</div>
+                    <div className="text-sm text-muted-foreground">
+                      ID: {account.id} • {account.type} • {account.currencyCode}
+                      {account.manager && (
+                        <Badge variant="secondary" className="ml-2">Manager</Badge>
+                      )}
                     </div>
-                    </div>
-                  ))}
-              </div>
-              
-              {accounts.filter(account => 
-                !account.name.includes('Demo') && 
-                !account.name.includes('Teste') && 
-                !account.name.startsWith('Account ') &&
-                !['1111111111', '1234567890', '0987654321'].includes(account.id)
-              ).length === 0 && (
-                <div className="text-center py-8 text-muted-foreground">
-                  <div className="text-sm">Nenhuma conta real encontrada</div>
-                  <div className="text-xs mt-1">
-                    Conecte com a conta Google que administra o MCC correto
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => { setLinkCustomerId(account.id); setConnectionModalOpen(true); }}
+                      title="Abrir vinculação de cliente"
+                    >
+                      Vincular Cliente
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleLoadData(account.id, account.name)}
+                      disabled={loadingIds.has(account.id)}
+                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                      {loadingIds.has(account.id) ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        "Carregar dados"
+                      )}
+                    </Button>
                   </div>
                 </div>
-              )}
+              ))}
             </div>
           )}
-
-          {/* Instructions */}
-          <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg dark:bg-blue-900/20 dark:border-blue-800">
-            <h4 className="font-medium text-sm mb-2">🚀 Instruções - Modo Fallback Ativo</h4>
-            <div className="text-xs space-y-2">
-              <div><strong>1.</strong> Clique em "Conectar Google Ads" ou "Reconectar" com qualquer conta que tenha acesso às contas desejadas</div>
-              <div><strong>2.</strong> Após conectar, clique em "Sincronizar Contas" para listar as contas acessíveis</div>
-              <div><strong>3.</strong> Clique em "Carregar Dados" - o sistema funcionará mesmo sem MCC correto</div>
-              <div><strong>4.</strong> Vincule as contas aos seus clientes para visualizar os dados no dashboard</div>
-            </div>
-          </div>
 
           {/* Summary */}
           <div className="mt-6 p-3 bg-green-50 border border-green-200 rounded-lg dark:bg-green-900/20 dark:border-green-800">
@@ -498,6 +446,14 @@ export function GoogleAdsIntegration() {
         </CardContent>
       </Card>
 
+      {/* Connection Modal */}
+      {connectionModalOpen && (
+        <GoogleAdsConnectionModal
+          open={connectionModalOpen}
+          onOpenChange={setConnectionModalOpen}
+          prefillCustomerId={linkCustomerId || undefined}
+        />
+      )}
     </div>
   );
 }
