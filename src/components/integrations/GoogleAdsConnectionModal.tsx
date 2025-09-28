@@ -27,9 +27,10 @@ interface Connection {
 interface GoogleAdsConnectionModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  prefillCustomerId?: string;
 }
 
-export function GoogleAdsConnectionModal({ open, onOpenChange }: GoogleAdsConnectionModalProps) {
+export function GoogleAdsConnectionModal({ open, onOpenChange, prefillCustomerId }: GoogleAdsConnectionModalProps) {
   const { toast } = useToast();
   
   const [googleAccounts, setGoogleAccounts] = useState<GoogleAccount[]>([]);
@@ -40,12 +41,20 @@ export function GoogleAdsConnectionModal({ open, onOpenChange }: GoogleAdsConnec
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // Carregar dados ao abrir o modal
+  // Carregar dados ao abrir o modal e aplicar pré-seleção
   useEffect(() => {
     if (open) {
-      loadData();
+      loadData().then(() => {
+        if (prefillCustomerId) {
+          setSelectedCustomerId(prefillCustomerId);
+        }
+      });
+    } else {
+      // reset selection when closing
+      setSelectedCustomerId("");
+      setSelectedClientId("");
     }
-  }, [open]);
+  }, [open, prefillCustomerId]);
 
   const loadData = async () => {
     setLoading(true);
@@ -68,13 +77,10 @@ export function GoogleAdsConnectionModal({ open, onOpenChange }: GoogleAdsConnec
   };
 
   const loadGoogleAccounts = async () => {
-    const { data, error } = await supabase
-      .from('accounts_map')
-      .select('customer_id, account_name')
-      .order('account_name');
-    
+    const { data, error } = await supabase.rpc('list_ads_accounts');
     if (error) throw error;
-    setGoogleAccounts(data || []);
+    const rows = (data || []).filter((a: any) => !a.is_manager);
+    setGoogleAccounts(rows.map((a: any) => ({ customer_id: a.customer_id, account_name: a.name })));
   };
 
   const loadClients = async () => {
@@ -119,13 +125,10 @@ export function GoogleAdsConnectionModal({ open, onOpenChange }: GoogleAdsConnec
 
     setSaving(true);
     try {
-      const { error } = await supabase
-        .from('google_ads_connections')
-        .upsert({
-          customer_id: selectedCustomerId,
-          client_id: selectedClientId,
-          user_id: (await supabase.auth.getUser()).data.user?.id
-        });
+      const { error } = await supabase.rpc('link_ads_account', {
+        p_customer_id: selectedCustomerId,
+        p_client_id: selectedClientId,
+      });
 
       if (error) throw error;
 
@@ -153,11 +156,9 @@ export function GoogleAdsConnectionModal({ open, onOpenChange }: GoogleAdsConnec
 
   const handleDeleteConnection = async (customerId: string) => {
     try {
-      const { error } = await supabase
-        .from('google_ads_connections')
-        .delete()
-        .eq('customer_id', customerId)
-        .eq('user_id', (await supabase.auth.getUser()).data.user?.id);
+      const { error } = await supabase.rpc('unlink_ads_account', {
+        p_customer_id: customerId,
+      });
 
       if (error) throw error;
 
@@ -201,6 +202,12 @@ export function GoogleAdsConnectionModal({ open, onOpenChange }: GoogleAdsConnec
           {/* Formulário para nova vinculação */}
           <div className="space-y-4 border rounded-lg p-4 bg-muted/20">
             <h3 className="font-medium">Nova Vinculação</h3>
+
+            {clients.length === 0 && (
+              <div className="p-2 text-sm rounded bg-yellow-50 border border-yellow-200 text-yellow-800">
+                Nenhum cliente interno encontrado. Crie um cliente primeiro para vincular uma conta do Google Ads.
+              </div>
+            )}
             
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -237,7 +244,7 @@ export function GoogleAdsConnectionModal({ open, onOpenChange }: GoogleAdsConnec
                 <Select
                   value={selectedClientId}
                   onValueChange={setSelectedClientId}
-                  disabled={loading}
+                  disabled={loading || clients.length === 0}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione um cliente" />
@@ -255,7 +262,7 @@ export function GoogleAdsConnectionModal({ open, onOpenChange }: GoogleAdsConnec
 
             <Button 
               onClick={handleSaveConnection}
-              disabled={!selectedCustomerId || !selectedClientId || saving}
+              disabled={!selectedCustomerId || !selectedClientId || saving || clients.length === 0}
               className="w-full"
             >
               {saving ? "Salvando..." : "Vincular Conta"}

@@ -103,7 +103,8 @@ async function testMccManagement(accessToken: string, mccId: string, targetCusto
         'Authorization': `Bearer ${accessToken}`,
         'developer-token': developerToken,
         'Content-Type': 'application/json',
-        'login-customer-id': sanitizedMcc
+        'login-customer-id': sanitizedMcc,
+        'developer-token': Deno.env.get('GOOGLE_ADS_DEVELOPER_TOKEN') || ''
       },
       body: JSON.stringify(requestBody)
     });
