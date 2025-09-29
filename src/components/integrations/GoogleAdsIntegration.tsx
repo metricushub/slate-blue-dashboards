@@ -169,6 +169,20 @@ export function GoogleAdsIntegration() {
     }
   };
 
+  // Helper: try multiple function names (avoid adblock on 'ads')
+  const invokeFunctionWithFallback = async <T=any>(names: string[], body: any): Promise<{ data: T | null; error: any | null }> => {
+    for (const name of names) {
+      try {
+        const { data, error } = await supabase.functions.invoke(name, { body });
+        if (!error) return { data, error: null };
+      } catch (e) {
+        // continue to next
+        continue;
+      }
+    }
+    return { data: null, error: new Error('Nenhuma Edge Function disponível: ' + names.join(', ')) };
+  };
+
   // Sync accounts using the correct function
   const handleSyncAccounts = async () => {
     setIsSyncing(true);
@@ -179,9 +193,10 @@ export function GoogleAdsIntegration() {
       }
 
       console.log('📥 Sincronizando contas Google Ads...');
-      const { data, error } = await supabase.functions.invoke('google-ads-sync-accounts', {
-        body: { user_id: user.id }
-      });
+      const { data, error } = await invokeFunctionWithFallback(
+        ['ga-sync-accounts', 'google-ads-sync-accounts'],
+        { user_id: user.id }
+      );
 
       if (error) throw error;
 
@@ -196,9 +211,10 @@ export function GoogleAdsIntegration() {
 
     } catch (error: any) {
       console.error('Error syncing accounts:', error);
+      const isAdblock = String(error?.message || '').toLowerCase().includes('failed to send') || String(error?.name||'').includes('FunctionsFetchError');
       toast({
         title: 'Erro na sincronização',
-        description: error.message || 'Erro ao sincronizar contas',
+        description: isAdblock ? 'Parece que um bloqueador de anúncios impediu a chamada. Tente em janela anônima ou desative o bloqueador para este site.' : (error?.message || 'Erro ao sincronizar contas'),
         variant: 'destructive',
       });
     } finally {
@@ -237,15 +253,16 @@ export function GoogleAdsIntegration() {
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - 7);
 
-      const { data, error } = await supabase.functions.invoke('google-ads-ingest', {
-        body: {
+      const { data, error } = await invokeFunctionWithFallback(
+        ['ga-ingest', 'google-ads-ingest'],
+        {
           user_id: user.id,
           customer_id: customerId,
           start_date: startDate.toISOString().split('T')[0],
           end_date: endDate.toISOString().split('T')[0],
           allow_fallback_no_mcc: true,
         }
-      });
+      );
 
       if (error) throw error;
 
@@ -259,9 +276,10 @@ export function GoogleAdsIntegration() {
 
     } catch (error: any) {
       console.error('Error loading data:', error);
+      const isAdblock = String(error?.message || '').toLowerCase().includes('failed to send') || String(error?.name||'').includes('FunctionsFetchError');
       toast({
         title: 'Erro no carregamento',
-        description: error.message || 'Erro ao carregar dados da conta',
+        description: isAdblock ? 'Bloqueador de anúncios pode ter bloqueado a função. Tente janela anônima ou desative o bloqueador neste domínio.' : (error?.message || 'Erro ao carregar dados da conta'),
         variant: 'destructive',
       });
     } finally {
