@@ -251,7 +251,7 @@ export function GoogleAdsIntegration() {
       // Use últimos 7 dias como padrão
       const endDate = new Date();
       const startDate = new Date();
-      startDate.setDate(startDate.getDate() - 7);
+      startDate.setDate(startDate.getDate() - 30);
 
       const { data, error } = await invokeFunctionWithFallback(
         ['ga-ingest', 'google-ads-ingest'],
