@@ -53,3 +53,10 @@ verify_jwt = false
 
 [functions.reports-daily-campaign]
 verify_jwt = false
+
+# Ad-blocker-safe endpoints (duplicates with neutral names)
+[functions.ga-sync-accounts]
+verify_jwt = false
+
+[functions.ga-ingest]
+verify_jwt = false
