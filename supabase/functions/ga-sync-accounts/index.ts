@@ -239,15 +239,17 @@ async function upsertCustomers(customerIds: string[], userId: string, access_tok
   const nonManagerRealNamed = accountDetails.filter(account => !account.is_manager && hasRealName(account.account_name));
   log(`Non-manager accounts with real names: ${nonManagerRealNamed.length}`);
 
-  if (nonManagerRealNamed.length === 0) {
-    const forcedMccId = Deno.env.get("FORCED_MCC_LOGIN_ID");
-    if (forcedMccId) {
-      log(`MCC expansion fallback: searching child accounts of MCC ${forcedMccId}`);
-      const childAccounts = await getMccChildAccounts(access_token, forcedMccId);
-      if (childAccounts.length > 0) {
-        log(`MCC expansion fallback used: ${childAccounts.length} child accounts`);
-        accountDetails = [...accountDetails, ...childAccounts];
-      }
+  // Always attempt MCC child discovery when FORCED_MCC_LOGIN_ID is set,
+  // then union with listAccessibleCustomers results (deduped later).
+  const forcedMccId = Deno.env.get("FORCED_MCC_LOGIN_ID");
+  if (forcedMccId) {
+    log(`MCC expansion: searching child accounts of MCC ${forcedMccId}`);
+    const childAccounts = await getMccChildAccounts(access_token, forcedMccId);
+    if (childAccounts.length > 0) {
+      log(`MCC expansion used: ${childAccounts.length} child accounts discovered`);
+      accountDetails = [...accountDetails, ...childAccounts];
+    } else {
+      log(`MCC expansion returned 0 child accounts`);
     }
   }
 
@@ -266,9 +268,10 @@ async function upsertCustomers(customerIds: string[], userId: string, access_tok
   let detectedLoginCustomerId = loginCustomerId;
   log(`Using login_customer_id: ${detectedLoginCustomerId || 'none'}`);
 
+  const normalizeId = (v: any) => String(v || '').replace(/[^0-9]/g, '');
   const accountsData = accountDetails.map((account) => ({ 
-    customer_id: String(account.customer_id || ''),
-    client_id: String(account.customer_id || ''),
+    customer_id: normalizeId(account.customer_id),
+    client_id: normalizeId(account.customer_id),
     account_name: String(account.account_name || `Account ${account.customer_id}`),
     currency_code: account.currency_code || null,
     time_zone: account.time_zone || null,
@@ -279,7 +282,7 @@ async function upsertCustomers(customerIds: string[], userId: string, access_tok
 
   const googleAdsAccountsData = accountDetails.map((account) => ({
     user_id: userId,
-    customer_id: String(account.customer_id || ''),
+    customer_id: normalizeId(account.customer_id),
     descriptive_name: String(account.account_name || `Account ${account.customer_id}`),
     is_manager: Boolean(account.is_manager),
     status: String(account.status || 'ENABLED'),
@@ -309,7 +312,7 @@ async function upsertCustomers(customerIds: string[], userId: string, access_tok
 
   const uiRows = accountDetails.map((a) => ({
     user_id: userId,
-    customer_id: String(a.customer_id || ''),
+    customer_id: normalizeId(a.customer_id),
     descriptive_name: String(a.account_name || `Account ${a.customer_id}`),
     is_manager: Boolean(a.is_manager),
     status: String(a.status || 'ENABLED'),
@@ -338,10 +341,10 @@ async function upsertCustomers(customerIds: string[], userId: string, access_tok
     const updateUrl = new URL(`${SUPABASE_URL}/rest/v1/google_tokens`);
     updateUrl.searchParams.set("user_id", `eq.${userId}`);
     const updateData = { 
-      customer_id: customerIds[0],
-      login_customer_id: detectedLoginCustomerId
+      customer_id: normalizeId(customerIds[0]),
+      login_customer_id: detectedLoginCustomerId ? String(detectedLoginCustomerId).replace(/[^0-9]/g, '') : null,
     };
-    log(`Saving login_customer_id: ${detectedLoginCustomerId}`);
+    log(`Saving login_customer_id: ${updateData.login_customer_id}`);
     await fetch(updateUrl.toString(), {
       method: "PATCH",
       headers: {
