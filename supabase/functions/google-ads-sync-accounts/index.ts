@@ -356,35 +356,6 @@ async function upsertCustomers(customerIds: string[], userId: string, access_tok
     throw new Error(`db_upsert_ui ${r2.status}: ${err}`);
   }
 
-  // 2) Upsert também em google_ads_accounts (fonte da view v_ads_accounts_ui)
-  const uiRows = accountDetails.map((a) => ({
-    user_id: userId,
-    customer_id: String(a.customer_id || ''),
-    descriptive_name: String(a.account_name || `Account ${a.customer_id}`),
-    is_manager: Boolean(a.is_manager),
-    status: String(a.status || 'ENABLED'),
-    currency_code: a.currency_code || null,
-    time_zone: a.time_zone || null,
-    updated_at: new Date().toISOString(),
-  }));
-
-  const upsertUiUrl = `${SUPABASE_URL}/rest/v1/google_ads_accounts?on_conflict=user_id,customer_id`;
-  const r2 = await fetch(upsertUiUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      apikey: SERVICE_KEY,
-      Authorization: `Bearer ${SERVICE_KEY}`,
-      Prefer: "resolution=merge-duplicates,return=representation",
-    },
-    body: JSON.stringify(uiRows),
-  });
-
-  if (!r2.ok && r2.status !== 409) {
-    const err2 = await r2.text();
-    throw new Error(`db_upsert_ui ${r2.status}: ${err2}`);
-  }
-
   // Always save the correct MCC in database (2478435835)
   if (customerIds.length > 0) {
     const updateUrl = new URL(`${SUPABASE_URL}/rest/v1/google_tokens`);
