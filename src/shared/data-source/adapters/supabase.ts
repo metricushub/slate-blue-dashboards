@@ -256,12 +256,27 @@ export class SupabaseAdapter implements DataSource {
     };
   }
 
+  private normalizePlatform(p: string | null | undefined): 'google' | 'meta' | 'linkedin' | 'tiktok' | 'all' | any {
+    const v = (p || '').toLowerCase();
+    if (v === 'google_ads' || v === 'google') return 'google';
+    if (v === 'meta_ads' || v === 'meta') return 'meta';
+    return p as any;
+  }
+
+  private normalizeStatus(s: string | null | undefined): 'active' | 'paused' | 'draft' | 'ended' | any {
+    const v = (s || '').toUpperCase();
+    if (v === 'ENABLED' || v === 'ACTIVE') return 'active';
+    if (v === 'PAUSED') return 'paused';
+    if (v === 'REMOVED' || v === 'ENDED') return 'ended';
+    return s as any;
+  }
+
   private mapSupabaseMetric(row: any): MetricRow {
     return {
       date: row.date,
       clientId: row.client_id,
       campaignId: row.campaign_id,
-      platform: row.platform,
+      platform: this.normalizePlatform(row.platform),
       impressions: Number(row.impressions || 0),
       clicks: Number(row.clicks || 0),
       spend: Number(row.spend || 0),
@@ -279,9 +294,9 @@ export class SupabaseAdapter implements DataSource {
     return {
       id: row.id,
       clientId: row.client_id,
-      platform: row.platform,
+      platform: this.normalizePlatform(row.platform),
       name: row.name,
-      status: row.status,
+      status: this.normalizeStatus(row.status),
       objective: row.objective,
       lastSync: row.last_sync || new Date().toISOString()
     };

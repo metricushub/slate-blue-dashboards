@@ -19,6 +19,7 @@ interface MetricData {
   date: string;
   campaign_id: string;
   campaign_name: string;
+  campaign_status?: string;
   impressions: number;
   clicks: number;
   cost: number;
@@ -198,6 +199,7 @@ async function runGoogleAdsQuery(accessToken: string, customerId: string, query:
         date: segments.date || new Date().toISOString().split('T')[0],
         campaign_id: String(campaign.id ?? 'unknown'),
         campaign_name: String(campaign.name ?? 'Unknown Campaign'),
+        campaign_status: String(campaign.status ?? 'ENABLED'),
         impressions: Number(m.impressions ?? 0),
         clicks: Number(m.clicks ?? 0),
         cost: Number(m.cost_micros ?? 0) / 1_000_000,
@@ -264,6 +266,24 @@ async function sendToIngestEndpoint(metrics: MetricData[], customerId: string): 
   const data = await response.json();
   log('Ingest successful:', data);
   return data;
+}
+
+async function sendCampaignsToIngest(campaigns: Array<{ external_id: string; client_id: string; platform: 'google_ads'; name: string; status: 'ENABLED'|'PAUSED'|'REMOVED'; objective?: string | null; }>): Promise<any> {
+  const METRICUS_INGEST_KEY = Deno.env.get("METRICUS_INGEST_KEY");
+  if (!METRICUS_INGEST_KEY) {
+    throw new Error('Configure METRICUS_INGEST_KEY nas envs das Functions.');
+  }
+  const ingestUrl = `${SUPABASE_URL}/functions/v1/ingest-campaigns`;
+  const res = await fetch(ingestUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-api-key': METRICUS_INGEST_KEY },
+    body: JSON.stringify(campaigns),
+  });
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(`Ingest campaigns error: ${res.status} - ${txt}`);
+  }
+  return res.json();
 }
 
 serve(async (req) => {
@@ -378,6 +398,53 @@ serve(async (req) => {
       if (metrics.length > 0) {
         const ingestResult = await sendToIngestEndpoint(metrics, customer_id);
         log('Ingest completed', ingestResult);
+
+        // Also upsert campaigns so the Campaigns table populates
+        try {
+          const sanitizedCustomer = customer_id.replace(/-/g, '');
+          const { data: connection } = await supabase
+            .from('google_ads_connections')
+            .select('client_id')
+            .eq('customer_id', sanitizedCustomer)
+            .maybeSingle();
+
+          const linkedClientId: string | undefined = connection?.client_id;
+
+          if (linkedClientId) {
+            const statusMap = (s: string): 'ENABLED'|'PAUSED'|'REMOVED' => {
+              const up = (s || '').toUpperCase();
+              if (up.includes('PAUS')) return 'PAUSED';
+              if (up.includes('REMOV')) return 'REMOVED';
+              return 'ENABLED';
+            };
+
+            const unique = new Map<string, { external_id: string; client_id: string; platform: 'google_ads'; name: string; status: 'ENABLED'|'PAUSED'|'REMOVED'; objective?: string | null; }>();
+            for (const m of metrics) {
+              const key = m.campaign_id;
+              if (!unique.has(key)) {
+                unique.set(key, {
+                  external_id: m.campaign_id,
+                  client_id: linkedClientId,
+                  platform: 'google_ads',
+                  name: m.campaign_name,
+                  status: statusMap(m.campaign_status || 'ENABLED'),
+                  objective: null,
+                });
+              }
+            }
+
+            const campaignsPayload = Array.from(unique.values());
+            if (campaignsPayload.length > 0) {
+              log(`Upserting ${campaignsPayload.length} campaigns for client ${linkedClientId}`);
+              await sendCampaignsToIngest(campaignsPayload);
+              log('Campaigns ingest completed');
+            }
+          } else {
+            log('No client linkage found for customer; skipping campaign upsert');
+          }
+        } catch (e) {
+          log('Campaigns upsert skipped/failed:', e);
+        }
       }
 
       // Update ingestion record as completed

@@ -2,9 +2,8 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-// Duplicate of google-ads-sync-accounts with ad-blocker-safe name
-// Reads refresh_token from current user → renews access_token → calls listAccessibleCustomers
-// → saves ALL customer_ids (without prefix) with details in accounts_map (upsert)
+// Neutral-named duplicate of google-ads-sync-accounts to avoid ad-blockers
+// Logic mirrors the original implementation
 
 const SUPABASE_URL  = Deno.env.get("SUPABASE_URL") || "";
 const SERVICE_KEY   = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
@@ -28,7 +27,7 @@ async function getLatestRefreshToken(user_id: string) {
   const resp = await fetch(url.toString(), {
     headers: { apikey: AUTH_KEY, Authorization: `Bearer ${AUTH_KEY}` },
   });
-  if (!resp.ok) throw new Error(`db_select ${resp.status}: ${await resp.text()}`);
+  if (!resp.ok) throw new Error(`db_select ${await resp.text()}`);
 
   const rows = await resp.json();
   if (!rows?.length || !rows[0]?.refresh_token) throw new Error("no_refresh_token_found_for_user");
@@ -78,14 +77,12 @@ async function listAccessibleCustomers(access_token: string) {
 
 async function getAccountDetails(access_token: string, customerIds: string[], loginCustomerId?: string | null) {
   if (!DEV_TOKEN) throw new Error("dev_token_missing");
-  
   const accountDetails: any[] = [];
   const baseHeaders: Record<string,string> = {
     'Authorization': `Bearer ${access_token}`,
     'developer-token': DEV_TOKEN,
     'Content-Type': 'application/json',
   };
-  
   if (loginCustomerId) {
     const sanitizedMccId = loginCustomerId.replace(/-/g, '');
     baseHeaders['login-customer-id'] = sanitizedMccId;
@@ -93,12 +90,10 @@ async function getAccountDetails(access_token: string, customerIds: string[], lo
   } else {
     log('WARNING: No login-customer-id provided - account names may be generic');
   }
-  
-  // Log headers for debugging (without exposing access token)
   const logHeaders = { ...baseHeaders };
   logHeaders.Authorization = 'Bearer [REDACTED]';
   log(`Account details request headers:`, logHeaders);
-  
+
   for (const customerId of customerIds) {
     try {
       const query = `
@@ -112,13 +107,11 @@ async function getAccountDetails(access_token: string, customerIds: string[], lo
         FROM customer 
         WHERE customer.id = ${customerId}
       `;
-      
       const response = await fetch(`${ADS_API_BASE}/customers/${customerId}/googleAds:searchStream`, {
         method: 'POST',
         headers: baseHeaders,
         body: JSON.stringify({ query })
       });
-      
       if (response.ok) {
         const payload = await response.json();
         const streams = Array.isArray(payload) ? payload : [payload];
@@ -127,11 +120,9 @@ async function getAccountDetails(access_token: string, customerIds: string[], lo
           const row = (stream.results || [])[0];
           if (row?.customer) { customerData = row.customer; break; }
         }
-        
         if (customerData) {
           const realName = customerData.descriptive_name;
           log(`Account ${customerId}: ${realName || 'no name'} (manager: ${Boolean(customerData.manager)})`);
-          
           accountDetails.push({
             customer_id: String(customerId),
             account_name: String(realName || `Account ${customerId}`),
@@ -154,13 +145,9 @@ async function getAccountDetails(access_token: string, customerIds: string[], lo
       } else {
         const errorText = await response.text();
         log(`Account ${customerId} query failed (${response.status}): ${errorText}`);
-        
-        // Check for specific permission errors
         if (response.status === 403 && errorText.includes('USER_PERMISSION_DENIED')) {
           log(`HINT: Account ${customerId} requires login-customer-id header (MCC parent account)`);
         }
-        
-        // Fallback se não conseguir buscar detalhes
         accountDetails.push({
           customer_id: String(customerId),
           account_name: `Account ${customerId}`,
@@ -172,7 +159,6 @@ async function getAccountDetails(access_token: string, customerIds: string[], lo
       }
     } catch (error) {
       log(`Error getting details for ${customerId}:`, error);
-      // Fallback
       accountDetails.push({
         customer_id: String(customerId),
         account_name: `Account ${customerId}`,
@@ -183,13 +169,11 @@ async function getAccountDetails(access_token: string, customerIds: string[], lo
       });
     }
   }
-  
   return accountDetails;
 }
 
 async function getMccChildAccounts(access_token: string, mccId: string) {
   if (!DEV_TOKEN) throw new Error("dev_token_missing");
-  
   const sanitizedMccId = mccId.replace(/-/g, '');
   const headers = {
     'Authorization': `Bearer ${access_token}`,
@@ -197,7 +181,6 @@ async function getMccChildAccounts(access_token: string, mccId: string) {
     'login-customer-id': sanitizedMccId,
     'Content-Type': 'application/json'
   };
-
   const query = `
     SELECT 
       customer_client.client_customer,
@@ -208,7 +191,6 @@ async function getMccChildAccounts(access_token: string, mccId: string) {
     FROM customer_client 
     WHERE customer_client.level <= 1
   `;
-
   try {
     log(`Searching MCC ${sanitizedMccId} for child accounts...`);
     const response = await fetch(`${ADS_API_BASE}/customers/${sanitizedMccId}/googleAds:search`, {
@@ -216,16 +198,13 @@ async function getMccChildAccounts(access_token: string, mccId: string) {
       headers,
       body: JSON.stringify({ query })
     });
-
     if (!response.ok) {
       const errorText = await response.text();
       log(`MCC child search failed (${response.status}): ${errorText}`);
       return [];
     }
-
     const result = await response.json();
     const childAccounts: any[] = [];
-
     if (result.results) {
       for (const row of result.results) {
         const client = row.customerClient;
@@ -243,7 +222,6 @@ async function getMccChildAccounts(access_token: string, mccId: string) {
         }
       }
     }
-
     return childAccounts;
   } catch (error) {
     log(`Error searching MCC child accounts: ${error}`);
@@ -254,29 +232,27 @@ async function getMccChildAccounts(access_token: string, mccId: string) {
 async function upsertCustomers(customerIds: string[], userId: string, access_token: string, loginCustomerId?: string | null) {
   if (!SUPABASE_URL || !SERVICE_KEY) throw new Error("service_role_required_for_upsert");
 
-  // Get detailed account information
   log(`Getting details for ${customerIds.length} accounts...`);
   let accountDetails = await getAccountDetails(access_token, customerIds, loginCustomerId);
-  
-  // Check if we have non-manager accounts with real names (not generic)
+
   const hasRealName = (n: any) => !!n && !String(n).startsWith('Account ');
   const nonManagerRealNamed = accountDetails.filter(account => !account.is_manager && hasRealName(account.account_name));
   log(`Non-manager accounts with real names: ${nonManagerRealNamed.length}`);
-  
-  // MCC expansion fallback if no real non-manager accounts found
-  if (nonManagerRealNamed.length === 0) {
-    const forcedMccId = Deno.env.get("FORCED_MCC_LOGIN_ID");
-    if (forcedMccId) {
-      log(`MCC expansion fallback: searching child accounts of MCC ${forcedMccId}`);
-      const childAccounts = await getMccChildAccounts(access_token, forcedMccId);
-      if (childAccounts.length > 0) {
-        log(`MCC expansion fallback used: ${childAccounts.length} child accounts`);
-        accountDetails = [...accountDetails, ...childAccounts];
-      }
+
+  // Always attempt MCC child discovery when FORCED_MCC_LOGIN_ID is set,
+  // then union with listAccessibleCustomers results (deduped later).
+  const forcedMccId = Deno.env.get("FORCED_MCC_LOGIN_ID");
+  if (forcedMccId) {
+    log(`MCC expansion: searching child accounts of MCC ${forcedMccId}`);
+    const childAccounts = await getMccChildAccounts(access_token, forcedMccId);
+    if (childAccounts.length > 0) {
+      log(`MCC expansion used: ${childAccounts.length} child accounts discovered`);
+      accountDetails = [...accountDetails, ...childAccounts];
+    } else {
+      log(`MCC expansion returned 0 child accounts`);
     }
   }
-  
-  // De-duplicate by customer_id, prefer entries with real names
+
   const byId = new Map<string, any>();
   for (const acc of accountDetails) {
     const id = String(acc.customer_id || '');
@@ -288,16 +264,14 @@ async function upsertCustomers(customerIds: string[], userId: string, access_tok
     }
   }
   accountDetails = Array.from(byId.values());
-  
-  // Always use the provided MCC (2478435835)
+
   let detectedLoginCustomerId = loginCustomerId;
-  
   log(`Using login_customer_id: ${detectedLoginCustomerId || 'none'}`);
-  
-  // Save to accounts_map table with real account details
+
+  const normalizeId = (v: any) => String(v || '').replace(/[^0-9]/g, '');
   const accountsData = accountDetails.map((account) => ({ 
-    customer_id: String(account.customer_id || ''),
-    client_id: String(account.customer_id || ''),
+    customer_id: normalizeId(account.customer_id),
+    client_id: normalizeId(account.customer_id),
     account_name: String(account.account_name || `Account ${account.customer_id}`),
     currency_code: account.currency_code || null,
     time_zone: account.time_zone || null,
@@ -306,10 +280,9 @@ async function upsertCustomers(customerIds: string[], userId: string, access_tok
     status: String(account.status || 'ENABLED')
   }));
 
-  // Prepare data for google_ads_accounts table (UI source)
   const googleAdsAccountsData = accountDetails.map((account) => ({
     user_id: userId,
-    customer_id: String(account.customer_id || ''),
+    customer_id: normalizeId(account.customer_id),
     descriptive_name: String(account.account_name || `Account ${account.customer_id}`),
     is_manager: Boolean(account.is_manager),
     status: String(account.status || 'ENABLED'),
@@ -321,7 +294,6 @@ async function upsertCustomers(customerIds: string[], userId: string, access_tok
   const mccAccounts = accountDetails.filter(account => account.is_manager);
   log(`MCC accounts found: ${mccAccounts.length}`);
 
-  // Upsert to accounts_map
   const upsertUrl = `${SUPABASE_URL}/rest/v1/accounts_map?on_conflict=customer_id`;
   const r = await fetch(upsertUrl, {
     method: "POST",
@@ -333,15 +305,24 @@ async function upsertCustomers(customerIds: string[], userId: string, access_tok
     },
     body: JSON.stringify(accountsData),
   });
-
   if (!r.ok && r.status !== 409) {
     const err = await r.text();
     throw new Error(`db_upsert_accounts_map ${r.status}: ${err}`);
   }
 
-  // Upsert to google_ads_accounts (UI source)
-  const upsertGoogleAdsUrl = `${SUPABASE_URL}/rest/v1/google_ads_accounts?on_conflict=user_id,customer_id`;
-  const r2 = await fetch(upsertGoogleAdsUrl, {
+  const uiRows = accountDetails.map((a) => ({
+    user_id: userId,
+    customer_id: normalizeId(a.customer_id),
+    descriptive_name: String(a.account_name || `Account ${a.customer_id}`),
+    is_manager: Boolean(a.is_manager),
+    status: String(a.status || 'ENABLED'),
+    currency_code: a.currency_code || null,
+    time_zone: a.time_zone || null,
+    updated_at: new Date().toISOString(),
+  }));
+
+  const upsertUiUrl = `${SUPABASE_URL}/rest/v1/google_ads_accounts?on_conflict=user_id,customer_id`;
+  const r3 = await fetch(upsertUiUrl, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -349,26 +330,21 @@ async function upsertCustomers(customerIds: string[], userId: string, access_tok
       Authorization: `Bearer ${SERVICE_KEY}`,
       Prefer: "resolution=merge-duplicates,return=representation",
     },
-    body: JSON.stringify(googleAdsAccountsData),
+    body: JSON.stringify(uiRows),
   });
-
-  if (!r2.ok && r2.status !== 409) {
-    const err = await r2.text();
-    throw new Error(`db_upsert_ui ${r2.status}: ${err}`);
+  if (!r3.ok && r3.status !== 409) {
+    const err2 = await r3.text();
+    throw new Error(`db_upsert_ui ${r3.status}: ${err2}`);
   }
 
-  // Always save the correct MCC in database (2478435835)
   if (customerIds.length > 0) {
     const updateUrl = new URL(`${SUPABASE_URL}/rest/v1/google_tokens`);
     updateUrl.searchParams.set("user_id", `eq.${userId}`);
-    
     const updateData = { 
-      customer_id: customerIds[0],
-      login_customer_id: detectedLoginCustomerId
+      customer_id: normalizeId(customerIds[0]),
+      login_customer_id: detectedLoginCustomerId ? String(detectedLoginCustomerId).replace(/[^0-9]/g, '') : null,
     };
-    
-    log(`Saving login_customer_id: ${detectedLoginCustomerId}`);
-    
+    log(`Saving login_customer_id: ${updateData.login_customer_id}`);
     await fetch(updateUrl.toString(), {
       method: "PATCH",
       headers: {
@@ -387,7 +363,6 @@ serve(async (req) => {
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   } as const;
 
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -396,7 +371,6 @@ serve(async (req) => {
   log("REQ", { path: url.pathname });
 
   try {
-    // Identify current user via Supabase Auth header
     const supabaseAuth = createClient(
       SUPABASE_URL,
       ANON_KEY,
@@ -417,7 +391,6 @@ serve(async (req) => {
     const ids = await listAccessibleCustomers(access);
     log(`Found ${ids.length} accessible customer accounts: ${ids.join(', ')}`);
     
-    // Prefer saved login_customer_id for better names; do not force a global MCC
     const preferredMcc = tokenData.login_customer_id || Deno.env.get("FORCED_MCC_LOGIN_ID") || undefined;
     
     log("Step 4: Upserting customers with detailed account information...");
