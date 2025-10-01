@@ -71,21 +71,23 @@ export function ChatIaPanel({ isOpen, onClose, client }: ChatIaPanelProps) {
     setInput("");
     setIsLoading(true);
 
-    // Generate data-driven response
-    setTimeout(async () => {
-      let aiResponse = "";
+    try {
+      const { supabase } = await import("@/integrations/supabase/client");
+      
+      const { data, error } = await supabase.functions.invoke('chat-ai-client', {
+        body: {
+          message: content.trim(),
+          clientId: client.id,
+          clientName: client.name,
+        },
+      });
 
-      if (content.toLowerCase().includes('resumo do período') || content.toLowerCase().includes('gerar resumo')) {
-        aiResponse = await generatePeriodSummary(client.id);
-      } else if (content.toLowerCase().includes('picos') || content.toLowerCase().includes('vales')) {
-        aiResponse = "📈 **Análise de Picos e Vales:**\n\n• Pico de ROAS: 4.2x na segunda semana\n• Vale de CPL: R$ 45 (meta: R$ 80)\n• Variação semanal de investimento: 12% ↑\n• Campanhas com maior volatilidade: Google Search";
-      } else if (content.toLowerCase().includes('top') && content.toLowerCase().includes('cpl')) {
-        aiResponse = "🎯 **Top 5 Campanhas por CPL:**\n\n1. Shopping Geral - R$ 32\n2. Search Brand - R$ 38\n3. Display Remarketing - R$ 42\n4. Facebook Interesse - R$ 48\n5. YouTube Discovery - R$ 55\n\n💡 CPL médio atual: R$ 43 (meta: R$ 80)";
-      } else if (content.toLowerCase().includes('sem conversões')) {
-        aiResponse = "⚠️ **Campanhas sem conversões (7 dias):**\n\n• Display Prospecting (0 leads, R$ 280 gasto)\n• Facebook Lookalike (0 leads, R$ 120 gasto)\n\n🔧 **Sugestões:**\n• Revisar segmentação\n• Verificar pixel de conversão\n• Pausar até ajustes";
-      } else {
-        aiResponse = `🤖 **Análise para ${client.name}:**\n\nSua pergunta: "${content}"\n\n📊 **Contexto atual:**\n• Período analisado: Últimos 30 dias\n• Plataformas ativas: Google Ads, Meta\n• Campanhas monitoradas: 12\n\n💡 Em breve terei acesso completo aos dados para insights mais precisos!`;
+      if (error) {
+        console.error('[ChatIaPanel] Error calling AI:', error);
+        throw error;
       }
+
+      const aiResponse = data?.response || 'Desculpe, não consegui processar sua solicitação. Tente novamente.';
 
       const response: Message = {
         id: `msg_${Date.now()}_ai`,
@@ -95,13 +97,26 @@ export function ChatIaPanel({ isOpen, onClose, client }: ChatIaPanelProps) {
       };
 
       setMessages(prev => [...prev, response]);
+    } catch (error) {
+      console.error('[ChatIaPanel] Error:', error);
+      
+      const errorResponse: Message = {
+        id: `msg_${Date.now()}_ai_error`,
+        content: '❌ Desculpe, ocorreu um erro ao processar sua solicitação. Por favor, tente novamente.',
+        type: 'assistant',
+        timestamp: new Date(),
+      };
+      
+      setMessages(prev => [...prev, errorResponse]);
+      
+      toast({
+        title: "Erro na IA",
+        description: "Não foi possível obter resposta da IA. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
       setIsLoading(false);
-    }, 1200);
-  };
-
-  const generatePeriodSummary = async (clientId: string): Promise<string> => {
-    // Mock data analysis - in real app this would use actual metrics
-    return `📊 **Resumo do Período - ${client.name}**\n\n**📈 Performance Geral:**\n• Total investido: R$ 12.450\n• Leads gerados: 284 (+18% vs período anterior)\n• CPL médio: R$ 43.8 (meta: R$ 80) ✅\n• ROAS médio: 3.2x (meta: 2.5x) ✅\n\n**🏆 Top 3 Campanhas (ROAS):**\n• Search Brand: 5.8x\n• Shopping Geral: 4.2x\n• Remarketing: 3.9x\n\n**⚠️ Atenção:**\n• Display Prospecting: CPL R$ 95 (acima da meta)\n• Facebook Interesse: ROAS 1.8x (abaixo da meta)\n\n**📅 Tendências Semanais:**\n• Semana 1: Investimento baixo, CPL alto\n• Semana 2: Pico de performance\n• Semana 3: Estabilização\n• Semana 4: Leve queda no ROAS\n\n**🎯 Próximos Passos:**\n• Otimizar campanhas com CPL alto\n• Escalar top performers\n• Testar novos criativos`;
+    }
   };
 
   const handleQuickPrompt = (prompt: string) => {

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Bot } from "lucide-react";
 import { useDataSource } from "@/hooks/useDataSource";
 import { Client } from "@/types";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
@@ -11,6 +11,7 @@ import { KPIGrid } from "@/components/dashboard/KPIGrid";
 import { TrendChart } from "@/components/dashboard/TrendChart";
 import { CampaignTable } from "@/components/dashboard/CampaignTable";
 import { AlertList } from "@/components/dashboard/AlertList";
+import { ChatIaPanel } from "./overview/ChatIaPanel";
 import { toast } from "@/hooks/use-toast";
 
 const ClientDashboard = () => {
@@ -26,6 +27,9 @@ const ClientDashboard = () => {
 
   // Selected metric
   const [selectedMetric, setSelectedMetric] = useState('LEADS');
+  
+  // Chat IA state
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   const loadClient = async () => {
     if (!clientId) return;
@@ -102,7 +106,20 @@ const ClientDashboard = () => {
     <div className="min-h-screen bg-dashboard">
       <div className="p-6 space-y-6">
         {/* Header */}
-        <DashboardHeader client={client} />
+        <div className="relative">
+          <DashboardHeader client={client} />
+          
+          {/* Floating AI Chat Button */}
+          <div className="absolute top-6 right-6">
+            <Button
+              onClick={() => setIsChatOpen(true)}
+              className="bg-gradient-to-r from-[#22c55e] to-[#16a34a] hover:from-[#16a34a] hover:to-[#15803d] text-white shadow-lg"
+            >
+              <Bot className="h-4 w-4 mr-2" />
+              Chat IA
+            </Button>
+          </div>
+        </div>
 
         {/* Filters Toolbar */}
         <FiltersToolbar
@@ -150,6 +167,13 @@ const ClientDashboard = () => {
           </div>
         </div>
       </div>
+      
+      {/* Chat IA Panel */}
+      <ChatIaPanel 
+        isOpen={isChatOpen} 
+        onClose={() => setIsChatOpen(false)} 
+        client={client} 
+      />
     </div>
   );
 };

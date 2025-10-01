@@ -1,5 +1,8 @@
 project_id = "zoahzxfjefjmkxylbfxf"
 
+[functions.chat-ai-client]
+verify_jwt = false
+
 [functions.ingest-metrics]
 verify_jwt = false
 
